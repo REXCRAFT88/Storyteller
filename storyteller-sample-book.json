@@ -2,11 +2,433 @@
   "nextPageId": 31,
   "nextChapterId": 6,
   "nextTagId": 0,
-  "activeChapterId": 2,
+  "nextCollectionId": 3,
+  "activeChapterId": 5,
   "currentTimeOfDay": "day",
+  "chapters": [
+    {
+      "id": "index",
+      "name": "Index",
+      "isIndex": true,
+      "isStarred": false,
+      "pageIds": [],
+      "chapterKeywords": [],
+      "tagIds": [],
+      "autoPlayPageIds": [],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "index"
+    },
+    {
+      "id": "index",
+      "name": "Index",
+      "isIndex": true,
+      "isStarred": false,
+      "pageIds": [],
+      "chapterKeywords": [],
+      "tagIds": [],
+      "autoPlayPageIds": [],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "index"
+    },
+    {
+      "id": "index",
+      "name": "Index",
+      "isIndex": true,
+      "isStarred": false,
+      "pageIds": [],
+      "chapterKeywords": [],
+      "tagIds": [],
+      "autoPlayPageIds": [],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "index"
+    },
+    {
+      "id": 4,
+      "name": "Combat",
+      "isIndex": false,
+      "isStarred": true,
+      "pageIds": [
+        10,
+        8,
+        7,
+        6,
+        19,
+        20,
+        21,
+        22
+      ],
+      "chapterKeywords": [
+        "combat",
+        "initiative",
+        "war",
+        "battle"
+      ],
+      "tagIds": [],
+      "autoPlayPageIds": [],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "index"
+    },
+    {
+      "id": 2,
+      "name": "Forest",
+      "isIndex": false,
+      "isStarred": false,
+      "pageIds": [
+        4,
+        5,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "chapterKeywords": [
+        "forest",
+        "woods"
+      ],
+      "tagIds": [
+        "tag_0"
+      ],
+      "autoPlayPageIds": [
+        4
+      ],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "3"
+    },
+    {
+      "id": 3,
+      "name": "Tavern",
+      "isIndex": false,
+      "isStarred": false,
+      "pageIds": [
+        0,
+        1,
+        2,
+        11,
+        24,
+        25,
+        13
+      ],
+      "chapterKeywords": [
+        "tavern",
+        "bar"
+      ],
+      "tagIds": [
+        "tag_1"
+      ],
+      "autoPlayPageIds": [
+        1,
+        0
+      ],
+      "leaveSoundPageIds": [
+        1
+      ],
+      "leaveTransitionTargetId": "5"
+    },
+    {
+      "id": 5,
+      "name": "Town",
+      "isIndex": false,
+      "isStarred": false,
+      "pageIds": [
+        23
+      ],
+      "chapterKeywords": [
+        "market",
+        "town",
+        "street"
+      ],
+      "tagIds": [
+        "tag_0"
+      ],
+      "autoPlayPageIds": [
+        23
+      ],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "2"
+    }
+  ],
+  "storyPlot": {
+    "nodes": [
+      {
+        "id": "plotNode_0",
+        "chapterId": "index",
+        "x": 50,
+        "y": 50
+      },
+      {
+        "id": "plotNode_1",
+        "chapterId": 4,
+        "x": 347.56318771405773,
+        "y": 141.82776112892222
+      },
+      {
+        "id": "plotNode_2",
+        "chapterId": 2,
+        "x": 685.8302841134549,
+        "y": 293.08798858566735
+      },
+      {
+        "id": "plotNode_3",
+        "chapterId": 3,
+        "x": 118.20123378634113,
+        "y": 264.02808342847015
+      },
+      {
+        "id": "plotNode_4",
+        "chapterId": 5,
+        "x": 383.5212928820036,
+        "y": 420.8569543771284
+      }
+    ],
+    "threads": [
+      {
+        "id": "plotThread_1",
+        "title": null,
+        "fromNodeId": "plotNode_2",
+        "toNodeId": "plotNode_1",
+        "transitionPhrases": [],
+        "keywords": [
+          "bear howling"
+        ],
+        "soundPageIds": [
+          14
+        ],
+        "timeCondition": "always",
+        "timeChange": "none",
+        "enableReturn": true,
+        "returnKeywordType": "chapter",
+        "conditions": [
+          {
+            "type": "page_inactive",
+            "params": {
+              "pageId": 17
+            }
+          }
+        ],
+        "disableAutoplay": true
+      },
+      {
+        "id": "plotThread_2",
+        "title": null,
+        "fromNodeId": "plotNode_1",
+        "toNodeId": "plotNode_3",
+        "transitionPhrases": [],
+        "keywords": [],
+        "soundPageIds": [],
+        "timeCondition": "always",
+        "timeChange": "none",
+        "enableReturn": false,
+        "returnKeywordType": "thread"
+      },
+      {
+        "id": "plotThread_3",
+        "title": null,
+        "fromNodeId": "plotNode_3",
+        "toNodeId": "plotNode_4",
+        "transitionPhrases": [],
+        "keywords": [
+          "taco",
+          "tolbert"
+        ],
+        "soundPageIds": [
+          10,
+          21
+        ],
+        "timeCondition": "always",
+        "timeChange": "toggle",
+        "enableReturn": true,
+        "returnKeywordType": "both",
+        "conditions": [
+          {
+            "type": "page_inactive",
+            "params": {
+              "pageId": 11
+            }
+          },
+          {
+            "type": "page_active",
+            "params": {
+              "pageId": 2
+            }
+          },
+          {
+            "type": "time_is",
+            "params": {
+              "time": "night"
+            }
+          }
+        ],
+        "disableAutoplay": false
+      },
+      {
+        "id": "plotThread_4",
+        "title": "sneak",
+        "fromNodeId": "plotNode_4",
+        "toNodeId": "plotNode_2",
+        "transitionPhrases": [
+          "you sneak into the woods"
+        ],
+        "keywords": [],
+        "soundPageIds": [
+          19,
+          15
+        ],
+        "timeCondition": "always",
+        "timeChange": "night",
+        "enableReturn": true,
+        "returnKeywordType": "thread",
+        "conditions": [
+          {
+            "type": "page_active",
+            "params": {
+              "pageId": 23
+            }
+          },
+          {
+            "type": "time_is",
+            "params": {
+              "time": "day"
+            }
+          }
+        ],
+        "disableAutoplay": false
+      }
+    ],
+    "nextPlotNodeId": 5,
+    "nextPlotThreadId": 5,
+    "viewTransform": {
+      "x": -21.41016091290726,
+      "y": 49.798315310808675,
+      "scale": 1.0252718826976903
+    }
+  },
+  "collections": [
+    {
+      "id": "coll_0",
+      "name": "Weather",
+      "isStarred": false,
+      "isCollapsed": false,
+      "pageIds": [
+        14,
+        15,
+        12,
+        13
+      ],
+      "tagIds": [
+        "tag_0"
+      ],
+      "tagMatchRule": "any"
+    },
+    {
+      "id": "coll_1",
+      "name": "Bow & Arrow",
+      "isStarred": false,
+      "isCollapsed": false,
+      "pageIds": [
+        10,
+        8,
+        7,
+        6
+      ],
+      "tagIds": [],
+      "tagMatchRule": "any"
+    },
+    {
+      "id": "coll_2",
+      "name": "Swords",
+      "isStarred": false,
+      "isCollapsed": false,
+      "pageIds": [
+        21,
+        19,
+        20
+      ],
+      "tagIds": [],
+      "tagMatchRule": "any"
+    }
+  ],
+  "appendix": [
+    {
+      "id": "appendix_0dd712f5-9085-4dbe-be5e-7246c1d8a97a",
+      "name": "Thunderwhip",
+      "trigger": {
+        "type": "phrase",
+        "phrases": [
+          "thunder whip"
+        ]
+      },
+      "effects": [
+        {
+          "id": "effect_14b5e90d-2c6b-4574-a3ef-d0eebbca665b",
+          "type": "start_pages",
+          "params": {
+            "playSequentially": true
+          },
+          "target": {
+            "pages": [
+              {
+                "pageId": 8,
+                "variationId": null
+              },
+              {
+                "pageId": 7,
+                "variationId": null
+              }
+            ]
+          }
+        },
+        {
+          "id": "effect_6c29e6df-4955-47e6-8246-48a87e04c24c",
+          "type": "increase_volume",
+          "params": {
+            "amount": 10
+          },
+          "target": {
+            "pages": [],
+            "targetType": "pages"
+          }
+        },
+        {
+          "id": "effect_f6a4ef6f-b1bd-4b87-ae75-b6fbd54506c3",
+          "type": "change_chapter",
+          "params": {
+            "chapterId": "index"
+          },
+          "target": {
+            "pages": []
+          }
+        },
+        {
+          "id": "effect_4d658da3-f4b7-4a10-99a3-47e12eb521a8",
+          "type": "toggle_time",
+          "params": {},
+          "target": {
+            "pages": []
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "type": "page_active",
+          "params": {
+            "pageId": 22
+          }
+        },
+        {
+          "type": "page_inactive",
+          "params": {
+            "pageId": 6
+          }
+        }
+      ]
+    }
+  ],
   "settings": {
     "listeningMode": "toggle",
-    "smartFiltering": true,
     "compoundPhrasing": true,
     "accuracyThreshold": 0.7,
     "stopAudioMode": "indexContinue",
@@ -34,8 +456,23 @@
       "sun sets",
       "night falls"
     ],
-    "syrinscapeAuthToken": "",
-    "chapterTags": []
+    "syrinscapeAuthToken": null,
+    "appendix": [],
+    "chapterTags": [
+      {
+        "id": "tag_2",
+        "name": "bar"
+      },
+      {
+        "id": "tag_1",
+        "name": "indoor"
+      },
+      {
+        "id": "tag_0",
+        "name": "outdoor"
+      }
+    ],
+    "smartFiltering": false
   },
   "pages": [
     {
@@ -63,16 +500,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_646436b4-0e1d-4c83-9db1-e0f629144c89",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=ceMdrjRelw4",
+              "source": "ceMdrjRelw4",
+              "startTime": 26.3,
+              "endTime": 27,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -98,16 +543,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_51f176c1-7df9-4b67-9c54-f83b25a768bf",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=dBH6LSnOoPk",
+              "source": "dBH6LSnOoPk",
+              "startTime": 7.8,
+              "endTime": 10,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -139,16 +592,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_c21bcb85-7e61-405d-9d25-b590a53635dd",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=dBH6LSnOoPk",
+              "source": "dBH6LSnOoPk",
+              "startTime": 4.5,
+              "endTime": 6,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -164,24 +625,32 @@
       "phrases": [],
       "isStarred": false,
       "volume": 80,
-      "loop": false,
-      "loopCount": 0,
+      "loop": true,
+      "loopCount": -1,
       "fadeInOut": false,
       "endPlayKeywords": [],
       "nextPageId": null,
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_3a5e6f59-25a5-462c-ad99-1089a5c648c4",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=nJTyTFi9Tho",
+              "source": "nJTyTFi9Tho",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -205,28 +674,44 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Short Roar",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_a3e31419-b123-43ce-a4e2-c30c0c077d8c",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=Celeq3bf97k",
+              "source": "Celeq3bf97k",
+              "startTime": 1,
+              "endTime": 2,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         },
         {
-          "name": "Long Roar",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_4bc60f4d-c3bf-4775-8210-048dcef8173b",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=Celeq3bf97k",
+              "source": "Celeq3bf97k",
+              "startTime": 3,
+              "endTime": 6,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -256,16 +741,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_cd6430db-ac20-413d-8eb9-3856f161d7a5",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=kiKOo6HQFRw",
+              "source": "kiKOo6HQFRw",
+              "startTime": 0,
+              "endTime": 1.5,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -292,52 +785,84 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Snap 1",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_8b39b774-49c8-4920-a674-9f8e6823f3a0",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=-hANfDT6q9k",
+              "source": "-hANfDT6q9k",
+              "startTime": 1,
+              "endTime": 2,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         },
         {
-          "name": "Snap 2",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_5d9ad78b-713f-43c9-bf0e-b75e11b50397",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=-hANfDT6q9k",
+              "source": "-hANfDT6q9k",
+              "startTime": 5,
+              "endTime": 7,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         },
         {
-          "name": "Snap 3",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_f90bbd41-03f6-46b9-b6b1-a566d1b680c0",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=-hANfDT6q9k",
+              "source": "-hANfDT6q9k",
+              "startTime": 8,
+              "endTime": 9,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         },
         {
-          "name": "Snap 4",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_23b9b717-4116-48b1-8a9b-735ffb8c03e0",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=-hANfDT6q9k",
+              "source": "-hANfDT6q9k",
+              "startTime": 15,
+              "endTime": 16,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -353,51 +878,6 @@
       "phrases": [],
       "isStarred": false,
       "volume": 40,
-      "loop": true,
-      "loopCount": -1,
-      "fadeInOut": false,
-      "endPlayKeywords": [],
-      "nextPageId": null,
-      "timeOfDaySetting": "always",
-      "sources": [
-        {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "title": "Door Bursting Open",
-      "primaryKey": "door",
-      "keywords": [
-        "bursts",
-        "swings",
-        "swing",
-        "bang",
-        "smash",
-        "smashes",
-        "explodes",
-        "opens",
-        "opening",
-        "open"
-      ],
-      "phrases": [
-        "door bursts open",
-        "door swings open",
-        "door flies open",
-        "door explodes open"
-      ],
-      "isStarred": false,
-      "volume": 80,
       "loop": false,
       "loopCount": 0,
       "fadeInOut": false,
@@ -406,16 +886,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_5728f32f-a671-428e-8d13-379ec42b0434",
+          "name": null,
+          "isDefault": true,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=0p79IBaksXU",
+              "source": "0p79IBaksXU",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -426,8 +914,7 @@
       "keywords": [
         "open",
         "opens",
-        "opening",
-        "softly"
+        "opening"
       ],
       "phrases": [
         "door opens",
@@ -435,7 +922,7 @@
         "open the door"
       ],
       "isStarred": false,
-      "volume": 80,
+      "volume": 50,
       "loop": false,
       "loopCount": 0,
       "fadeInOut": false,
@@ -444,16 +931,105 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_6fcecb34-8e1e-4682-8b91-9cd2e4949fba",
+          "name": null,
+          "isDefault": true,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=3W0hFSTmViM",
+              "source": "3W0hFSTmViM",
+              "startTime": 1,
+              "endTime": 3,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
+        },
+        {
+          "id": "var_7a263592-65cc-48aa-bf92-5abd057b0536",
+          "name": "Door Bangs Open",
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [
+            "kicked",
+            "kicks",
+            "swings",
+            "swing",
+            "swung",
+            "thrown",
+            "bang",
+            "bangs"
+          ],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=3HH-LcO40M0",
+              "source": "3HH-LcO40M0",
+              "startTime": 1,
+              "endTime": 3,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
+        },
+        {
+          "id": "var_64d005ea-da2c-4f40-960b-ec4874810191",
+          "name": "Door breaks open",
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [
+            "bursts",
+            "breaks",
+            "smash",
+            "smashes",
+            "explodes"
+          ],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=vAnMhtrlXlE",
+              "source": "vAnMhtrlXlE",
+              "startTime": 0,
+              "endTime": 2,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
+        },
+        {
+          "id": "var_fe5876f0-ff7e-486e-b093-ff3464203b76",
+          "name": "Creaks Open",
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [
+            "creaks",
+            "creaking",
+            "squeals",
+            "whines",
+            "creeks"
+          ],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=fLS2iZ6oIO0",
+              "source": "fLS2iZ6oIO0",
+              "startTime": 10,
+              "endTime": 12,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -473,16 +1049,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_40cf33dc-90c0-4ffc-80e0-7ea07d1345b6",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "syrinscape",
+              "fileName": "Weapon impacts",
+              "source": null,
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": "244007",
+              "syrinscapeKind": "SFX",
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -507,16 +1091,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_0c641772-e69a-4d14-90ee-46e0f82db01c",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=TyH_PNFCd48",
+              "source": "TyH_PNFCd48",
+              "startTime": 0,
+              "endTime": 2,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -535,26 +1127,32 @@
       "phrases": [],
       "isStarred": false,
       "volume": 80,
-      "loop": true,
-      "loopCount": -1,
+      "loop": false,
+      "loopCount": 0,
       "fadeInOut": false,
-      "endPlayKeywords": [
-        "fire went out"
-      ],
+      "endPlayKeywords": [],
       "nextPageId": null,
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_0ad52ee7-1efa-473c-8530-caeeeda3e5e0",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=UgHKb_7884o",
+              "source": "UgHKb_7884o",
+              "startTime": 3,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -574,28 +1172,44 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
+          "id": "var_c6020d3c-8817-49f0-85cc-ab61b4ce9ce0",
           "name": "Daytime",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=xNN7iTA57jM",
+              "source": "xNN7iTA57jM",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         },
         {
+          "id": "var_9a93d17d-1e96-47a7-8083-4441fa8beeee",
           "name": "Nighttime",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=3TNK916Pjto",
+              "source": "3TNK916Pjto",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -619,16 +1233,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
+          "id": "var_57b37cc8-966f-4e0f-a667-16d75deaf2ca",
           "name": null,
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=YexQcXnVSzg",
+              "source": "YexQcXnVSzg",
+              "startTime": 0,
+              "endTime": 5,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -660,16 +1282,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_54f436d7-1e6c-4c0c-b880-bedf3a910f52",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=bYaWmYoSSVo",
+              "source": "bYaWmYoSSVo",
+              "startTime": 1.5,
+              "endTime": 11,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -698,16 +1328,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_f126eaa9-131a-47d2-bb58-4fedac643a9d",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=g-qnBRZnk5w",
+              "source": "g-qnBRZnk5w",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -727,16 +1365,24 @@
       "timeOfDaySetting": "day",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_32065880-370c-47d0-8f13-b49a818d992e",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=o-b5nMCj5hI&t=1459s",
+              "source": "o-b5nMCj5hI",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -760,16 +1406,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_44c10c5f-fe27-43df-9085-7878aa942def",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=BI_1l564o2I",
+              "source": "BI_1l564o2I",
+              "startTime": 9.5,
+              "endTime": 10.5,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -796,16 +1450,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_c1eb0389-3cc5-43d3-aa53-e4ba39a68eb1",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=tiWGHDihUYc",
+              "source": "tiWGHDihUYc",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -826,41 +1488,65 @@
       "phrases": [],
       "isStarred": false,
       "volume": 50,
-      "loop": true,
-      "loopCount": -1,
+      "loop": false,
+      "loopCount": 0,
       "fadeInOut": false,
-      "endPlayKeywords": [
-        "rain stopped",
-        "clouds cleared",
-        "rain ceased",
-        "storm subsided"
-      ],
+      "endPlayKeywords": [],
       "nextPageId": null,
       "timeOfDaySetting": "always",
       "sources": [
         {
+          "id": "var_fb104afa-4a45-4f20-a813-4df5928ac20b",
           "name": "Outdoors Rain",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "isDefault": true,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=jX6kn9_U8qk",
+              "source": "jX6kn9_U8qk",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         },
         {
+          "id": "var_b32e112e-1c42-49f6-bf77-375d5907c35e",
           "name": "Indoors Rain",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": 50,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "isDefault": false,
+          "conditions": [
+            {
+              "type": "tag_is",
+              "params": {
+                "tagId": "tag_1"
+              }
+            },
+            {
+              "type": "tag_not",
+              "params": {
+                "tagId": "tag_0"
+              }
+            }
+          ],
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=77glrCz-vEA",
+              "source": "77glrCz-vEA",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -885,16 +1571,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_191b7d92-2291-495e-aae5-766afe28edc4",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=wURp8_kO2m8",
+              "source": "wURp8_kO2m8",
+              "startTime": 2.5,
+              "endTime": 3.5,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -920,16 +1614,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_98026b6a-ee80-4317-83cc-0f51674825f5",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=RbzK42SCSfU",
+              "source": "RbzK42SCSfU",
+              "startTime": 0.5,
+              "endTime": 1.5,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -956,16 +1658,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_47729b3b-e5f1-4697-9b24-b371b590a41b",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=EULoybB2Nsw",
+              "source": "EULoybB2Nsw",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -994,16 +1704,24 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_f6b8a045-e692-43e9-9ca0-1def3befbb39",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=KH5ei1dUfs0",
+              "source": "KH5ei1dUfs0",
+              "startTime": null,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     },
@@ -1033,180 +1751,26 @@
       "timeOfDaySetting": "always",
       "sources": [
         {
-          "name": "Default",
-          "fileName": null,
-          "source": null,
-          "syrinscapeElementId": null,
-          "syrinscapeKind": null,
-          "syrinscapePlayDuration": null,
-          "needsFile": false,
-          "volumeOverride": null,
-          "chapterIds": null,
-          "timeOfDay": "always"
+          "id": "var_28a6fab1-af84-43eb-a54a-aaefb66b37da",
+          "name": null,
+          "isDefault": false,
+          "conditions": null,
+          "variationKeywords": [],
+          "sources": [
+            {
+              "type": "youtube",
+              "fileName": "https://www.youtube.com/watch?v=MD0F-dECqOI",
+              "source": "MD0F-dECqOI",
+              "startTime": 4,
+              "endTime": null,
+              "syrinscapeElementId": null,
+              "syrinscapeKind": null,
+              "syrinscapePlayDuration": null,
+              "needsFile": false
+            }
+          ]
         }
       ]
     }
-  ],
-  "chapters": [
-    {
-      "id": "index",
-      "name": "Index",
-      "isIndex": true,
-      "isStarred": false,
-      "pageIds": [],
-      "chapterKeywords": [],
-      "autoPlayPageIds": [],
-      "leaveSoundPageIds": [],
-      "leaveTransitionTargetId": "index",
-      "tagIds": []
-    },
-    {
-      "id": 4,
-      "name": "Combat",
-      "isIndex": false,
-      "isStarred": true,
-      "pageIds": [
-        10,
-        8,
-        7,
-        6,
-        19,
-        20,
-        21,
-        22
-      ],
-      "chapterKeywords": [
-        "combat",
-        "initiative",
-        "war",
-        "battle"
-      ],
-      "autoPlayPageIds": [],
-      "leaveSoundPageIds": [],
-      "leaveTransitionTargetId": "index",
-      "tagIds": []
-    },
-    {
-      "id": 2,
-      "name": "Forest",
-      "isIndex": false,
-      "isStarred": false,
-      "pageIds": [
-        4,
-        5,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ],
-      "chapterKeywords": [
-        "forest",
-        "woods"
-      ],
-      "autoPlayPageIds": [
-        4
-      ],
-      "leaveSoundPageIds": [],
-      "leaveTransitionTargetId": "3",
-      "tagIds": []
-    },
-    {
-      "id": 3,
-      "name": "Tavern",
-      "isIndex": false,
-      "isStarred": false,
-      "pageIds": [
-        0,
-        1,
-        2,
-        3,
-        11,
-        24,
-        25,
-        13
-      ],
-      "chapterKeywords": [
-        "tavern",
-        "bar"
-      ],
-      "autoPlayPageIds": [
-        1,
-        0
-      ],
-      "leaveSoundPageIds": [
-        1
-      ],
-      "leaveTransitionTargetId": "5",
-      "tagIds": []
-    },
-    {
-      "id": 5,
-      "name": "Town",
-      "isIndex": false,
-      "isStarred": false,
-      "pageIds": [
-        23,
-        13
-      ],
-      "chapterKeywords": [
-        "market",
-        "town",
-        "street"
-      ],
-      "autoPlayPageIds": [
-        23
-      ],
-      "leaveSoundPageIds": [],
-      "leaveTransitionTargetId": "2",
-      "tagIds": []
-    }
-  ],
-  "storyPlot": {
-    "nodes": [
-      {
-        "id": "plotNode_0",
-        "chapterId": "index",
-        "x": 50,
-        "y": 50
-      },
-      {
-        "id": "plotNode_1",
-        "chapterId": 4,
-        "x": 240,
-        "y": 50
-      },
-      {
-        "id": "plotNode_2",
-        "chapterId": 2,
-        "x": 430,
-        "y": 50
-      },
-      {
-        "id": "plotNode_3",
-        "chapterId": 3,
-        "x": 601,
-        "y": 186
-      },
-      {
-        "id": "plotNode_4",
-        "chapterId": 5,
-        "x": 1089,
-        "y": 193
-      }
-    ],
-    "threads": [],
-    "nextPlotNodeId": 5,
-    "nextPlotThreadId": 1,
-    "viewTransform": {
-      "x": 0,
-      "y": 0,
-      "scale": 1
-    }
-  },
-  "collections": [],
-  "appendix": []
+  ]
 }
