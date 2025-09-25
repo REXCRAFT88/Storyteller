@@ -1,0 +1,1212 @@
+{
+  "nextPageId": 31,
+  "nextChapterId": 6,
+  "nextTagId": 0,
+  "activeChapterId": 2,
+  "currentTimeOfDay": "day",
+  "settings": {
+    "listeningMode": "toggle",
+    "smartFiltering": true,
+    "compoundPhrasing": true,
+    "accuracyThreshold": 0.7,
+    "stopAudioMode": "indexContinue",
+    "autoplayOnClick": "listening",
+    "masterVolume": 100,
+    "stopPhrases": [
+      "all went silent",
+      "all was still",
+      "nothing could be heard",
+      "noise stopped"
+    ],
+    "customEnterPhrases": [
+      "teleport to",
+      "roll for",
+      "return to"
+    ],
+    "customExitPhrases": [
+      "walk out of"
+    ],
+    "daytimeTransitionPhrases": [
+      "sun rises",
+      "morning arrives"
+    ],
+    "nighttimeTransitionPhrases": [
+      "sun sets",
+      "night falls"
+    ],
+    "syrinscapeAuthToken": "",
+    "chapterTags": []
+  },
+  "pages": [
+    {
+      "id": 10,
+      "title": "Arrow Hits Flesh",
+      "primaryKey": "arrow",
+      "keywords": [
+        "hits",
+        "body",
+        "you",
+        "flesh",
+        "him",
+        "her",
+        "them",
+        "pierces"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Arrow Hits Object",
+      "primaryKey": "arrow",
+      "keywords": [
+        "hits",
+        "ground",
+        "tree",
+        "wood",
+        "wall"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Arrow Whoosh",
+      "primaryKey": "arrow",
+      "keywords": [
+        "fly",
+        "releases",
+        "passes",
+        "zips",
+        "flies",
+        "flew",
+        "flys",
+        "zip",
+        "fire",
+        "fires",
+        "release"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "Battle Ambience",
+      "primaryKey": "battle, war",
+      "keywords": [
+        "men",
+        "fighting",
+        "sounds"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "Bear Roar",
+      "primaryKey": "bear",
+      "keywords": [
+        "roar",
+        "growl",
+        "roars"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Short Roar",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        },
+        {
+          "name": "Long Roar",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Bow Drawing",
+      "primaryKey": "bow",
+      "keywords": [
+        "pulls",
+        "draws",
+        "pull back",
+        "stretches"
+      ],
+      "phrases": [
+        "pulls the bow",
+        "draws the bow back",
+        "drawing the bow",
+        "draws the bow"
+      ],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "Branch Snap",
+      "primaryKey": "branch, twig, stick",
+      "keywords": [
+        "snap",
+        "break",
+        "crack",
+        "snapping",
+        "breaking",
+        "cracking"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Snap 1",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        },
+        {
+          "name": "Snap 2",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        },
+        {
+          "name": "Snap 3",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        },
+        {
+          "name": "Snap 4",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "Brawling ambience",
+      "primaryKey": "brawl, fighting, fight, brawling",
+      "keywords": [
+        "breaks out",
+        "people begin",
+        "starts"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 40,
+      "loop": true,
+      "loopCount": -1,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Door Bursting Open",
+      "primaryKey": "door",
+      "keywords": [
+        "bursts",
+        "swings",
+        "swing",
+        "bang",
+        "smash",
+        "smashes",
+        "explodes",
+        "opens",
+        "opening",
+        "open"
+      ],
+      "phrases": [
+        "door bursts open",
+        "door swings open",
+        "door flies open",
+        "door explodes open"
+      ],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "title": "Door Opening",
+      "primaryKey": "door",
+      "keywords": [
+        "open",
+        "opens",
+        "opening",
+        "softly"
+      ],
+      "phrases": [
+        "door opens",
+        "door creaks open",
+        "open the door"
+      ],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "title": "DRAGON",
+      "primaryKey": null,
+      "keywords": [],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": true,
+      "loopCount": -1,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Draw Sword",
+      "primaryKey": "sword, blade",
+      "keywords": [
+        "draw",
+        "pull out",
+        "drawing",
+        "unsheathe"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Fireplace",
+      "primaryKey": "fire",
+      "keywords": [
+        "crackling",
+        "roaring",
+        "crackles",
+        "burns",
+        "burning",
+        "warm"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": true,
+      "loopCount": -1,
+      "fadeInOut": false,
+      "endPlayKeywords": [
+        "fire went out"
+      ],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Forest Ambience",
+      "primaryKey": null,
+      "keywords": [],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 10,
+      "loop": true,
+      "loopCount": -1,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Daytime",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        },
+        {
+          "name": "Nighttime",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Grizzly panting",
+      "primaryKey": "bear",
+      "keywords": [
+        "grizzly",
+        "panting",
+        "pant"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": null,
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Lightning Strike",
+      "primaryKey": "lightning",
+      "keywords": [
+        "strike",
+        "flashes",
+        "burst",
+        "bolt",
+        "hits",
+        "strikes",
+        "flashed",
+        "flash",
+        "crack",
+        "cracked",
+        "struck"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Lyre Playing",
+      "primaryKey": "lyre, harp, liar",
+      "keywords": [
+        "played",
+        "plays",
+        "strumming",
+        "strums",
+        "playing",
+        "play"
+      ],
+      "phrases": [
+        "liar plays"
+      ],
+      "isStarred": false,
+      "volume": 80,
+      "loop": true,
+      "loopCount": 2,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "Market Ambience",
+      "primaryKey": null,
+      "keywords": [],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "day",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "title": "Mugs Clinking",
+      "primaryKey": "mug, pint",
+      "keywords": [
+        "clink",
+        "bang",
+        "hit"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "Owl Hooting",
+      "primaryKey": "owl",
+      "keywords": [
+        "hoots",
+        "calls",
+        "call",
+        "hoot",
+        "chirps",
+        "hooting"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Rain (No thunder)",
+      "primaryKey": "rain, raining",
+      "keywords": [
+        "pour",
+        "pours",
+        "begins",
+        "falls",
+        "hammered",
+        "poured",
+        "fall",
+        "began"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 50,
+      "loop": true,
+      "loopCount": -1,
+      "fadeInOut": false,
+      "endPlayKeywords": [
+        "rain stopped",
+        "clouds cleared",
+        "rain ceased",
+        "storm subsided"
+      ],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Outdoors Rain",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        },
+        {
+          "name": "Indoors Rain",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": 50,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Sword Swing",
+      "primaryKey": "sword, blade",
+      "keywords": [
+        "swing",
+        "thrust",
+        "jab",
+        "swipe"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "Swords Clash",
+      "primaryKey": "sword, blade",
+      "keywords": [
+        "clash",
+        "clang",
+        "meet",
+        "block",
+        "parry"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 80,
+      "loop": false,
+      "loopCount": 0,
+      "fadeInOut": false,
+      "endPlayKeywords": [],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 0,
+      "title": "Talking Ambience",
+      "primaryKey": "people",
+      "keywords": [
+        "talk",
+        "talking",
+        "chatting"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 10,
+      "loop": true,
+      "loopCount": -1,
+      "fadeInOut": false,
+      "endPlayKeywords": [
+        "hushed",
+        "hush"
+      ],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Thunder (No Rain)",
+      "primaryKey": "thunder, thunderstorm",
+      "keywords": [
+        "rolled",
+        "cracked",
+        "sounded",
+        "rolls"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 50,
+      "loop": true,
+      "loopCount": -1,
+      "fadeInOut": false,
+      "endPlayKeywords": [
+        "clouds cleared",
+        "thunder hushed",
+        "storm subsided"
+      ],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Wind Howling",
+      "primaryKey": "wind",
+      "keywords": [
+        "howls",
+        "blows",
+        "howling",
+        "blowing",
+        "whispers"
+      ],
+      "phrases": [],
+      "isStarred": false,
+      "volume": 20,
+      "loop": true,
+      "loopCount": -1,
+      "fadeInOut": false,
+      "endPlayKeywords": [
+        "all went still",
+        "wind stills",
+        "wind dies down"
+      ],
+      "nextPageId": null,
+      "timeOfDaySetting": "always",
+      "sources": [
+        {
+          "name": "Default",
+          "fileName": null,
+          "source": null,
+          "syrinscapeElementId": null,
+          "syrinscapeKind": null,
+          "syrinscapePlayDuration": null,
+          "needsFile": false,
+          "volumeOverride": null,
+          "chapterIds": null,
+          "timeOfDay": "always"
+        }
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "index",
+      "name": "Index",
+      "isIndex": true,
+      "isStarred": false,
+      "pageIds": [],
+      "chapterKeywords": [],
+      "autoPlayPageIds": [],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "index",
+      "tagIds": []
+    },
+    {
+      "id": 4,
+      "name": "Combat",
+      "isIndex": false,
+      "isStarred": true,
+      "pageIds": [
+        10,
+        8,
+        7,
+        6,
+        19,
+        20,
+        21,
+        22
+      ],
+      "chapterKeywords": [
+        "combat",
+        "initiative",
+        "war",
+        "battle"
+      ],
+      "autoPlayPageIds": [],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "index",
+      "tagIds": []
+    },
+    {
+      "id": 2,
+      "name": "Forest",
+      "isIndex": false,
+      "isStarred": false,
+      "pageIds": [
+        4,
+        5,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "chapterKeywords": [
+        "forest",
+        "woods"
+      ],
+      "autoPlayPageIds": [
+        4
+      ],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "3",
+      "tagIds": []
+    },
+    {
+      "id": 3,
+      "name": "Tavern",
+      "isIndex": false,
+      "isStarred": false,
+      "pageIds": [
+        0,
+        1,
+        2,
+        3,
+        11,
+        24,
+        25,
+        13
+      ],
+      "chapterKeywords": [
+        "tavern",
+        "bar"
+      ],
+      "autoPlayPageIds": [
+        1,
+        0
+      ],
+      "leaveSoundPageIds": [
+        1
+      ],
+      "leaveTransitionTargetId": "5",
+      "tagIds": []
+    },
+    {
+      "id": 5,
+      "name": "Town",
+      "isIndex": false,
+      "isStarred": false,
+      "pageIds": [
+        23,
+        13
+      ],
+      "chapterKeywords": [
+        "market",
+        "town",
+        "street"
+      ],
+      "autoPlayPageIds": [
+        23
+      ],
+      "leaveSoundPageIds": [],
+      "leaveTransitionTargetId": "2",
+      "tagIds": []
+    }
+  ],
+  "storyPlot": {
+    "nodes": [
+      {
+        "id": "plotNode_0",
+        "chapterId": "index",
+        "x": 50,
+        "y": 50
+      },
+      {
+        "id": "plotNode_1",
+        "chapterId": 4,
+        "x": 240,
+        "y": 50
+      },
+      {
+        "id": "plotNode_2",
+        "chapterId": 2,
+        "x": 430,
+        "y": 50
+      },
+      {
+        "id": "plotNode_3",
+        "chapterId": 3,
+        "x": 601,
+        "y": 186
+      },
+      {
+        "id": "plotNode_4",
+        "chapterId": 5,
+        "x": 1089,
+        "y": 193
+      }
+    ],
+    "threads": [],
+    "nextPlotNodeId": 5,
+    "nextPlotThreadId": 1,
+    "viewTransform": {
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "collections": [],
+  "appendix": []
+}
