@@ -2095,7 +2095,7 @@
         const SCORE_TIE_THRESHOLD = 0.2;
         // --- Spotify Constants ---
         const SPOTIFY_DEFAULT_CLIENT_ID = "4ec2098d4c8f49149f5b4bca2850bfd5";
-        const SPOTIFY_REDIRECT_URI = `${window.location.origin}/`;
+        const SPOTIFY_REDIRECT_URI = window.location.origin + decodeURIComponent(window.location.pathname);
         const SPOTIFY_SCOPES = ["streaming", "user-read-email", "user-read-private", "user-read-playback-state", "user-modify-playback-state"].join(" ");
         const HIGH_CONFIDENCE_THRESHOLD = 0.9;
         const AND_REGEX = /\b(and|&)\b/i;
@@ -3449,16 +3449,13 @@
             openSettingsModalButton.addEventListener('click', openSettingsModal);
             cancelSettingsButton.addEventListener('click', closeSettingsModal);
             saveSettingsButton.addEventListener('click', saveSettings);
-            settingsAccuracyThresholdInput.addEventListener('input', () => {
-                const value = parseFloat(settingsAccuracyThresholdInput.value) / 100;
-            });
-
-            // Spotify Settings Listeners
-            spotifyLoginButton.addEventListener('click', redirectToSpotifyLogin);
-            spotifyLogoutButton.addEventListener('click', () => {
-                logoutSpotify();
+            settingsAccuracyThresholdInput.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value) / 100;;
                 settingsAccuracyValueSpan.textContent = value.toFixed(2);
             });
+             // Spotify Settings Listeners
+            spotifyLoginButton.addEventListener('click', redirectToSpotifyLogin);
+            spotifyLogoutButton.addEventListener('click', logoutSpotify);
 
 
             // --- Guidebook Modal Functions ---
