@@ -67,11 +67,49 @@
             --syrinscape-search-results-bg: rgba(0,0,0,0.1);
             --syrinscape-search-item-hover-bg: rgba(255,255,255,0.08);
             /* PiP Canvas Icon Colors */
+            --recent-search-bg: var(--bg-secondary);
+            --recent-search-border: var(--border-stone);
+            --recent-search-item-hover-bg: var(--bg-tertiary);
+            --recent-search-remove-btn-color: var(--text-secondary);
+            --recent-search-remove-btn-hover-color: var(--danger-color);
+
+            /* PiP Canvas Icon Colors */
             --pip-icon-active: #a3e635; /* Green for listening */
             --pip-icon-inactive: #f87171; /* Red for stopped */
             --pip-icon-base: #EAEAEA; /* Default icon color */
             --pip-canvas-bg: var(--bg-tertiary); /* Background for the PiP canvas */
         }
+        /* --- Dual Range Slider for Media Preview --- */
+        .media-range-track, .media-range-selection { position: absolute; left: 0; height: 6px; top: 50%; transform: translateY(-50%); border-radius: 3px; pointer-events: none; }
+        .media-range-track { background-color: var(--border-stone); width: 100%; z-index: 1; }
+        .media-range-selection { background-color: var(--accent-blue); z-index: 2; }
+        .media-preview-scrub-bar, .media-preview-start-bar, .media-preview-end-bar {
+            -webkit-appearance: none; appearance: none;
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: transparent;
+            pointer-events: none; /* Sliders are controlled by JS, thumbs are interactive */
+            margin: 0;
+            background: none !important; /* Override generic input[type=range] background */
+            border: none !important; /* Override generic border */
+            box-shadow: none !important; /* Override generic shadow */
+        }
+        .media-preview-scrub-bar::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; appearance: none; width: 10px; height: 18px; background: var(--accent-gold-light); cursor: ew-resize; border-radius: 2px; z-index: 5; position: relative; }
+        .media-preview-scrub-bar::-moz-range-thumb { pointer-events: auto; width: 10px; height: 18px; background: var(--accent-gold-light); cursor: ew-resize; border-radius: 2px; z-index: 5; position: relative; border: none; }
+        .media-preview-start-bar::-webkit-slider-thumb,
+        .media-preview-end-bar::-webkit-slider-thumb { /* This selector is correct, but needs to be more specific than the general one */
+            pointer-events: auto; -webkit-appearance: none; appearance: none;
+            width: 4px !important; height: 22px !important;
+            background: var(--accent-gold-dark) !important; border: 1px solid var(--bg-primary) !important;
+            cursor: ew-resize !important; border-radius: 0 !important; z-index: 4; position: relative;
+        }
+        .media-preview-start-bar::-moz-range-thumb,
+        .media-preview-end-bar::-moz-range-thumb {
+            pointer-events: auto; width: 4px; height: 22px;
+            background: var(--accent-gold-dark); border: 1px solid var(--bg-primary);
+            cursor: ew-resize; border-radius: 0; z-index: 4; position: relative;
+        }
+
         /* --- Toggle Switch Code --- */
         .rpg-toggle-switch {
             position: relative;
@@ -941,6 +979,22 @@
             background-color: var(--pip-canvas-bg);
         }
 
+        /* Recent Searches Dropdown */
+        .recent-searches-container {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background-color: var(--recent-search-bg); border: 1px solid var(--recent-search-border);
+            border-radius: 0 0 4px 4px; max-height: 200px; overflow-y: auto;
+            z-index: 1020; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .recent-search-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.9rem;
+            transition: background-color 0.15s;
+        }
+        .recent-search-item:hover { background-color: var(--recent-search-item-hover-bg); }
+        .remove-recent-search-btn { background: none; border: none; color: var(--recent-search-remove-btn-color); cursor: pointer; transition: color 0.15s; }
+        .remove-recent-search-btn:hover { color: var(--recent-search-remove-btn-hover-color); }
+
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -1027,6 +1081,9 @@
     <div id="messageBox"></div>
     <div id="youtubePlayersContainer" style="position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; overflow: hidden;"></div>
     <div id="modalOverlay" class="hidden"></div>
+    <!-- Hidden div for YouTube Preview Player -->
+    <div id="youtube-preview-player" class="fixed -left-full top-0"></div>
+
 
     <canvas id="pipCanvas"></canvas>
     <video id="pipVideo" playsinline autoplay muted class="hidden"></video>
@@ -1117,6 +1174,29 @@
                     </div>
                     <button id="initializeSyrinscapeButton" class="btn-rpg-sm mt-3">Initialize Syrinscape Player</button>
                 </div>
+                <div class="border-t border-stone-700 pt-4">
+                    <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">YouTube Settings</h4>
+                    <label for="settingsYoutubeApiKeys" class="block text-sm font-medium mb-1">YouTube API Keys (comma-separated):</label>
+                    <textarea id="settingsYoutubeApiKeys" placeholder="Paste one or more YouTube Data API v3 keys here" rows="2"></textarea>
+                    <p class="text-xs text-gray-400 mt-1">
+                        A YouTube API key is required for the search feature. Follow the <a href="https://developers.google.com/youtube/v3/getting-started" target="_blank" rel="noopener noreferrer" class="syrinscape-auth-token-link">official Google guide</a> to get a key.
+                    </p>
+                </div>
+                <div class="border-t border-stone-700 pt-4">
+                    <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Spotify Settings</h4>
+                    <div id="spotifyLoginContainer">
+                        <p class="text-xs text-gray-400 mb-2">Login to Spotify to use Spotify tracks as a sound source. A Premium account is required for playback control.</p>
+                        <div>
+                            <label for="settingsSpotifyClientId" class="block text-sm font-medium mb-1">Spotify Client ID (Optional Override):</label>
+                            <input type="text" id="settingsSpotifyClientId" placeholder="Default ID is used if empty">
+                        </div>
+                        <button id="spotifyLoginButton" class="btn-rpg-sm mt-3"><i class="fab fa-spotify mr-2"></i>Login with Spotify</button>
+                    </div>
+                    <div id="spotifyLogoutContainer" class="hidden">
+                        <p id="spotifyUserStatus" class="text-sm text-green-400 mb-3">Logged in to Spotify.</p>
+                        <button id="spotifyLogoutButton" class="btn-rpg-sm btn-danger-sm">Logout from Spotify</button>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="modal-actions">
@@ -1142,11 +1222,63 @@
                      <div id="addFileInputContainer" class="md:col-span-2">
                         <label for="addPageFile" class="block text-sm font-medium mb-1">Sound File (MP3, WAV, OGG):</label>
                         <input type="file" id="addPageFile" accept=".mp3,.wav,.ogg">
+                        <div id="addPageFilePreviewContainer" class="media-preview-container hidden mt-4 p-3 rounded-lg bg-stone-900/50 border border-stone-700">
+                            <div class="flex items-center gap-3">
+                                <button type="button" class="media-preview-play-pause-btn w-10 h-10 flex items-center justify-center bg-[var(--accent-blue)] rounded-full text-[var(--bg-secondary)] hover:bg-[var(--accent-gold-light)] transition flex-shrink-0">
+                                    <i class="fas fa-play fa-fw"></i>
+                                </button>
+                                <button type="button" class="media-preview-goto-start-btn w-10 h-10 flex items-center justify-center bg-stone-600 rounded-full text-stone-200 hover:bg-stone-500 transition flex-shrink-0" title="Seek to Start Time">
+                                    <i class="fas fa-step-backward fa-fw"></i>
+                                </button>
+                                <div class="flex-grow min-w-0">
+                                    <div class="flex justify-between items-center text-xs text-gray-400">
+                                        <span class="media-preview-current-time">0:00</span>
+                                        <span class="media-preview-duration">0:00</span>
+                                    </div>
+                                    <div class="relative h-4 mt-1">
+                                        <div class="media-range-track"></div>
+                                        <div class="media-range-selection"></div>
+                                        <input type="range" class="media-preview-scrub-bar" value="0" min="0" max="100" step="0.1">
+                                        <input type="range" class="media-preview-start-bar" value="0" min="0" max="100" step="0.1">
+                                        <input type="range" class="media-preview-end-bar" value="100" min="0" max="100" step="0.1">
+                                    </div>
+                                 </div>
+                            </div>
+                        </div>
                     </div>
                     <div id="addYoutubeInputContainer" class="hidden md:col-span-2 space-y-4">
-                         <div> <label for="addYoutubeUrl" class="block text-sm font-medium mb-1">YouTube Video URL:</label> <input type="url" id="addYoutubeUrl" placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ"> </div>
+                         <div>
+                             <label for="addYoutubeUrl" class="block text-sm font-medium mb-1">YouTube Video URL:</label>
+                             <div class="flex gap-2">
+                                 <input type="url" id="addYoutubeUrl" placeholder="e.g., https://www.youtube.com/watch?v=..." class="flex-grow">
+                                 <button type="button" id="addYoutubeSearchButton" class="btn-rpg-sm btn-rpg-sm-icon" title="Search YouTube"><i class="fab fa-youtube"></i></button>
+                             </div>
+                         </div>
                          <div id="addYoutubeUrlStatus" class="text-xs text-gray-400 -mt-3"></div>
                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                             <div id="addPageYouTubePreviewContainer" class="media-preview-container hidden mt-4 p-3 rounded-lg bg-stone-900/50 border border-stone-700 col-span-2">
+                                 <div class="flex items-center gap-3">
+                                     <button type="button" class="media-preview-play-pause-btn w-10 h-10 flex items-center justify-center bg-[var(--accent-blue)] rounded-full text-[var(--bg-secondary)] hover:bg-[var(--accent-gold-light)] transition flex-shrink-0">
+                                         <i class="fas fa-play fa-fw"></i>
+                                     </button>
+                                     <button type="button" class="media-preview-goto-start-btn w-10 h-10 flex items-center justify-center bg-stone-600 rounded-full text-stone-200 hover:bg-stone-500 transition flex-shrink-0" title="Seek to Start Time">
+                                         <i class="fas fa-step-backward fa-fw"></i>
+                                     </button>
+                                     <div class="flex-grow min-w-0">
+                                         <div class="flex justify-between items-center text-xs text-gray-400">
+                                             <span class="media-preview-current-time">0:00</span>
+                                             <span class="media-preview-duration">0:00</span>
+                                         </div>
+                                         <div class="relative h-4 mt-1">
+                                             <div class="media-range-track"></div>
+                                             <div class="media-range-selection"></div>
+                                             <input type="range" class="media-preview-scrub-bar" value="0" min="0" max="100" step="0.1">
+                                             <input type="range" class="media-preview-start-bar" value="0" min="0" max="100" step="0.1">
+                                             <input type="range" class="media-preview-end-bar" value="100" min="0" max="100" step="0.1">
+                                         </div>
+                                      </div>
+                                 </div>
+                             </div>
                              <div> <label for="addStartTime" class="block text-sm font-medium mb-1">Start Time (MM:SS or Sec):</label> <input type="text" id="addStartTime" placeholder="e.g., 0:15 or 15"> </div>
                              <div> <label for="addEndTime" class="block text-sm font-medium mb-1">End Time (MM:SS or Sec):</label> <input type="text" id="addEndTime" placeholder="e.g., 1:30 or 90"> </div>
                          </div>
@@ -1193,6 +1325,7 @@
                      <div id="addEndPlayKeywordsContainer" class="md:col-span-2 hidden pt-2"> <label for="addEndPlayKeywords" class="block text-sm font-medium mb-1">End Play Keywords (comma-separated):</label> <textarea id="addEndPlayKeywords" placeholder="e.g., stop loop, end sound, silence" rows="2"></textarea> </div>
                      <div class="md:col-span-2 pt-2"> <label for="addNextPageId" class="block text-sm font-medium mb-1">Play Next Page:</label> <select id="addNextPageId"> <option value="">-- None --</option> </select> </div>
                 </div>
+                <div class="modal-section"> <div class="flex justify-between items-center"> <h4>Sound Source Variations</h4> <button id="openAddSourceVariationModalButton_addPage" type="button" class="btn-rpg-sm btn-success-sm"> <i class="fas fa-plus mr-1"></i> Add Variation </button> </div> <ul id="addSourceList" class="space-y-2 mt-3"> <li class="italic text-sm text-center py-2">No sources added yet.</li> </ul> <p class="text-xs text-gray-400 mt-2">Add variations for this new page. The first source added will be used to populate the fields above if they are empty.</p> </div>
             </div>
         </div>
         <div class="modal-actions"> <button id="cancelAddButton" type="button" class="btn-rpg-sm">Cancel</button> <button id="addButton" type="button" class="btn-rpg" title="Create Page (Ctrl+Enter)"> <i class="fas fa-plus-circle"></i> <span>Create New Page</span> </button> </div>
@@ -1354,14 +1487,66 @@
                     <div id="sourceFileInputContainer" class="md:col-span-2">
                         <label for="sourceFile" class="block text-sm font-medium mb-1">Sound File (MP3, WAV, OGG):</label>
                         <input type="file" id="sourceFile" accept=".mp3,.wav,.ogg">
+                        <div id="sourceFilePreviewContainer" class="media-preview-container hidden mt-4 p-3 rounded-lg bg-stone-900/50 border border-stone-700">
+                            <div class="flex items-center gap-3">
+                                <button type="button" class="media-preview-play-pause-btn w-10 h-10 flex items-center justify-center bg-[var(--accent-blue)] rounded-full text-[var(--bg-secondary)] hover:bg-[var(--accent-gold-light)] transition flex-shrink-0">
+                                    <i class="fas fa-play fa-fw"></i>
+                                </button>
+                                <button type="button" class="media-preview-goto-start-btn w-10 h-10 flex items-center justify-center bg-stone-600 rounded-full text-stone-200 hover:bg-stone-500 transition flex-shrink-0" title="Seek to Start Time">
+                                    <i class="fas fa-step-backward fa-fw"></i>
+                                </button>
+                                <div class="flex-grow min-w-0">
+                                    <div class="flex justify-between items-center text-xs text-gray-400">
+                                        <span class="media-preview-current-time">0:00</span>
+                                        <span class="media-preview-duration">0:00</span>
+                                    </div>
+                                    <div class="relative h-4 mt-1">
+                                        <div class="media-range-track"></div>
+                                        <div class="media-range-selection"></div>
+                                        <input type="range" class="media-preview-scrub-bar" value="0" min="0" max="100" step="0.1">
+                                        <input type="range" class="media-preview-start-bar" value="0" min="0" max="100" step="0.1">
+                                        <input type="range" class="media-preview-end-bar" value="100" min="0" max="100" step="0.1">
+                                    </div>
+                                 </div>
+                            </div>
+                        </div>
                         <span id="existingSourceFile" class="text-xs text-gray-400 mt-1 block"></span>
                     </div>
                     <div id="sourceYoutubeInputContainer" class="hidden md:col-span-2 space-y-4">
-                        <div><label for="sourceYoutubeUrl" class="block text-sm font-medium mb-1">YouTube Video URL:</label><input type="url" id="sourceYoutubeUrl" placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ"></div>
+                        <div>
+                            <label for="sourceYoutubeUrl" class="block text-sm font-medium mb-1">YouTube Video URL:</label>
+                            <div class="flex gap-2">
+                                <input type="url" id="sourceYoutubeUrl" placeholder="e.g., https://www.youtube.com/watch?v=..." class="flex-grow">
+                                <button type="button" id="sourceYoutubeSearchButton" class="btn-rpg-sm btn-rpg-sm-icon" title="Search YouTube"><i class="fab fa-youtube"></i></button>
+                            </div>
+                        </div>
                         <div id="sourceYoutubeUrlStatus" class="text-xs text-gray-400 -mt-3"></div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
                             <div><label for="sourceStartTime" class="block text-sm font-medium mb-1">Start Time (MM:SS or Sec):</label><input type="text" id="sourceStartTime" placeholder="e.g., 0:15 or 15"></div>
                             <div><label for="sourceEndTime" class="block text-sm font-medium mb-1">End Time (MM:SS or Sec):</label><input type="text" id="sourceEndTime" placeholder="e.g., 1:30 or 90"></div>
+                        </div>
+                        <div id="sourceYouTubePreviewContainer" class="media-preview-container hidden mt-4 p-3 rounded-lg bg-stone-900/50 border border-stone-700 col-span-2">
+                            <div class="flex items-center gap-3">
+                                <button type="button" class="media-preview-play-pause-btn w-10 h-10 flex items-center justify-center bg-[var(--accent-blue)] rounded-full text-[var(--bg-secondary)] hover:bg-[var(--accent-gold-light)] transition flex-shrink-0">
+                                    <i class="fas fa-play fa-fw"></i>
+                                </button>
+                                <button type="button" class="media-preview-goto-start-btn w-10 h-10 flex items-center justify-center bg-stone-600 rounded-full text-stone-200 hover:bg-stone-500 transition flex-shrink-0" title="Seek to Start Time">
+                                    <i class="fas fa-step-backward fa-fw"></i>
+                                </button>
+                                <div class="flex-grow min-w-0">
+                                    <div class="flex justify-between items-center text-xs text-gray-400">
+                                        <span class="media-preview-current-time">0:00</span>
+                                        <span class="media-preview-duration">0:00</span>
+                                    </div>
+                                    <div class="relative h-4 mt-1">
+                                        <div class="media-range-track"></div>
+                                        <div class="media-range-selection"></div>
+                                        <input type="range" class="media-preview-scrub-bar" value="0" min="0" max="100" step="0.1">
+                                        <input type="range" class="media-preview-start-bar" value="0" min="0" max="100" step="0.1">
+                                        <input type="range" class="media-preview-end-bar" value="100" min="0" max="100" step="0.1">
+                                    </div>
+                                 </div>
+                            </div>
                         </div>
                     </div>
                     <div id="sourceSyrinscapeInputContainer" class="hidden md:col-span-2 space-y-4">
@@ -1798,6 +1983,43 @@
             </div>
     </div>
 
+    <!-- Hidden div for YouTube IFrame Player used for verification -->
+    <div id="youtube-verification-player" class="fixed -left-full top-0"></div>
+
+    <div id="youtubeSearchModal" class="modal">
+        <div class="modal-body">
+            <h3 class="modal-title"><i class="fab fa-youtube mr-2"></i>Search YouTube</h3>
+            <div class="modal-content !flex-col h-full !gap-4">
+                <div class="relative">
+                    <label for="youtubeSearchQueryInput" class="block text-sm font-medium mb-1">Search Term:</label>
+                    <div class="flex gap-2">
+                        <input type="search" id="youtubeSearchQueryInput" placeholder="Search for music, podcasts, etc..." class="flex-grow">
+                        <button id="executeYoutubeSearchButton" class="btn-rpg-sm btn-rpg-sm-icon" title="Search"><i class="fas fa-search"></i></button>
+                    </div>
+                    <div id="youtubeRecentSearchesContainer" class="recent-searches-container hidden">
+                        <!-- Recent searches will be populated here -->
+                    </div>
+                </div>
+                <div id="youtubeSearchResultsContainer" class="flex-grow flex flex-col min-h-0 relative">
+                    <div id="youtubeSearchLoading" class="text-center hidden">
+                        <svg class="animate-spin h-8 w-8 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <p class="mt-2 text-gray-400">Searching...</p>
+                    </div>                    
+                    <ul id="youtubeSearchResults" class="space-y-2 overflow-y-auto flex-grow">
+                        <!-- Results will be populated here -->
+                    </ul>
+                    <div id="youtubeSearchError" class="text-center text-red-400 hidden mt-4 p-2 bg-red-900/50 rounded-lg"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button id="addSelectedYoutubeVideosButton" type="button" class="btn-rpg hidden ml-auto">Add Selected Videos</button>
+            <button id="cancelYoutubeSearchButton" type="button" class="btn-rpg-sm">Close</button>
+        </div>
+    </div>
+
+
+
     <div id="saveFileModal" class="modal" style="max-width: 500px;">
         <div class="modal-body">
             <h3 class="modal-title"><i class="fas fa-save mr-2"></i>Save to File</h3>
@@ -1867,9 +2089,14 @@
     <script>
         // --- Constants ---
         // v25.8: Syrinscape loop with duration fix, Autoplay on time change fix
+        const YT_RECENT_SEARCHES_KEY = 'storytellerYoutubeRecentSearches';
         const LOCAL_STORAGE_KEY = 'storytellerBookData_v25.8'; // Incremented version
         const INTERIM_WORD_BLOCK_SIZE = 6; // Increased from 4 to 6
         const SCORE_TIE_THRESHOLD = 0.2;
+        // --- Spotify Constants ---
+        const SPOTIFY_DEFAULT_CLIENT_ID = "4ec2098d4c8f49149f5b4bca2850bfd5";
+        const SPOTIFY_REDIRECT_URI = `${window.location.origin}/`;
+        const SPOTIFY_SCOPES = ["streaming", "user-read-email", "user-read-private", "user-read-playback-state", "user-modify-playback-state"].join(" ");
         const HIGH_CONFIDENCE_THRESHOLD = 0.9;
         const AND_REGEX = /\b(and|&)\b/i;
         const COMPOUND_DELAY_MS = 300;
@@ -1883,7 +2110,9 @@
         const PLOT_THREAD_COLORS = 5;
         const PLOT_THREAD_OFFSET_AMOUNT = 6;
         const SYRINSCAPE_API_SEARCH_URL = 'https://syrinscape.com/search/';
-        const PIP_CANVAS_SIZE = 80; // Adjusted PiP canvas size for potentially better icon quality
+        const PIP_CANVAS_SIZE = 80;
+        
+        let currentYoutubeApiKeyIndex = 0;
 
         // --- YouTube API Setup ---
         let youtubeApiReady = false;
@@ -1999,9 +2228,16 @@
             const settingsDaytimePhrasesInput = document.getElementById('settingsDaytimePhrases');
             const settingsNighttimePhrasesInput = document.getElementById('settingsNighttimePhrases');
             const settingsAutoplayOnClickRadios = document.querySelectorAll('input[name="settingsAutoplayOnClick"]');
+            const settingsYoutubeApiKeysInput = document.getElementById('settingsYoutubeApiKeys');
             const settingsSyrinscapeAuthTokenInput = document.getElementById('settingsSyrinscapeAuthToken');
             const initializeSyrinscapeButton = document.getElementById('initializeSyrinscapeButton');
             const saveSettingsButton = document.getElementById('saveSettingsButton');
+            const settingsSpotifyClientIdInput = document.getElementById('settingsSpotifyClientId');
+            const spotifyLoginContainer = document.getElementById('spotifyLoginContainer');
+            const spotifyLogoutContainer = document.getElementById('spotifyLogoutContainer');
+            const spotifyLoginButton = document.getElementById('spotifyLoginButton');
+            const spotifyLogoutButton = document.getElementById('spotifyLogoutButton');
+            const spotifyUserStatus = document.getElementById('spotifyUserStatus');
             const cancelSettingsButton = document.getElementById('cancelSettingsButton');
 
             // Save File Modal
@@ -2027,7 +2263,6 @@
 
             // Add Page Modal
             const addPageModal = document.getElementById('addPageModal');
-            const addPageFileInput = document.getElementById('addPageFile');
             const addPageTitleInput = document.getElementById('addPageTitle');
             const addSourceNameInput = document.getElementById('addSourceName');
             const addPrimaryKeyInput = document.getElementById('addPrimaryKey');
@@ -2044,15 +2279,22 @@
             const addYoutubeUrlInput = document.getElementById('addYoutubeUrl');
             const addStartTimeInput = document.getElementById('addStartTime');
             const addEndTimeInput = document.getElementById('addEndTime');
+            // New preview containers
+
             const sourceYoutubeUrlStatus = document.getElementById('sourceYoutubeUrlStatus');
             const addYoutubeUrlStatus = document.getElementById('addYoutubeUrlStatus');
 
             const addSourceTypeRadios = document.querySelectorAll('input[name="addSourceType"]');
+            const addPageFilePreviewContainer = document.getElementById('addPageFilePreviewContainer');
+            const addPageYouTubePreviewContainer = document.getElementById('addPageYouTubePreviewContainer');
+            const sourceFilePreviewContainer = document.getElementById('sourceFilePreviewContainer');
+            const sourceYouTubePreviewContainer = document.getElementById('sourceYouTubePreviewContainer');
             const addKeywordsInputContainer = document.getElementById('addKeywordsInputContainer');
             const addPhrasesInputContainer = document.getElementById('addPhrasesInputContainer');
             const addLoopOptionsContainer = document.getElementById('addLoopOptionsContainer');
             const addEndPlayKeywordsContainer = document.getElementById('addEndPlayKeywordsContainer');
             const addFileInputContainer = document.getElementById('addFileInputContainer');
+            const addSourceListUl = document.getElementById('addSourceList');
             const addYoutubeInputContainer = document.getElementById('addYoutubeInputContainer');
             const addSyrinscapeInputContainer = document.getElementById('addSyrinscapeInputContainer');
             const addSyrinscapeSearchInput = document.getElementById('addSyrinscapeSearch');
@@ -2062,6 +2304,7 @@
             const addSyrinscapeSelectedSoundSpan = document.getElementById('addSyrinscapeSelectedSound');
             const addSyrinscapePlayDurationInput = document.getElementById('addSyrinscapePlayDuration');
             const addTimeOfDaySettingRadios = document.querySelectorAll('input[name="addTimeOfDaySetting"]');
+            const addYoutubeSearchButton = document.getElementById('addYoutubeSearchButton');
             const addButton = document.getElementById('addButton');
             const cancelAddButton = document.getElementById('cancelAddButton');
 
@@ -2090,6 +2333,7 @@
             const saveEditButton = document.getElementById('saveEditButton');
             const cancelEditButton = document.getElementById('cancelEditButton');
             const openAddSourceVariationModalButton = document.getElementById('openAddSourceVariationModalButton');
+            const openAddSourceVariationModalButton_addPage = document.getElementById('openAddSourceVariationModalButton_addPage');
 
             // Add/Edit Source Variation Modal
             const variationSettingsModal = document.getElementById('variationSettingsModal');
@@ -2112,6 +2356,7 @@
             const sourceVariationSyrinscapeSelectedSoundSpan = document.getElementById('sourceVariationSyrinscapeSelectedSound');
             const sourceVariationSyrinscapePlayDurationInput = document.getElementById('sourceVariationSyrinscapePlayDuration');            
             const sourceVariationKeywordsInput = document.getElementById('sourceVariationKeywords');
+            const sourceYoutubeSearchButton = document.getElementById('sourceYoutubeSearchButton');
             const sourceVariationEnableVolumeOverrideCheckbox = document.getElementById('sourceVariationEnableVolumeOverride');
             const sourceVariationVolumeContainer = document.getElementById('sourceVariationVolumeContainer');
             const sourceVariationVolumeInput = document.getElementById('sourceVariationVolume');
@@ -2243,6 +2488,31 @@
             const syrinscapeSearchResultsUl = document.getElementById('syrinscapeSearchResults');
             const cancelSyrinscapeSearchButton = document.getElementById('cancelSyrinscapeSearchButton');
 
+            // YouTube Search Modal Elements
+            const youtubeSearchModal = document.getElementById('youtubeSearchModal');
+            const youtubeSearchQueryInput = document.getElementById('youtubeSearchQueryInput');
+            const executeYoutubeSearchButton = document.getElementById('executeYoutubeSearchButton');
+            const youtubeSearchLoading = document.getElementById('youtubeSearchLoading');
+            const youtubeSearchResultsUl = document.getElementById('youtubeSearchResults');
+            const youtubePaginationTop = document.getElementById('youtubePaginationTop');
+            const youtubePaginationBottom = document.getElementById('youtubePaginationBottom');
+            const youtubeSearchError = document.getElementById('youtubeSearchError');
+            const cancelYoutubeSearchButton = document.getElementById('cancelYoutubeSearchButton');
+            const addSelectedYoutubeVideosButton = document.getElementById('addSelectedYoutubeVideosButton');
+
+            // YouTube Preview Player State
+            let ytPreviewPlayer;
+            let ytPreviewUpdateInterval;
+            let currentYtPreviewVideoId = null;
+            let currentlyPlayingYtTile = null;
+
+            // YouTube Search Pagination
+            const youtubeNextButtons = [document.getElementById('youtubeNextBtnTop')];
+            const youtubePrevButtons = [document.getElementById('youtubePrevBtnTop')];
+            let ytSearchNextPageToken = null;
+            let ytSearchPrevPageToken = null;
+            let ytSearchPageHistory = [];
+            let ytSearchCurrentQuery = '';
 
             // --- State Variables ---
             let audioContext; let recognition;
@@ -2254,6 +2524,7 @@
             // State for "Look-Behind with Conjunction" logic
             let lookBehindContext = {
                 active: false,
+                page: null, // This seems to be unused, consider removing
                 primaryKeys: [],
                 returnChapterContext: null, // { fromChapterId: string, viaThreadId: string }
                 timestamp: 0
@@ -2291,10 +2562,299 @@
             let daytimeTransitionPhrases = [];
             let nighttimeTransitionPhrases = [];
             let autoplayOnClickSetting = 'listening';
+            let youtubeApiKeys = [];
             let syrinscapeAuthToken = null;            
             let syrinscapePlayerReady = false;
             let currentSyrinscapeSearchContext = null;
             let activeSyrinscapePreview = null; // { elementId, kind, name, buttonElement }
+
+            // YouTube Search State
+            let currentYoutubeSearchContext = null; // 'add' or 'source'
+            let ytNextPageToken = null;
+            let ytPrevPageToken = null; // This is for the API response, not the UI history
+            let ytPageHistory = [];
+            let ytVerificationPlayer = null;
+            let isYtVerifying = false;
+            let recentYoutubeSearches = [];
+            let currentYtVerificationVideoId = null;
+            let ytCurrentQuery = '';
+            
+            // Modal Preview Player State
+            let tempPageForAddModal = null; // Holds the page object while in the Add Page modal
+            let modalPreviewAudio = new Audio();
+            let modalPreviewUpdateInterval = null;
+            let activePreviewContext = null; // { container, type, source }
+
+            function initializePreviewSliders(container, player) {
+                if (!container || !player || !activePreviewContext) return;
+                const startBar = container.querySelector('.media-preview-start-bar');
+                const endBar = container.querySelector('.media-preview-end-bar');
+                const selectionDiv = container.querySelector('.media-range-selection');
+                const duration = player.duration || (player.getDuration ? player.getDuration() : 0);
+
+                // Prioritize using the startTime/endTime from the context object, which is more reliable.
+                // Fallback to reading from the input fields.
+                const startTimeFromContext = activePreviewContext.startTime;
+                const endTimeFromContext = activePreviewContext.endTime;
+
+                if (startTimeFromContext !== null && startTimeFromContext !== undefined && duration > 0) {
+                    startBar.value = Math.min(100, (startTimeFromContext / duration) * 100);
+                } else {
+                    const timeInputStart = container.closest('.modal-content, .yt-video-item')?.querySelector('.yt-search-start-time, #addStartTime, #sourceStartTime');
+                    if (timeInputStart?.value && duration > 0) {
+                        startBar.value = Math.min(100, (parseTime(timeInputStart.value) / duration) * 100);
+                    }
+                }
+
+                if (endTimeFromContext !== null && endTimeFromContext !== undefined && duration > 0) {
+                    endBar.value = (endTimeFromContext / duration) * 100;
+                } else {
+                    const timeInputEnd = container.closest('.modal-content, .yt-video-item')?.querySelector('.yt-search-end-time, #addEndTime, #sourceEndTime');
+                    if (timeInputEnd?.value && duration > 0) {
+                        endBar.value = (parseTime(timeInputEnd.value) / duration) * 100;
+                    }
+                }
+                selectionDiv.style.left = `${startBar.value}%`;
+                selectionDiv.style.width = `${endBar.value - startBar.value}%`;
+            }
+
+            function resetPreviewSliders(container) {
+                if (!container) return;
+                const startBar = container.querySelector('.media-preview-start-bar');
+                const endBar = container.querySelector('.media-preview-end-bar');
+                const selectionDiv = container.querySelector('.media-range-selection');
+                if (startBar) startBar.value = 0;
+                if (endBar) endBar.value = 100;
+                if (selectionDiv) {
+                    selectionDiv.style.left = '0%';
+                    selectionDiv.style.width = '100%';
+                }
+            }
+            // --- Modal Preview Player Functions ---
+            function setupFilePreview(file, container) {
+                if (!file || !container) {
+                    if (container) container.classList.add('hidden'); // This line is correct
+                    return;
+                }
+                if (activePreviewContext) stopModalPreview();
+                resetPreviewSliders(container);
+
+                const objectURL = URL.createObjectURL(file);
+                modalPreviewAudio.src = objectURL;
+                modalPreviewAudio.load();
+
+                activePreviewContext = {
+                    container: container,
+                    type: 'audio',
+                    source: modalPreviewAudio,
+                    urlToRevoke: objectURL
+                };
+
+                container.classList.remove('hidden');
+                attachModalPreviewListeners(container, modalPreviewAudio);
+                modalPreviewAudio.onloadedmetadata = () => initializePreviewSliders(container, modalPreviewAudio);
+            }
+
+            function setupYouTubePreview(urlOrVideoId, container, autoplay = false, startTime = null, endTime = null) {
+                if (!urlOrVideoId || !container) {
+                    if (container) container.classList.add('hidden'); // This line is correct
+                    return;
+                }
+                const videoId = urlOrVideoId.includes('youtube.com') || urlOrVideoId.includes('youtu.be') ? extractYouTubeVideoId(urlOrVideoId) : urlOrVideoId;
+                if (!videoId) {
+                    container.classList.add('hidden');
+                    // If the URL becomes invalid, ensure we stop any active preview
+                    if (activePreviewContext && activePreviewContext.container === container) {
+                        stopModalPreview();
+                    }
+                    return;
+                }
+                if (activePreviewContext) stopModalPreview();
+                resetPreviewSliders(container);
+                container.classList.remove('hidden'); // Re-show container in case stopModalPreview hid it
+
+                // For YouTube, we use the main preview player
+                createOrLoadYtPreviewPlayer(videoId, autoplay);
+                activePreviewContext = {
+                    container: container,
+                    type: 'youtube',
+                    source: ytPreviewPlayer,
+                    startTime: startTime,
+                    endTime: endTime
+                };
+
+                container.classList.remove('hidden');
+                attachModalPreviewListeners(container, ytPreviewPlayer);
+            } // This function is correct
+
+            function attachModalPreviewListeners(container, player) {
+                const playPauseBtn = container.querySelector('.media-preview-play-pause-btn');
+                const scrubBar = container.querySelector('.media-preview-scrub-bar');
+                const goToStartBtn = container.querySelector('.media-preview-goto-start-btn');
+                const startBar = container.querySelector('.media-preview-start-bar');
+                const endBar = container.querySelector('.media-preview-end-bar');
+                const selectionDiv = container.querySelector('.media-range-selection');
+                const timelineContainer = scrubBar.parentElement; // The div containing all sliders
+                const playPauseIcon = playPauseBtn.querySelector('i');
+
+                const playHandler = () => {
+                    if (player.paused || (player.getPlayerState && player.getPlayerState() !== YT.PlayerState.PLAYING && player.getPlayerState() !== YT.PlayerState.BUFFERING)) {
+                        if(player.playVideo) player.playVideo(); else player.play();
+                    } else {
+                        // If it's already playing or buffering, pause it.
+                        if(player.pauseVideo) player.pauseVideo(); else player.pause();
+                        playPauseIcon.className = 'fas fa-play fa-fw';
+                    }
+                };
+
+                const scrubHandler = () => {
+                    const duration = player.duration || (player.getDuration ? player.getDuration() : 0);
+                    if (!isNaN(duration) && duration > 0) {
+                        const newTime = duration * (scrubBar.value / 100);
+                        if (player.seekTo) player.seekTo(newTime, true);
+                        else player.currentTime = newTime;
+                    }
+                };
+
+                const timelineClickHandler = (e) => {
+                    const rect = timelineContainer.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const percentage = (clickX / rect.width) * 100;
+                    scrubBar.value = percentage;
+                    scrubHandler(); // Use the existing scrub handler logic
+                };
+
+                const goToStartHandler = () => {
+                    const duration = player.duration || (player.getDuration ? player.getDuration() : 0);
+                    if (!isNaN(duration) && duration > 0) {
+                        const startTime = duration * (startBar.value / 100);
+                        if (player.seekTo) player.seekTo(startTime, true);
+                        else player.currentTime = startTime;
+                        updateModalPreviewUI(); // Immediately update UI after seeking
+                    }
+                };
+                
+                const updateRangeSelection = () => {
+                    const startVal = parseFloat(startBar.value);
+                    const endVal = parseFloat(endBar.value);
+                    selectionDiv.style.left = `${startVal}%`;
+                    selectionDiv.style.width = `${endVal - startVal}%`;
+                };
+
+                const startHandler = () => {
+                    if (parseFloat(startBar.value) >= parseFloat(endBar.value)) {
+                        startBar.value = endBar.value;
+                    }
+                    updateRangeSelection();
+                    const duration = player.duration || (player.getDuration ? player.getDuration() : 0);
+                    // Find the correct time input associated with this previewer
+                    const timeInput = container.closest('.modal-content, .yt-video-item')?.querySelector('.yt-search-start-time, #addStartTime, #sourceStartTime');
+                    if (!isNaN(duration) && duration > 0 && timeInput) {
+                        const newStartTime = duration * (startBar.value / 100);
+                        timeInput.value = formatTime(newStartTime);
+                        timeInput.dispatchEvent(new Event('input')); // Trigger input event for any listeners
+                    }
+                };
+
+                const endHandler = () => {
+                    if (parseFloat(endBar.value) <= parseFloat(startBar.value)) {
+                        endBar.value = startBar.value;
+                    }
+                    updateRangeSelection();
+                    const duration = player.duration || (player.getDuration ? player.getDuration() : 0);
+                    // Find the correct time input associated with this previewer
+                    const timeInput = container.closest('.modal-content, .yt-video-item')?.querySelector('.yt-search-end-time, #addEndTime, #sourceEndTime');
+                    if (!isNaN(duration) && duration > 0 && timeInput) {
+                        const newEndTime = duration * (endBar.value / 100);
+                        timeInput.value = formatTime(newEndTime);
+                        timeInput.dispatchEvent(new Event('input')); // Trigger input event for any listeners
+                    }
+                };
+
+                const timeInputStart = container.closest('.modal-content, .yt-video-item')?.querySelector('.yt-search-start-time, #addStartTime, #sourceStartTime');
+                const timeInputEnd = container.closest('.modal-content, .yt-video-item')?.querySelector('.yt-search-end-time, #addEndTime, #sourceEndTime');
+
+                if (timeInputStart) {
+                    timeInputStart.addEventListener('input', () => {
+                        const duration = player.duration || (player.getDuration ? player.getDuration() : 0);
+                        const newStartTime = parseTime(timeInputStart.value);
+                        if (duration > 0 && newStartTime !== null) {
+                            startBar.value = (newStartTime / duration) * 100;
+                            updateRangeSelection();
+                        }
+                    });
+                }
+                if (timeInputEnd) {
+                    timeInputEnd.addEventListener('input', () => {
+                        const duration = player.duration || (player.getDuration ? player.getDuration() : 0);
+                        const newEndTime = parseTime(timeInputEnd.value);
+                        if (duration > 0 && newEndTime !== null) {
+                            endBar.value = (newEndTime / duration) * 100;
+                            updateRangeSelection();
+                        }
+                    });
+                }
+
+                playPauseBtn.onclick = playHandler;
+                scrubBar.oninput = scrubHandler;
+                timelineContainer.onclick = timelineClickHandler;
+                goToStartBtn.onclick = goToStartHandler;
+                startBar.oninput = startHandler;
+                endBar.oninput = endHandler;
+
+                startModalPreviewInterval();
+            }
+
+            function updateModalPreviewUI() {
+                if (!activePreviewContext) return;
+                const { container, source, type } = activePreviewContext;
+                const startBar = container.querySelector('.media-preview-start-bar');
+                const endBar = container.querySelector('.media-preview-end-bar');
+                const scrubBar = container.querySelector('.media-preview-scrub-bar');
+                const currentTimeEl = container.querySelector('.media-preview-current-time');
+                const durationEl = container.querySelector('.media-preview-duration');
+                const icon = container.querySelector('.media-preview-play-pause-btn i');
+
+                const currentTime = type === 'audio' ? source.currentTime : (source.getCurrentTime ? source.getCurrentTime() : 0);
+                const duration = type === 'audio' ? source.duration : (source.getDuration ? source.getDuration() : 0);
+
+                const isPlaying = type === 'audio' ? !source.paused : (source.getPlayerState && source.getPlayerState() === YT.PlayerState.PLAYING);
+
+                if (!isNaN(duration) && duration > 0) {
+                    scrubBar.value = (currentTime / duration) * 100;
+                    currentTimeEl.textContent = formatTime(currentTime);
+                    durationEl.textContent = formatTime(duration);
+
+                    // Loop within range logic
+                    if (isPlaying) {
+                        const startTime = duration * (parseFloat(startBar.value) / 100);
+                        // If endBar is at 100%, use the full duration to avoid floating point issues stopping it just before the end.
+                        const endTime = (endBar.value >= 100) ? duration : duration * (parseFloat(endBar.value) / 100);
+
+                        // If playback is outside the defined range, loop back to the start.
+                        if (currentTime < startTime || currentTime >= endTime) {
+                            if (source.seekTo) source.seekTo(startTime, true);
+                            else source.currentTime = startTime;
+                        }
+                    }
+                }
+                
+                icon.className = isPlaying ? 'fas fa-pause fa-fw' : 'fas fa-play fa-fw';
+            }
+
+            function startModalPreviewInterval() { stopModalPreviewInterval(); modalPreviewUpdateInterval = setInterval(updateModalPreviewUI, 250); }
+            function stopModalPreviewInterval() { clearInterval(modalPreviewUpdateInterval); }
+
+            function stopModalPreview() {
+                if (!activePreviewContext) return;
+                const { container, source, type, urlToRevoke } = activePreviewContext;
+                if (type === 'audio') {
+                    source.pause();
+                    source.removeAttribute('src'); // More reliable than setting to ''
+                    if (urlToRevoke) URL.revokeObjectURL(urlToRevoke); }
+                else if (type === 'youtube' && source && typeof source.stopVideo === 'function') { source.stopVideo(); }
+                stopModalPreviewInterval(); container.classList.add('hidden'); activePreviewContext = null;
+            }
 
             // Other state variables
             let volumeModifiers = {}; // Tracks volume changes from Appendix effects
@@ -2792,6 +3352,12 @@
                 settingsDaytimePhrasesInput.value = (book.settings.daytimeTransitionPhrases || []).join(', ');
                 settingsNighttimePhrasesInput.value = (book.settings.nighttimeTransitionPhrases || []).join(', ');
                 settingsSyrinscapeAuthTokenInput.value = book.settings.syrinscapeAuthToken || '';
+                settingsYoutubeApiKeysInput.value = (book.settings.youtubeApiKeys || []).join(', ');
+
+                // Spotify settings
+                settingsSpotifyClientIdInput.value = book.settings.spotifyClientId || '';
+                updateSpotifyLoginUI();
+
 
                 modalOverlay.style.display = 'block';
                 settingsModal.style.display = 'flex';
@@ -2807,6 +3373,7 @@
                 const oldKeywordConfidence = book.settings.accuracyThreshold;
                 const oldListeningMode = book.settings.listeningMode;
                 const oldSyrinscapeToken = book.settings.syrinscapeAuthToken;
+                const oldYoutubeKeys = (book.settings.youtubeApiKeys || []).join(',');
 
                 // Update book.settings from modal inputs
                 book.settings.listeningMode = document.querySelector('input[name="settingsListeningMode"]:checked')?.value || 'toggle';
@@ -2821,6 +3388,8 @@
                 book.settings.daytimeTransitionPhrases = settingsDaytimePhrasesInput.value.trim().toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
                 book.settings.nighttimeTransitionPhrases = settingsNighttimePhrasesInput.value.trim().toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
                 book.settings.syrinscapeAuthToken = settingsSyrinscapeAuthTokenInput.value.trim() || null;
+                book.settings.youtubeApiKeys = settingsYoutubeApiKeysInput.value.trim().split(',').map(k => k.trim()).filter(Boolean);
+                book.settings.spotifyClientId = settingsSpotifyClientIdInput.value.trim() || null;
 
                 const newKeywordConfidenceValue = parseFloat(settingsAccuracyThresholdInput.value) / 100;
                 book.settings.accuracyThreshold = isNaN(newKeywordConfidenceValue) ? 0.80 : Math.max(0.5, Math.min(1, newKeywordConfidenceValue));
@@ -2837,6 +3406,7 @@
                 daytimeTransitionPhrases = book.settings.daytimeTransitionPhrases;
                 nighttimeTransitionPhrases = book.settings.nighttimeTransitionPhrases;
                 autoplayOnClickSetting = book.settings.autoplayOnClick;
+                youtubeApiKeys = book.settings.youtubeApiKeys;
                 syrinscapeAuthToken = book.settings.syrinscapeAuthToken;
 
                 // Re-initialize Fuse.js if relevant settings changed
@@ -2862,6 +3432,11 @@
                         initializeSyrinscapePlayer(); // Attempt re-init if new token provided
                     }
                 }
+                // Reset YouTube API key index if keys have changed
+                if (oldYoutubeKeys !== book.settings.youtubeApiKeys.join(',')) {
+                    currentYoutubeApiKeyIndex = 0;
+                    console.log("YouTube API keys changed. Resetting key index.");
+                }
 
 
                 saveToLocalStorage();
@@ -2876,6 +3451,12 @@
             saveSettingsButton.addEventListener('click', saveSettings);
             settingsAccuracyThresholdInput.addEventListener('input', () => {
                 const value = parseFloat(settingsAccuracyThresholdInput.value) / 100;
+            });
+
+            // Spotify Settings Listeners
+            spotifyLoginButton.addEventListener('click', redirectToSpotifyLogin);
+            spotifyLogoutButton.addEventListener('click', () => {
+                logoutSpotify();
                 settingsAccuracyValueSpan.textContent = value.toFixed(2);
             });
 
@@ -3639,6 +4220,14 @@
                             if (effectData.params?.toVariationId) toSelect.value = effectData.params.toVariationId;
                         };
 
+                    case 'set_page_title':
+                        paramsContainer.innerHTML = `
+                            <div class="flex flex-col gap-2">
+                                <label class="block text-sm font-medium">Page to Rename:</label>
+                                <select class="appendix-page-target-select"></select>
+                                <label class="block text-sm font-medium">New Title:</label>
+                                <input type="text" class="appendix-new-title-input" placeholder="Enter new title...">
+                            </div>`;
                         pageSelect.addEventListener('change', () => populateVariationSelects(pageSelect.value));
 
                         // Set initial state if editing
@@ -3678,6 +4267,15 @@
                         const timeSet = paramsContainer.querySelector('input[name^="appendixTimeSet_"]:checked');
                         if (timeSet) params.time = timeSet.value;
                         break;
+                    case 'set_page_title':
+                        const pageTargetSelect = paramsContainer.querySelector('.appendix-page-target-select');
+                        const newTitleInput = paramsContainer.querySelector('.appendix-new-title-input');
+                        if (pageTargetSelect) params.pageId = pageTargetSelect.value;
+                        if (newTitleInput) params.newTitle = newTitleInput.value;
+                        break;
+                    case 'transition_variation':
+                        // This is already handled in the main switch, but we can add it here for completeness
+                        break;
                 }
                 const sequentialCheckbox = targetContainer.querySelector('.appendix-play-sequentially');
                 if (sequentialCheckbox) params.playSequentially = sequentialCheckbox.checked;
@@ -3712,6 +4310,12 @@
                 // --- END NEW LOGGING --- // This line is correct
 
                 const volTargetTypeSelect = appendixEffectTargetContainer.querySelector('.appendix-volume-target-type');
+                if (effectType === 'set_page_title') {
+                    const pageTargetSelect = paramsContainer.querySelector('.appendix-page-target-select');
+                    if (pageTargetSelect) {
+                        effect.target.pages = [{ pageId: parseInt(pageTargetSelect.value, 10), variationId: null }];
+                    }
+                }
                 if (volTargetTypeSelect) effect.target.targetType = volTargetTypeSelect.value;
 
                 if (isEditing) {
@@ -3844,6 +4448,12 @@
             // --- Add Page Modal Listeners ---
             openAddPageModalButton.addEventListener('click', openAddPageModal);
             cancelAddButton.addEventListener('click', closeAddPageModal);
+            openAddSourceVariationModalButton_addPage.addEventListener('click', () => openVariationSettingsModal(null, null, true));
+            
+            // New previewer listeners
+            document.getElementById('addPageFile').addEventListener('change', (e) => setupFilePreview(e.target.files[0], addPageFilePreviewContainer));
+            document.getElementById('addYoutubeUrl').addEventListener('input', (e) => setupYouTubePreview(e.target.value, addPageYouTubePreviewContainer));
+            
             sourceYoutubeUrlInput.addEventListener('input', () => checkYouTubeEmbeddability(sourceYoutubeUrlInput, sourceYoutubeUrlStatus)); // This line is correct
             addYoutubeUrlInput.addEventListener('paste', () => setTimeout(() => checkYouTubeEmbeddability(addYoutubeUrlInput, addYoutubeUrlStatus), 50));
             addYoutubeUrlInput.addEventListener('input', () => checkYouTubeEmbeddability(addYoutubeUrlInput, addYoutubeUrlStatus));
@@ -3856,6 +4466,11 @@
                     addYoutubeInputContainer.classList.toggle('hidden', selectedType !== 'youtube');
                     addSyrinscapeInputContainer.classList.toggle('hidden', selectedType !== 'syrinscape');
                     addFadeInOutCheckbox.disabled = selectedType !== 'file';
+                    // Hide previewers when type changes
+                    if (addPageFilePreviewContainer) addPageFilePreviewContainer.classList.add('hidden');
+                    if (addPageYouTubePreviewContainer) {
+                        addPageYouTubePreviewContainer.classList.add('hidden');
+                    }
                     if (selectedType !== 'file') addFadeInOutCheckbox.checked = false;
 
                     const syrinscapeKind = addSyrinscapeKindInput.value;
@@ -3964,11 +4579,11 @@
 
 
             // --- Create New Page Function (from Modal) ---
-            async function createNewPageFromModal() {
+            async function createNewPageFromModal(returnPageObject = false) {
                 console.log("Create New Page button clicked (from modal).");
                 if (!initAudioContext()) { showTemporaryMessage("Audio system not ready.", "error"); return; }
 
-                const title = addPageTitleInput.value.trim();
+                let title = addPageTitleInput.value.trim();
                 const sourceName = addSourceNameInput.value.trim() || null;
                 const primaryKeyRaw = addPrimaryKeyInput.value.trim();
                 const primaryKey = primaryKeyRaw ? primaryKeyRaw.toLowerCase() : null;
@@ -3988,10 +4603,10 @@
                 const syrinscapePlayDuration = (sourceType === 'syrinscape' && syrinscapePlayDurationRaw) ? parseInt(syrinscapePlayDurationRaw, 10) : null;
 
 
-                if (!sourceType) { showTemporaryMessage('Please select a source type.', 'error'); return; }
-                if (loop && loopCount === 0 && !loopIndefinitely && !(sourceType === 'syrinscape' && syrinscapePlayDuration)) {
+                if (loop && loopCount === 0 && !loopIndefinitely && !(tempPageForAddModal.sources[0]?.type === 'syrinscape' && tempPageForAddModal.sources[0]?.syrinscapePlayDuration)) {
                      showTemporaryMessage('Invalid Loop Count.', 'error'); return;
                 }
+                if (tempPageForAddModal.sources.length === 0) { showTemporaryMessage('A new page must have at least one sound source variation.', 'error'); return; }
                 if (!title) { showTemporaryMessage('Page Title is required.', 'error'); return; }
                 const duplicateTitle = book.pages.some(page => page.title.toLowerCase() === title.toLowerCase());
                 if (duplicateTitle) { showTemporaryMessage(`A page titled "${title}" already exists.`, 'error', 5000); return; }
@@ -4004,94 +4619,16 @@
                 const phrases = phrasesRaw === '' ? [] : phrasesRaw.split('\n').map(p => p.trim().toLowerCase()).filter(Boolean);
                 const endPlayKeywords = endPlayKeywordsRaw === '' ? [] : endPlayKeywordsRaw.toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
 
-                let sourceDetail = {
-                    name: sourceName,
-                    type: sourceType,
-                    source: null,
-                    fileName: null,
-                    syrinscapeElementId: null,
-                    syrinscapeKind: null,
-                    syrinscapePlayDuration: syrinscapePlayDuration,
-                    startTime: null,
-                    endTime: null,
-                    variationKeywords: [],
-                    isDefault: false,
-                    needsFile: false,
-                    volumeOverride: null,
-                    chapterIds: null,
-                    timeOfDay: 'always'
-                };
-
                 addButton.disabled = true;
                 addButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span> Creating...</span>';
 
                 try {
-                    if (sourceType === 'file') {
-                        const file = addPageFileInput.files[0];
-                        if (!file) throw new Error('Please select a sound file.');
-                        sourceDetail.fileName = file.name;
-                        const arrayBuffer = await file.arrayBuffer();
-                        if (!audioContext) throw new Error("AudioContext needed.");
-                        sourceDetail.source = await audioContext.decodeAudioData(arrayBuffer);
-                        sourceDetail.needsFile = false;
-                    } else if (sourceType === 'youtube') {
-                        if (!youtubeApiReady) {
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                            if (!youtubeApiReady) throw new Error('YouTube API not ready.');
-                        }
-                        const url = addYoutubeUrlInput.value.trim();
-                        if (!url) throw new Error('Please enter a YouTube URL.');
-                        const videoId = extractYouTubeVideoId(url);
-                const videoTitle = await getYouTubeVideoTitle(videoId);
-                        if (!videoId) throw new Error('Invalid YouTube URL.');
-                        sourceDetail.source = videoId;
-                        sourceDetail.fileName = url;
-                        const startTimeRaw = addStartTimeInput.value.trim();
-                        const endTimeRaw = addEndTimeInput.value.trim();
-                        sourceDetail.startTime = startTimeRaw ? parseTime(startTimeRaw) : null;
-                        sourceDetail.endTime = endTimeRaw ? parseTime(endTimeRaw) : null;
-                        if (startTimeRaw && sourceDetail.startTime === null) throw new Error('Invalid Start Time.');
-                        if (endTimeRaw && sourceDetail.endTime === null) throw new Error('Invalid End Time.');
-                        if (sourceDetail.startTime !== null && sourceDetail.endTime !== null && sourceDetail.endTime <= sourceDetail.startTime) {
-                            throw new Error('End Time must be after Start Time.');
-                        }
-                sourceDetail.videoTitle = videoTitle;
-                        sourceDetail.needsFile = false;
-                    } else if (sourceType === 'syrinscape') {
-                        if (!syrinscapePlayerReady && !syrinscapeAuthToken) {
-                            showTemporaryMessage('Syrinscape Auth Token set, but player not active. Try initializing in Settings or ensure page interaction.', 'warning', 5000);
-                        } else if (!syrinscapeAuthToken) {
-                             showTemporaryMessage('Syrinscape Auth Token not set in Settings.', 'error', 5000);
-                             throw new Error('Syrinscape Auth Token not set.');
-                        }
-                        const elementId = addSyrinscapeElementIdInput.value;
-                        const selectedName = addSyrinscapeSelectedSoundSpan.dataset.syrinscapeName;
-                        const selectedKind = addSyrinscapeKindInput.value;
-
-                        if (!elementId || !selectedName || !selectedKind) throw new Error('No Syrinscape sound (ID, Name, or Kind) selected. Please search and select one.');
-                        sourceDetail.syrinscapeElementId = elementId;
-                        sourceDetail.syrinscapeKind = selectedKind;
-                        sourceDetail.fileName = selectedName; // Store the user-friendly name
-                        sourceDetail.needsFile = false;
-                    }
-                sourceDetail.variationKeywords = [];
-                sourceDetail.isDefault = page.sources.length === 0; // First source is default
-
-
+                    // The tempPageForAddModal already has the sources, we just need to update the main page properties
                     const newPageId = book.nextPageId++;
                     console.log(`Creating new page from modal: "${title}" (ID: ${newPageId}), PrimaryKey(s): "${primaryKey}"`);
 
                     let finalLoop = loop;
                     let finalLoopCount = loopCount;
-                    // Syrinscape moods/music should loop by default if no duration is set
-                    const isSyrinscapeLoopableType = sourceType === 'syrinscape' && (sourceDetail.syrinscapeKind?.toLowerCase().includes('mood') || sourceDetail.syrinscapeKind?.toLowerCase().includes('music'));
-                    if (isSyrinscapeLoopableType && !syrinscapePlayDuration) {
-                        finalLoop = true;
-                        finalLoopCount = -1; // Indefinite
-                    } else if (sourceType === 'syrinscape' && syrinscapePlayDuration) {
-                        // If duration is set, Storyteller's loop is initially off, but can be enabled by user
-                        // The playSound logic will handle if the duration ends and then if looping should occur
-                    }
 
 
                     const newPage = {
@@ -4106,11 +4643,10 @@
                         loopCount: finalLoopCount,
                         fadeInOut,
                         endPlayKeywords,
-                        nextPageId: nextPageIdValue,
+                        nextPageId: nextPageIdValue, // This line is correct
                         timeOfDaySetting: timeOfDaySetting,
                     currentLoop: 0, // This property seems to be unused, consider removing
-                    defaultSourceIndex: 0, // The first source is the default
-                        sources: [sourceDetail]
+                        sources: tempPageForAddModal.sources // Use the sources built up in the modal
                     };
                     book.pages.push(newPage);
 
@@ -4125,11 +4661,14 @@
                     updateFuseIndex();
                     updateChapterKeywordList();
                     saveToLocalStorage();
-                    showTemporaryMessage(`New page "${title}" created!`, 'success');
                     renderChapterTabs();
                     renderPageList();
-                    closeAddPageModal();
-                    clearAddForm();
+                    if (returnPageObject) {
+                        return newPage;
+                    } else {
+                        showTemporaryMessage(`New page "${title}" created!`, 'success');
+                        closeAddPageModal();
+                    }
 
                 } catch (error) {
                     console.error("Error creating new page from modal:", error);
@@ -4137,13 +4676,15 @@
                 } finally {
                     addButton.disabled = false;
                     addButton.innerHTML = '<i class="fas fa-plus-circle"></i><span> Create New Page</span>';
+                    if (returnPageObject) return null;
                 }
             }
 
 
             // --- Helper Functions ---
             function clearAddForm() {
-                addPageFileInput.value = '';
+                // addPageFileInput is no longer a direct element, it's part of the source modal logic
+                addSourceListUl.innerHTML = '<li class="italic text-sm text-center py-2">No sources added yet.</li>';
                 addYoutubeUrlInput.value = '';
                 addStartTimeInput.value = '';
                 addEndTimeInput.value = '';
@@ -4180,6 +4721,14 @@
                 addYoutubeInputContainer.classList.add('hidden');
                 addSyrinscapeInputContainer.classList.add('hidden');
                 addFadeInOutCheckbox.disabled = false;
+
+                // Clear previewer
+                if (addPageFilePreviewContainer) addPageFilePreviewContainer.classList.add('hidden');
+                if (addPageYouTubePreviewContainer) addPageYouTubePreviewContainer.classList.add('hidden');
+                if (activePreviewContext?.container === addPageFilePreviewContainer || activePreviewContext?.container === addPageYouTubePreviewContainer) {
+                    stopModalPreview();
+                }
+
                 document.querySelector('input[name="addTimeOfDaySetting"][value="always"]').checked = true;
             }
 
@@ -4200,8 +4749,9 @@
 
             // --- YouTube Embeddability Check ---
             let ytCheckTimeout = null;
-            function checkYouTubeEmbeddability(inputElement, statusElement) { 
-                clearTimeout(ytCheckTimeout);
+            function checkYouTubeEmbeddability(inputElement, statusElement, context) {
+                clearTimeout(ytCheckTimeout); 
+
                 ytCheckTimeout = setTimeout(() => {
                     if (!youtubeApiReady) {
                         statusElement.textContent = "Cannot check URL: YouTube API not ready.";
@@ -4244,8 +4794,8 @@
                                 }
                             },
                             'onError': (event) => {
-                                if (event.data === 101 || event.data === 150) {
-                                    statusElement.textContent = "Error: This video cannot be embedded (owner has disabled it).";
+                                if (event.data === 101 || event.data === 150) { // 101 and 150 are "embedding disabled" errors
+                                    statusElement.textContent = "Error: This video cannot be embedded.";
                                     statusElement.style.color = 'var(--danger-color)';
                                 }
                                 player.destroy();
@@ -4253,7 +4803,7 @@
                             }
                         }
                     });
-                }, 300); // Debounce the check slightly
+                }, 500); // Debounce the check
             }
 
             function fadeOutYouTube(player, durationSeconds) {
@@ -6203,6 +6753,9 @@
                 const otherContainer = document.getElementById(otherConditionsContainerId);
                 const tagContainer = document.getElementById(tagContainerId);
                 if (!container) return [];
+                // --- DEBUG LOG ---
+                console.log(`%c[DEBUG] getConditionsFromBuilder: Reading conditions from UI containers.`, 'color: yellow');
+                // --- END DEBUG LOG ---
             
                 const conditions = [];
             
@@ -6223,6 +6776,9 @@
                 const tagConditionItems = tagContainer ? tagContainer.querySelectorAll('.plot-thread-page-item') : [];
                 tagConditionItems.forEach(item => { // Re-using plotter styling
                     const state = item.dataset.state;
+                    // --- DEBUG LOG ---
+                    console.log(`%c[DEBUG] getConditionsFromBuilder: Reading tag condition item. Tag ID: ${item.dataset.tagId}, State: ${state}`, 'color: yellow');
+                    // --- END DEBUG LOG ---
                     if (state === 'is' || state === 'not') {
                         const tagId = item.dataset.tagId;
                         conditions.push({ type: `tag_${state}`, params: { tagId } });
@@ -6238,6 +6794,10 @@
                         conditions.push({ type, params });
                     }
                 });
+
+                // --- DEBUG LOG ---
+                console.log(`%c[DEBUG] getConditionsFromBuilder: Final constructed conditions array:`, 'color: yellow', JSON.parse(JSON.stringify(conditions)));
+                // --- END DEBUG LOG ---
 
                 return conditions;
             }
@@ -6442,6 +7002,12 @@
                             if (effect.params.time) toggleTimeOfDay(effect.params.time);
                             break;
 
+                    case 'set_page_title':
+                        if (effect.params.pageId && effect.params.newTitle) {
+                            const pageToRename = book.pages.find(p => p.id == effect.params.pageId);
+                            if (pageToRename) pageToRename.title = effect.params.newTitle;
+                        }
+                        break;
                         case 'toggle_time':
                             toggleTimeOfDay('toggle');
                             break;
@@ -7822,6 +8388,11 @@
             // --- Add Page Modal Functions ---
             function openAddPageModal() {
                 console.log("Opening Add Page modal.");
+                tempPageForAddModal = {
+                    id: -1, // Temporary ID
+                    sources: []
+                };
+                currentlyEditingPageId = -1; // Use the temp ID for context
                 clearAddForm();
                 updateAddNextPageDropdown();
                 addSyrinscapeInputContainer.classList.add('hidden');
@@ -7829,6 +8400,10 @@
                 addFileInputContainer.classList.remove('hidden');
                 addYoutubeInputContainer.classList.add('hidden');
                 addFadeInOutCheckbox.disabled = false;
+
+                // Disable YouTube search button if no keys are set
+                const hasApiKeys = book.settings.youtubeApiKeys && book.settings.youtubeApiKeys.length > 0;
+                addYoutubeSearchButton.disabled = !hasApiKeys;
 
                 evaluateSyrinscapeLoopControls(
                     'file', // Default source type
@@ -7863,6 +8438,10 @@
             function closeAddPageModal() {
                 modalOverlay.style.display = 'none';
                 addPageModal.style.display = 'none';
+                if (activePreviewContext?.container === addPageFilePreviewContainer || activePreviewContext?.container === addPageYouTubePreviewContainer) {
+                    stopModalPreview();
+                }
+                tempPageForAddModal = null;
                 currentSyrinscapeSearchContext = null;
             }
 
@@ -7870,6 +8449,7 @@
             function openEditChapterModal(chapterId) {
                 const chapter = book.chapters.find(ch => ch.id === chapterId);
                 if (!chapter || chapter.isIndex) { // This check is correct
+                    showTemporaryMessage("Cannot edit the Index chapter.", "info");
                     return;
                 }
                 console.log(`[openEditChapterModal] Opening for chapter: "${chapter.name}" (ID: ${chapterId})`);
@@ -8178,10 +8758,11 @@
             }
 
             // --- Edit Page Modal Functions ---
-            function openEditPageModal(pageId) {
+            function openEditPageModal(pageId, forAddPage = false) {
                 const page = book.pages.find(p => p.id === pageId);
                 if (!page) { console.error(`Page ID ${pageId} not found.`); return; }
                 console.log(`DEBUG: Opening edit modal for page:`, JSON.parse(JSON.stringify(page)));
+                const modal = forAddPage ? addPageModal : editPageModal;
                 console.log(`Opening edit modal for page: "${page.title}" (ID: ${pageId})`);
                 currentlyEditingPageId = pageId;
 
@@ -8232,7 +8813,7 @@
                 const timeSetting = page.timeOfDaySetting || 'always';
                 document.querySelector(`input[name="editTimeOfDaySetting"][value="${timeSetting}"]`).checked = true;
 
-                renderVariationList(page);
+                renderVariationList(page, forAddPage);
 
                 modalOverlay.style.display = 'block';
                 editPageModal.style.display = 'flex';
@@ -8240,14 +8821,15 @@
 
             function renderVariationList(page) {
                 console.log(`DEBUG: Rendering variation list for page "${page.title}". Page.sources data:`, JSON.parse(JSON.stringify(page.sources)));
-                editSourceListUl.innerHTML = '';
+                const listUl = (page.id === -1) ? addSourceListUl : editSourceListUl;
+                listUl.innerHTML = '';
                 if (!page.sources || page.sources.length === 0) {
-                    editSourceListUl.innerHTML = '<li class="italic text-sm text-center py-2">No sources found. Add one!</li>';
+                    listUl.innerHTML = '<li class="italic text-sm text-center py-2">No sources found. Add one!</li>';
                     return;
                 }
                 page.sources.forEach((source, index) => {
                     const li = document.createElement('li');
-                    li.dataset.sourceIndex = index;
+                    li.dataset.sourceIndex = index; // This line is correct
 
                     const variation = source; // For clarity, as we are refactoring
                     const displayName = variation.name || `Variation ${index + 1}`;
@@ -8278,11 +8860,11 @@
                         </div>`;
 
                     li.querySelector('.edit-source-button').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        openVariationSettingsModal(page.id, index);
+                        e.stopPropagation(); // This line is correct
+                        openVariationSettingsModal(page.id, index, page.id === -1);
                     });
                     li.querySelector('.manage-sources-button').addEventListener('click', (e) => {
-                        e.stopPropagation();
+                        e.stopPropagation(); // This line is correct
                         openManageSourcesModal(page.id, index);
                     });
                     li.querySelector('.remove-source-button').addEventListener('click', handleRemoveSourceClick);
@@ -8293,6 +8875,9 @@
             function closeEditModal() {
                 modalOverlay.style.display = 'none';
                 editPageModal.style.display = 'none';
+                if (activePreviewContext) { // This line is correct
+                    stopModalPreview();
+                }
                 currentlyEditingPageId = null;
             }
 
@@ -8307,7 +8892,7 @@
             }
 
             function saveEditChanges() {
-                const pageId = parseInt(editPageIdInput.value, 10);
+                const pageId = parseInt(editPageIdInput.value, 10); // This line is correct
                 const page = book.pages.find(p => p.id === pageId);
                 if (!page) return;
 
@@ -8316,6 +8901,7 @@
                 const newPrimaryKeyRaw = editPrimaryKeyInput.value.trim();
                 const newPrimaryKey = newPrimaryKeyRaw ? newPrimaryKeyRaw.toLowerCase() : null;
                 const newKeywordsRaw = editKeywordsInput.value.trim();
+                const newPhrasesRaw = editPhrasesInput.value.trim();
                 const newEndPlayKeywordsRaw = editEndPlayKeywordsInput.value.trim();
                 const newIsStarred = editIsStarredCheckbox.checked;
                 const newVolume = parseInt(editVolumeInput.value, 10);
@@ -8348,7 +8934,7 @@
                 page.fadeInOut = newFadeInOut;
                 page.endPlayKeywords = finalLoop ? (newEndPlayKeywordsRaw === '' ? [] : newEndPlayKeywordsRaw.toLowerCase().split(',').map(k => k.trim()).filter(Boolean)) : [];
                 page.nextPageId = newNextPageId;
-                page.timeOfDaySetting = newTimeOfDaySetting;
+                page.timeOfDaySetting = newTimeOfDaySetting; // This line is correct
 
                 const finalSources = [];
                 const sourceListItems = editSourceListUl.querySelectorAll('li');
@@ -8390,8 +8976,8 @@
 
 
             // --- Add/Edit Source Variation Modal Functions ---
-            function openVariationSettingsModal(pageId, sourceIndex = null) {
-                const page = book.pages.find(p => p.id === pageId);
+            function openVariationSettingsModal(pageId, sourceIndex = null, forAddPage = false) {
+                const page = forAddPage ? tempPageForAddModal : book.pages.find(p => p.id === pageId);
                 if (!page) { console.error("Cannot open variation modal: Page not found."); return; }
                 currentlyEditingPageId = pageId;
                 const chapters = book.chapters.filter(ch => !ch.isIndex).sort((a, b) => a.name.localeCompare(b.name)); // This logic seems to be for a different feature and can be removed if not used.
@@ -8426,6 +9012,9 @@
                 if (sourceIndex !== null && page.sources[sourceIndex]) {
                     const source = page.sources[sourceIndex];
                     sourceVariationModalTitle.textContent = 'Edit Variation Settings';
+                    // --- DEBUG LOG ---
+                    console.log(`%c[DEBUG] openVariationSettingsModal: Loading conditions for variation "${source.name || `index ${sourceIndex}`}"`, 'color: cyan', JSON.parse(JSON.stringify(source.conditions || [])));
+                    // --- END DEBUG LOG ---
 
                     const hasVolumeOverride = typeof source.volumeOverride === 'number' && source.volumeOverride !== null;
                     if (sourceVariationEnableVolumeOverrideCheckbox) {
@@ -8469,7 +9058,7 @@
             }
 
             // --- Manage Sources (Sub-Variations) Modal Functions ---
-            function openManageSourcesModal(pageId, variationIndex, autoOpenAdd = false) {
+            function openManageSourcesModal(pageId, variationIndex, autoOpenAdd = false, forAddPage = false) {
                 const page = book.pages.find(p => p.id === pageId);
                 if (!page) { console.error("Cannot open manage sources: Page not found."); return; }
                 const variation = page.sources[variationIndex];
@@ -8495,7 +9084,7 @@
             function closeManageSourcesModal() {
                 if (manageSourcesModal) manageSourcesModal.style.display = 'none';
                 // Re-render the main variation list to update source counts
-                const page = book.pages.find(p => p.id === currentlyEditingPageId);
+                const page = book.pages.find(p => p.id === currentlyEditingPageId) || tempPageForAddModal;
                 if (page) renderVariationList(page);
             }
 
@@ -8546,7 +9135,7 @@
             }
 
             // --- Add/Edit Source (Sub-Variation) Modal Functions ---
-            function openAddEditSourceModal(sourceIndex = null) {
+            function openAddEditSourceModal(sourceIndex = null, forAddPage = false) {
                 const isEditing = sourceIndex !== null;
                 sourceModalTitle.textContent = isEditing ? 'Edit Source' : 'Add Source';
                 editingSourceIndexInput.value = isEditing ? sourceIndex : '';
@@ -8568,8 +9157,12 @@
                 sourceSyrinscapeSelectedSoundSpan.textContent = 'No Syrinscape sound selected.';
                 sourceSyrinscapePlayDurationInput.value = '';
 
+                // Hide previewers on open
+                sourceFilePreviewContainer.classList.add('hidden');
+                sourceYouTubePreviewContainer.classList.add('hidden');
+
                 if (isEditing) {
-                    const page = book.pages.find(p => p.id === currentlyEditingPageId);
+                    const page = forAddPage ? tempPageForAddModal : book.pages.find(p => p.id === currentlyEditingPageId);
                     const variationIndex = parseInt(managingSourcesVariationIndexInput.value, 10);
                     const source = page?.sources[variationIndex]?.sources[sourceIndex];
                     if (!source) {
@@ -8583,10 +9176,26 @@
 
                     if (source.type === 'file') {
                         existingSourceFileSpan.textContent = `Current: ${source.fileName}`;
+                        // No preview for existing file as we don't store the File object
                     } else if (source.type === 'youtube') {
                         sourceYoutubeUrlInput.value = source.fileName || '';
                         sourceStartTimeInput.value = source.startTime !== null ? formatTimeForInput(source.startTime) : '';
                         sourceEndTimeInput.value = source.endTime !== null ? formatTimeForInput(source.endTime) : '';
+
+                        if (source.fileName) {
+                            // Stop any existing preview and clear the context *before* setting up the new one.
+                            // This ensures the onYtPreviewPlayerReady callback doesn't use stale context.
+                            if (activePreviewContext) {
+                                stopModalPreview();
+                            }
+                            setupYouTubePreview(
+                                source.fileName, 
+                                sourceYouTubePreviewContainer, 
+                                false, // Don't autoplay
+                                source.startTime, 
+                                source.endTime
+                            );
+                        }
                     } else if (source.type === 'syrinscape') {
                         sourceSyrinscapeElementIdInput.value = source.syrinscapeElementId || '';
                         sourceSyrinscapeKindInput.value = source.syrinscapeKind || '';
@@ -8607,6 +9216,9 @@
                 if (addEditSourceModal) addEditSourceModal.style.display = 'none';
                 if (manageSourcesModal) manageSourcesModal.style.zIndex = '1010'; // Restore
                 currentSyrinscapeSearchContext = null;
+                if (activePreviewContext?.container === sourceFilePreviewContainer || activePreviewContext?.container === sourceYouTubePreviewContainer) {
+                    stopModalPreview();
+                }
             }
 
             async function saveSourceChanges() {
@@ -8615,7 +9227,7 @@
                 const sourceIndexStr = editingSourceIndexInput.value;
                 const isEditing = sourceIndexStr !== '';
                 const sourceIndex = isEditing ? parseInt(sourceIndexStr, 10) : null;
-                const page = book.pages.find(p => p.id === pageId);
+                const page = (pageId === -1) ? tempPageForAddModal : book.pages.find(p => p.id === pageId);
                 if (!page || isNaN(variationIndex) || !page.sources || !page.sources[variationIndex]) {
                     showTemporaryMessage("Error: Could not find variation to save source to.", "error");
                     return;
@@ -8711,7 +9323,7 @@
             }
 
             async function saveSourceVariationChanges() {
-                const pageId = currentlyEditingPageId;
+                const pageId = currentlyEditingPageId; // Can be -1 for the temp page
                 const page = book.pages.find(p => p.id === pageId);
                 if (!page) { showTemporaryMessage("Error: Page not found.", "error"); closeAddEditSourceVariationModal(); return; }
 
@@ -8732,6 +9344,9 @@
                 const variationKeywords = sourceVariationKeywordsInput.value.trim().toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
 
                 const conditions = getConditionsFromBuilder('sourceVariationPageConditionsList', 'sourceVariationOtherConditions', 'sourceVariationTagConditionsList');
+                // --- DEBUG LOG ---
+                console.log(`%c[DEBUG] saveSourceVariationChanges: Conditions retrieved from builder:`, 'color: lightgreen', JSON.parse(JSON.stringify(conditions)));
+                // --- END DEBUG LOG ---
 
                 // If this variation is being set as default, unset the old default
                 if (isDefault) {
@@ -8764,6 +9379,9 @@
                         conditions: conditions.length > 0 ? conditions : null,
                         sources: isEditing ? page.sources[sourceIndex].sources : [] // Keep existing sources if editing
                     };
+                    // --- DEBUG LOG ---
+                    console.log(`%c[DEBUG] saveSourceVariationChanges: Final variation data object being saved:`, 'color: lightgreen', JSON.parse(JSON.stringify(newVariationData)));
+                    // --- END DEBUG LOG ---
                     
                     if (isEditing && sourceIndex !== null && page.sources[sourceIndex]) {
                         page.sources[sourceIndex] = { ...page.sources[sourceIndex], ...newVariationData };
@@ -8784,7 +9402,7 @@
                 // After saving, if it was a NEW variation, open the 'Add Source' modal automatically.
                 if (!isEditing) {
                     const newVariationIndex = page.sources.length - 1;
-                    openManageSourcesModal(page.id, newVariationIndex, true); // Pass true to auto-open the add source modal
+                    openManageSourcesModal(page.id, newVariationIndex, true, page.id === -1); // Pass true to auto-open the add source modal
                 }
 
                     page.fadeInOut = page.fadeInOut && !page.sources.some(s => s.type !== 'file');
@@ -8798,7 +9416,7 @@
                     saveSourceVariationButton.innerHTML = 'Save Variation Settings';
                 }
 
-                renderVariationList(page);
+                renderVariationList(page, page.id === -1);
                 closeVariationSettingsModal();
                 showTemporaryMessage(`Source variation ${isEditing ? 'updated' : 'added'}. Save page changes to confirm.`, 'success', 4000);
             }
@@ -8875,6 +9493,10 @@
             // --- Edit Page Modal & Sub-Modal Event Listeners ---
             editVolumeInput.addEventListener('input', () => { editVolumeValueSpan.textContent = editVolumeInput.value; });
             editLoopSoundCheckbox.addEventListener('change', (event) => {
+                // Stop any active preview when changing loop settings
+                if (activePreviewContext) {
+                    stopModalPreview();
+                }
                 const page = book.pages.find(p => p.id == currentlyEditingPageId); // This line is correct
                 const firstSyrinscapeSource = page?.sources.find(s => s.type === 'syrinscape');
                 const syrinscapeKindForLoopEval = firstSyrinscapeSource ? firstSyrinscapeSource.syrinscapeKind : null;
@@ -8898,6 +9520,10 @@
             });
 
             editLoopIndefinitelyCheckbox.addEventListener('change', (event) => {
+                // Stop any active preview when changing loop settings
+                if (activePreviewContext) {
+                    stopModalPreview();
+                }
                 const page = book.pages.find(p => p.id == currentlyEditingPageId); // This line is correct
                 const firstSyrinscapeSource = page?.sources.find(s => s.type === 'syrinscape');
                 const syrinscapeKindForLoopEval = firstSyrinscapeSource ? firstSyrinscapeSource.syrinscapeKind : null;
@@ -8928,6 +9554,9 @@
                 if (e.target === modalOverlay) {
                     closeEditModal(); closeEditChapterModal(); closeAddPageModal();
                     closeSettingsModal(); closeGuidebookModal(); closeVariationSettingsModal();
+                    if (activePreviewContext) {
+                        stopModalPreview();
+                    }
                     closeStoryPlotterModal(); closeSyrinscapeSearchModal(); closeAppendixModal(); closeAddEditAppendixEntryModal(); closeAppendixEffectModal(); // closePlotThreadMenu is called inside closeStoryPlotterModal
                     closeManageSourcesModal(); closeAddEditSourceModal();
                 } // This line is correct
@@ -8936,7 +9565,7 @@
             openAddSourceVariationModalButton.addEventListener('click', () => {
                 openVariationSettingsModal(currentlyEditingPageId, null); // Pass current page ID, null for new
             });
-
+            
 
             // --- Variation Settings Modal Listeners ---
             cancelSourceVariationButton.addEventListener('click', closeVariationSettingsModal);
@@ -8952,6 +9581,10 @@
             // --- Manage Sources & Add/Edit Source Modal Listeners ---
             closeManageSourcesModalButton.addEventListener('click', closeManageSourcesModal);
             openAddSourceModalButton.addEventListener('click', () => openAddEditSourceModal());
+            // New previewer listeners for the source modal
+            document.getElementById('sourceFile').addEventListener('change', (e) => setupFilePreview(e.target.files[0], sourceFilePreviewContainer));
+            document.getElementById('sourceYoutubeUrl').addEventListener('input', (e) => setupYouTubePreview(e.target.value, sourceYouTubePreviewContainer));
+
             sourceSyrinscapeSearchButton.addEventListener('click', () => openSyrinscapeSearchModal('sub-variation'));
 
             document.querySelectorAll('input[name="sourceType"]').forEach(radio => {
@@ -8960,6 +9593,9 @@
                     sourceFileInputContainer.classList.toggle('hidden', selectedType !== 'file');
                     sourceYoutubeInputContainer.classList.toggle('hidden', selectedType !== 'youtube');
                     sourceSyrinscapeInputContainer.classList.toggle('hidden', selectedType !== 'syrinscape');
+                    // Hide previewers on type change
+                    if (sourceFilePreviewContainer) sourceFilePreviewContainer.classList.add('hidden');
+                    if (sourceYouTubePreviewContainer) sourceYouTubePreviewContainer.classList.add('hidden');
                 });
             });
 
@@ -9777,6 +10413,9 @@
                 const tagNotConditions = conditions.filter(c => c.type === 'tag_not');
                 const activeChapterTags = new Set(book.chapters.find(ch => ch.id == book.activeChapterId)?.tagIds || []);
 
+                // --- DEBUG LOG ---
+                console.log(`%c[DEBUG] checkVariationConditions: Checking tags. Active tags: [${[...activeChapterTags].join(', ')}]. Required: [${tagIsConditions.map(c=>c.params.tagId).join(', ')}]. Forbidden: [${tagNotConditions.map(c=>c.params.tagId).join(', ')}]`, 'color: magenta');
+                // --- END DEBUG LOG ---
                 if (tagIsConditions.length > 0 && !tagIsConditions.every(cond => activeChapterTags.has(cond.params.tagId))) {
                     return false; // Must have ALL specified tags
                 }
@@ -10659,6 +11298,12 @@
                 const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
                 if (!savedData) {
                     console.log("No data found in local storage.");
+                    try {
+                        const savedSearches = localStorage.getItem(YT_RECENT_SEARCHES_KEY);
+                        if (savedSearches) recentYoutubeSearches = JSON.parse(savedSearches);
+                    } catch (e) {
+                        console.error("Error loading recent YouTube searches:", e);
+                    }
                     return false;
                 }
                 try {
@@ -10668,6 +11313,13 @@
                     } // This line is correct
 
                     const defaultBookData = getDefaultBook();
+                    try {
+                        const savedSearches = localStorage.getItem(YT_RECENT_SEARCHES_KEY);
+                        if (savedSearches) recentYoutubeSearches = JSON.parse(savedSearches);
+                    } catch (e) {
+                        console.error("Error loading recent YouTube searches:", e);
+                        recentYoutubeSearches = [];
+                    }
                     book = { ...defaultBookData };
 
                     book.settings = { ...defaultBookData.settings, ...(loadedData.settings || {}) };
@@ -10867,6 +11519,7 @@
                     daytimeTransitionPhrases = book.settings.daytimeTransitionPhrases;
                     nighttimeTransitionPhrases = book.settings.nighttimeTransitionPhrases;
                     autoplayOnClickSetting = book.settings.autoplayOnClick;
+                    youtubeApiKeys = book.settings.youtubeApiKeys || [];
                     syrinscapeAuthToken = book.settings.syrinscapeAuthToken;
                     syrinscapePlayerReady = false;
                     currentTimeOfDay = book.currentTimeOfDay;
@@ -10875,12 +11528,115 @@
                 }
             }
 
+            // --- YouTube Preview Player Callbacks ---
+            function onYtPreviewPlayerReady(event) {
+                console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `onYtPreviewPlayerReady fired. Player is ready.`);
+                if (activePreviewContext && activePreviewContext.type === 'youtube') {
+                    console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Context found. Attempting to initialize sliders.`);
+                    console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Context details:`, JSON.parse(JSON.stringify(activePreviewContext)));
+
+                    // Give the player a moment to load metadata and duration
+                    let attempts = 0;
+                    const maxAttempts = 10; // Try for up to 1 second (10 * 100ms)
+                    const checkDurationAndInit = () => {
+                        const duration = event.target.getDuration ? event.target.getDuration() : 0;
+                        if (duration > 0 || attempts >= maxAttempts) {
+                            console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Duration is ${duration}. Initializing sliders.`);
+                            initializePreviewSliders(activePreviewContext.container, event.target);
+                        } else {
+                            attempts++;
+                            setTimeout(checkDurationAndInit, 100);
+                        }
+                    };
+                    checkDurationAndInit();
+                }
+            }
+
+            function onYtPreviewPlayerStateChange(event) { // This function is correct
+                console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `onYtPreviewPlayerStateChange fired. New state: ${event.data}`);
+                const playerState = event.data;
+
+                // When a new video is cued, its metadata (like duration) is available.
+                // This is the key to fixing the issue for subsequent videos.
+                if (playerState === YT.PlayerState.CUED) {
+                    console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Video cued. Re-initializing sliders for new video.`);
+                    if (activePreviewContext && activePreviewContext.type === 'youtube') {
+                        const startTime = activePreviewContext.startTime;
+                        // Seek to the start time when the video is cued and ready.
+                        if (startTime !== null && startTime > 0) {
+                            console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Seeking to initial start time: ${startTime} seconds.`);
+                            event.target.seekTo(startTime, true); // Seek...
+                            event.target.pauseVideo(); // ...and then immediately pause to prevent autoplay on seek.
+                        } else {
+                            event.target.seekTo(0, true); // Ensure it's at the beginning if no start time is set
+                            event.target.pauseVideo();
+                        }
+                        initializePreviewSliders(activePreviewContext.container, event.target);
+                    }
+                }
+
+                if (playerState === YT.PlayerState.PLAYING) {
+                    if (currentlyPlayingYtTile && activePreviewContext?.container === currentlyPlayingYtTile.querySelector('.media-preview-container')) {
+                        const playIcon = currentlyPlayingYtTile.querySelector('.media-preview-play-pause-btn i');
+                        // const pauseIcon = currentlyPlayingYtTile.querySelector('.yt-pause-icon');
+                        if(playIcon) playIcon.className = 'fas fa-pause fa-fw';
+                        startYtPreviewInterval();
+                        updateYtPreviewTime();
+                    }
+                } else {
+                    if (currentlyPlayingYtTile) {
+                        const playIcon = currentlyPlayingYtTile.querySelector('.media-preview-play-pause-btn i');
+                        // const pauseIcon = currentlyPlayingYtTile.querySelector('.yt-pause-icon');
+                        if(playIcon) playIcon.className = 'fas fa-play fa-fw';
+                    }
+                    stopYtPreviewInterval();
+                }
+            }
+
+            function onYtPreviewPlayerError(event) {
+                console.error(`%c[PREVIEW]`, 'color: #FF6347; font-weight: bold;', `YouTube Preview Player Error: ${event.data} for video ID: ${currentYtPreviewVideoId}`);
+                showTemporaryMessage(`Could not play preview for this video (Error: ${event.data})`, 'error');
+                if (currentlyPlayingYtTile) {
+                    currentlyPlayingYtTile.classList.remove('is-playing');
+                    currentlyPlayingYtTile = null;
+                }
+                stopYtPreviewInterval();
+            }
+
+            // --- YouTube Preview Player Controls ---
+            function updateYtPreviewTime() {
+                if (ytPreviewPlayer && typeof ytPreviewPlayer.getCurrentTime === 'function' && ytPreviewPlayer.getDuration && currentlyPlayingYtTile) {
+                    // This is now handled by the generic updateModalPreviewUI function
+                    updateModalPreviewUI();
+                }
+            }
+            function startYtPreviewInterval() { stopYtPreviewInterval(); ytPreviewUpdateInterval = setInterval(updateYtPreviewTime, 250); }
+            function stopYtPreviewInterval() { clearInterval(ytPreviewUpdateInterval); }
+
+            function formatTime(seconds) {
+                if (isNaN(seconds) || seconds < 0) return '0:00';
+                const min = Math.floor(seconds / 60);
+                const sec = Math.floor(seconds % 60);
+                return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+            }
+
+            function selectYoutubeVideo(videoUrl) {
+                if (currentYoutubeSearchContext === 'add') {
+                    addYoutubeUrlInput.value = videoUrl;
+                    checkYouTubeEmbeddability(addYoutubeUrlInput, addYoutubeUrlStatus);
+                } else if (currentYoutubeSearchContext === 'source') {
+                    sourceYoutubeUrlInput.value = videoUrl;
+                    checkYouTubeEmbeddability(sourceYoutubeUrlInput, sourceYoutubeUrlStatus);
+                }
+                closeYoutubeSearchModal();
+            }
+
 
 
             // --- Keyboard Shortcuts ---
             document.addEventListener('keydown', (event) => {
                 const inInput = event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable;
-                const addModalVisible = addPageModal.style.display === 'flex';
+                const addModalVisible = addEditSourceModal.style.display === 'flex' && currentSyrinscapeSearchContext === 'add'; // More specific check for when it's acting as the "Add Page" source modal
                 const editPageModalVisible = editPageModal.style.display === 'flex';
                 const editChapterModalVisible = editChapterModal.style.display === 'flex';
                 const settingsModalVisible = settingsModal.style.display === 'flex';
@@ -10893,7 +11649,7 @@
                 const anySubModalOpen = addModalVisible || editPageModalVisible || editChapterModalVisible || settingsModalVisible || guidebookModalVisible || variationModalVisible || threadMenuVisible || syrinscapeSearchModalVisible;
                 const anyModalOpenForGlobalShortcuts = anySubModalOpen || plotterModalVisible;
 
-                const inCollectionRename = event.target.tagName === 'INPUT' && event.target.closest('.collection-header');
+                const inCollectionRename = event.target.tagName === 'INPUT' && event.target.closest('.collection-header'); // This line is correct
                 
                 if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                     if (addModalVisible) { addButton.click(); event.preventDefault(); }
@@ -10929,7 +11685,7 @@
                     }
                 }
             });
-            document.addEventListener('keydown', (event) => {
+            document.addEventListener('keydown', (event) => { // This line is correct
                 const anyModalOpen = modalOverlay.style.display === 'block' || storyPlotterModal.style.display === 'flex' || plotThreadMenu.style.display === 'block' || syrinscapeSearchModal.style.display === 'flex' || appendixModal.style.display === 'flex' || addEditAppendixEntryModal.style.display === 'flex' || appendixEffectModal.style.display === 'flex';
                 if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable || anyModalOpen) return; // This line is correct
 
@@ -10945,7 +11701,7 @@
                     event.preventDefault();
                 }
             });
-            document.addEventListener('keyup', (event) => {
+            document.addEventListener('keyup', (event) => { // This line is correct
                 const anyModalOpen = modalOverlay.style.display === 'block' || storyPlotterModal.style.display === 'flex' || plotThreadMenu.style.display === 'block' || syrinscapeSearchModal.style.display === 'flex' || appendixModal.style.display === 'flex' || addEditAppendixEntryModal.style.display === 'flex' || appendixEffectModal.style.display === 'flex';
                  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable || anyModalOpen) return; // This line is correct
 
@@ -11374,6 +12130,468 @@
                 }
             }
 
+            // --- YouTube Player API Callbacks for Verification ---
+            function onYtVerificationPlayerReady(event) {
+                console.log("YouTube verification player is ready.");
+                // Mute the player immediately to ensure no sound is heard during verification.
+                event.target.mute();
+            }
+
+            function onYtVerificationPlayerStateChange(event) {
+                // During verification, if the video starts playing (even for a moment), it's embeddable.
+                if (isYtVerifying && event.data === YT.PlayerState.PLAYING) {
+                    window.ytVerificationPromise?.resolve?.();
+                }
+            }            
+
+            function onYtVerificationPlayerError(event) {
+                // If an error occurs while trying to cue, it's likely not embeddable.                
+                if (isYtVerifying) {
+                    console.warn(`YouTube verification failed for video ID ${currentYtVerificationVideoId} with error code: ${event.data}`);
+                    ytVerificationPromise.reject?.(new Error(`Verification failed with code ${event.data}`));
+                }
+            }
+
+
+
+
+
+            // --- YouTube Search Modal Functions ---
+            function openYoutubeSearchModal(context) {
+                currentYoutubeSearchContext = context;
+                renderRecentYoutubeSearches();
+                youtubeSearchQueryInput.value = '';
+                youtubeSearchResultsUl.innerHTML = '';
+                if (youtubeSearchError) youtubeSearchError.classList.add('hidden');
+                // Pagination was removed, so this element no longer exists.
+                // youtubePaginationTop.classList.add('hidden');
+                // youtubePaginationBottom is not used, so no need to hide
+                addSelectedYoutubeVideosButton.classList.add('hidden');
+                modalOverlay.style.display = 'block';
+                youtubeSearchModal.style.display = 'flex';
+                youtubeSearchQueryInput.focus();
+
+                // Initialize the verification player if it doesn't exist
+                if (!ytVerificationPlayer && youtubeApiReady) {
+                    ytVerificationPlayer = new YT.Player('youtube-verification-player', {
+                        height: '0', width: '0',
+                        events: {
+                            'onReady': onYtVerificationPlayerReady,
+                            'onStateChange': onYtVerificationPlayerStateChange,
+                            'onError': onYtVerificationPlayerError
+                        }
+                    });
+                }
+            }
+
+            function closeYoutubeSearchModal() {
+                youtubeSearchModal.style.display = 'none';
+                modalOverlay.style.display = 'none';
+                currentYoutubeSearchContext = null;
+                // Stop any preview playing in the search modal
+                if (ytPreviewPlayer && typeof ytPreviewPlayer.stopVideo === 'function') {
+                    ytPreviewPlayer.stopVideo();
+                }
+            }
+
+            function handleYoutubeSearch(isPaginating = false) {
+                const query = youtubeSearchQueryInput.value.trim();
+                if (!query) return;
+
+                if (!isPaginating) {
+                    ytCurrentQuery = query;
+                    addRecentYoutubeSearch(query);
+                    ytPageHistory = [null]; // Reset history for new search
+                    searchYouTubeVideos(query, null);
+                } else {
+                    // Pagination logic is handled by the button event listeners
+                }
+            }            
+
+            async function searchYouTubeVideos(query, pageToken = '', isPaginating = false) {
+                youtubeSearchLoading.classList.remove('hidden');
+                if (!isPaginating) {
+                    youtubeSearchResultsUl.innerHTML = ''; // Clear only for new searches
+                }
+                youtubeSearchError.classList.add('hidden');
+
+                const cacheKey = `yt-search-cache-${query}`;
+                const pageCacheKey = `${cacheKey}-${pageToken || 'start'}`; // This line is correct
+
+                // --- Caching Logic --- // This line is correct
+                const cached = localStorage.getItem(pageCacheKey);
+                if (cached) {
+                    const { timestamp, data } = JSON.parse(cached);
+                    if (Date.now() - timestamp < 2 * 60 * 60 * 1000) { // 2 hour cache // This line is correct
+                        console.log(`Loading YouTube search results for "${query}" (Page: ${pageToken || 'start'}) from cache.`);
+                        await verifyAndDisplayYoutubeVideos(data.items, data.nextPageToken, data.prevPageToken);
+                        return;
+                    }
+                }
+
+                const apiKeys = book.settings.youtubeApiKeys || [];
+                if (currentYoutubeApiKeyIndex >= apiKeys.length) {
+                    youtubeSearchError.textContent = "All available YouTube API keys have exceeded their quota.";
+                    youtubeSearchError.classList.remove('hidden');
+                    youtubeSearchLoading.classList.add('hidden');
+                    return;
+                }
+
+                const apiKey = apiKeys[currentYoutubeApiKeyIndex];
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&key=${apiKey}&type=video&videoEmbeddable=true&maxResults=50`;
+                if (pageToken) {
+                    url += `&pageToken=${pageToken}`;
+                }
+
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        if (response.status === 403 && errorData.error?.errors?.[0]?.reason === 'quotaExceeded') {
+                            console.warn(`YouTube API Key at index ${currentYoutubeApiKeyIndex} has exceeded its quota.`);
+                            currentYoutubeApiKeyIndex++;
+                            searchYouTubeVideos(query, pageToken, isPaginating); // Retry with the next key
+                            return;
+                        }
+                        throw new Error(errorData.error.message || `API Error: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    
+                    localStorage.setItem(pageCacheKey, JSON.stringify({
+                        timestamp: Date.now(),
+                        data: { ...data } // Cache the raw, unverified items
+                    }));
+                    // Instead of waiting for all, verify and display progressively
+                    await verifyAndDisplayYoutubeVideos(data.items || [], data.nextPageToken, data.prevPageToken);
+
+                } catch (err) {
+                    console.error("Error fetching data from YouTube API:", err);
+                    youtubeSearchError.textContent = `Failed to load videos. ${err.message}. Try another search or check API keys.`;
+                    youtubeSearchError.classList.remove('hidden');
+                } finally {
+                    youtubeSearchLoading.classList.add('hidden');
+                }
+            }
+
+            async function verifyAndDisplayYoutubeVideos(items, nextPageToken, prevPageToken) {
+                if (!ytVerificationPlayer) {
+                    console.error("Verification player is not ready.");
+                    showTemporaryMessage("YouTube verification player not ready. Cannot check videos.", "error");
+                    return;
+                }
+                isYtVerifying = true;
+                const originalStatus = youtubeSearchLoading.querySelector('p').textContent;
+                youtubeSearchLoading.querySelector('p').textContent = 'Verifying videos...';
+                
+                let hasDisplayedItems = youtubeSearchResultsUl.children.length > 0 && youtubeSearchResultsUl.children[0].tagName === 'LI';
+
+                for (const item of items) {
+                    try {
+                        await checkYoutubeEmbeddability(item.id.videoId);
+                        if (!hasDisplayedItems) {
+                            youtubeSearchResultsUl.innerHTML = ''; // Clear "no results" message
+                            hasDisplayedItems = true;
+                        }
+                        appendYoutubeResult(item);
+                    } catch (e) {
+                        console.log(`Video "${item.snippet.title}" (${item.id.videoId}) is not embeddable. Skipping.`);
+                    }
+                }
+                isYtVerifying = false;
+                youtubeSearchLoading.classList.add('hidden');
+                updateYoutubePaginationUI(nextPageToken, prevPageToken);
+            }
+
+            function checkYoutubeEmbeddability(videoId) {
+                return new Promise((resolve, reject) => {
+                    currentYtVerificationVideoId = videoId;
+                    ytVerificationPromise = { resolve, reject };
+                    ytVerificationPlayer.loadVideoById(videoId); // Use loadVideoById to trigger play attempt
+                }); // This line is correct
+            }
+
+            function appendYoutubeResult(item) {
+                const videoId = item.id.videoId;
+                const title = item.snippet.title;
+                const channel = item.snippet.channelTitle;
+                const thumb = item.snippet.thumbnails.default.url;
+
+                const li = document.createElement('li');
+                li.className = 'bg-stone-800/50 rounded-lg transition yt-video-item p-3 cursor-pointer hover:bg-stone-700/50';
+                li.dataset.videoId = videoId;
+
+                li.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <img src="${thumb}" alt="thumbnail" class="w-24 h-24 sm:w-32 sm:h-20 object-cover rounded-md flex-shrink-0">
+                        <div class="flex-grow min-w-0">
+                            <h4 class="font-semibold text-white truncate text-sm">${title}</h4>
+                            <p class="text-xs text-gray-400">${channel}</p>
+                            <div class="flex items-center gap-2 mt-2 text-xs">
+                                <label>Start: <input type="text" class="yt-search-start-time bg-stone-900 border border-stone-700 rounded px-2 py-1 w-20" placeholder="0:00"></label>
+                                <label>End: <input type="text" class="yt-search-end-time bg-stone-900 border border-stone-700 rounded px-2 py-1 w-20" placeholder="e.g., 1:30"></label>
+                            </div>
+                        </div>
+                        <input type="checkbox" class="yt-select-checkbox ml-auto w-5 h-5 cursor-pointer flex-shrink-0">
+                    </div>
+                    <div class="media-preview-container hidden mt-3 p-3 rounded-lg bg-stone-900/50 border border-stone-700" style="display: none;">
+                        <div class="flex items-center gap-3">
+                            <button type="button" class="media-preview-play-pause-btn w-10 h-10 flex items-center justify-center bg-[var(--accent-blue)] rounded-full text-[var(--bg-secondary)] hover:bg-[var(--accent-gold-light)] transition flex-shrink-0" title="Play/Pause">
+                                <i class="fas fa-play fa-fw"></i>
+                            </button>
+                            <button type="button" class="media-preview-goto-start-btn w-10 h-10 flex items-center justify-center bg-stone-600 rounded-full text-stone-200 hover:bg-stone-500 transition flex-shrink-0" title="Seek to Start Time">
+                                <i class="fas fa-step-backward fa-fw"></i>
+                            </button>
+                            <div class="flex-grow min-w-0">
+                                <div class="flex justify-between items-center text-xs text-gray-400">
+                                    <span class="media-preview-current-time">0:00</span>
+                                    <span class="media-preview-duration">0:00</span>
+                                </div>
+                                <div class="relative h-4 mt-1">
+                                    <div class="media-range-track"></div>
+                                    <div class="media-range-selection"></div>
+                                    <input type="range" class="media-preview-scrub-bar" value="0" min="0" max="100" step="0.1">
+                                    <input type="range" class="media-preview-start-bar" value="0" min="0" max="100" step="0.1">
+                                    <input type="range" class="media-preview-end-bar" value="100" min="0" max="100" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                youtubeSearchResultsUl.appendChild(li);
+                attachYoutubePreviewListeners(li);
+            }
+
+            function updateYoutubePaginationUI(nextPageToken, prevPageToken) {
+                // Pagination has been removed per user request.
+                // ytSearchNextPageToken = nextPageToken;
+                // ytSearchPrevPageToken = prevPageToken;
+
+                if (youtubeSearchResultsUl.children.length > 0 && youtubeSearchResultsUl.children[0].tagName === 'LI') {
+                } else {
+                    youtubePaginationTop.classList.add('hidden');
+                    youtubeSearchResultsUl.innerHTML = '<li class="text-center text-gray-400 italic">No embeddable videos found for this query.</li>';
+                }
+
+                addSelectedYoutubeVideosButton.classList.remove('hidden');
+                // youtubeNextButtons.forEach(btn => btn.disabled = !ytSearchNextPageToken);
+                // youtubePrevButtons.forEach(btn => btn.disabled = ytPageHistory.length <= 1);
+            }
+
+            function attachYoutubePreviewListeners(item) {
+                const playPauseBtn = item.querySelector('.media-preview-play-pause-btn'); // The one inside the player
+                const previewContainer = item.querySelector('.media-preview-container');
+
+                const openAndPlayHandler = (e) => {
+                    // Prevent opening the player if clicking on an interactive element.
+                    if (e.target.closest('input, a, .media-preview-container')) {
+                        // But if the click was specifically on the play/pause button inside the player, let it proceed.
+                        if (!e.target.closest('.media-preview-play-pause-btn')) {
+                            return;
+                        }
+                    }
+
+                    if (currentlyPlayingYtTile && currentlyPlayingYtTile !== item) {
+                        // Stop the old player and reset its UI
+                        const oldPreviewContainer = currentlyPlayingYtTile.querySelector('.media-preview-container');
+                        if (oldPreviewContainer) {
+                            // Use style.display for more direct control that isn't overridden by Tailwind classes
+                            oldPreviewContainer.style.display = 'none'; // This line is correct
+                        }
+
+                        if (ytPreviewPlayer && typeof ytPreviewPlayer.stopVideo === 'function') {
+                            ytPreviewPlayer.stopVideo();
+                        }
+                        stopYtPreviewInterval();
+                        const oldPlayIcon = currentlyPlayingYtTile.querySelector('.media-preview-play-pause-btn i');
+                        if (oldPlayIcon) oldPlayIcon.className = 'fas fa-play fa-fw';
+                    }
+                    
+                    currentlyPlayingYtTile = item;
+                    const videoId = item.dataset.videoId;
+
+                    // Explicitly show the container for the item we are about to play.
+                    // Use style.display to ensure it shows up.
+                    previewContainer.style.display = 'block'; // This line is correct
+                    
+                    // If this tile is not the one with the active player, set it up.
+                    if (activePreviewContext?.container !== previewContainer || !ytPreviewPlayer) {
+                        setupYouTubePreview(videoId, previewContainer, false); // Pass false to prevent autoplay on click
+                    } else {
+                        // If the player is already set up for this tile, just toggle play/pause.
+                        const playerState = ytPreviewPlayer.getPlayerState();
+                        if (playerState === YT.PlayerState.PLAYING || playerState === YT.PlayerState.BUFFERING) {
+                            ytPreviewPlayer.pauseVideo();
+                        } else {
+                            ytPreviewPlayer.playVideo();
+                        }
+                    }
+                };
+
+                item.addEventListener('click', openAndPlayHandler);
+            }
+
+            async function addSelectedYoutubeVideos() {
+                const selectedItems = Array.from(youtubeSearchResultsUl.querySelectorAll('.yt-video-item'))
+                    .filter(item => item.querySelector('.yt-select-checkbox').checked);
+
+                if (selectedItems.length === 0) {
+                    showTemporaryMessage("No videos selected.", "info");
+                    return;
+                }
+
+                showTemporaryMessage(`Adding ${selectedItems.length} video(s)...`, 'info', 3000);
+
+                if (currentYoutubeSearchContext === 'add') {
+                    // This context is for the very first source of a new page.
+                    // We'll add the first selected video to the main fields and then open the edit modal to show all added sources.
+                    if (!tempPageForAddModal) {
+                        showTemporaryMessage("Error: No temporary page object found for 'Add Page' modal.", "error");
+                        return;
+                    }
+
+                    for (const item of selectedItems) {
+                        const videoId = item.dataset.videoId;
+                        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+                        const videoTitle = await getYouTubeVideoTitle(videoId);
+                        const startTime = item.querySelector('.yt-search-start-time').value;
+                        const endTime = item.querySelector('.yt-search-end-time').value;
+
+                        const newVariation = { id: `var_${generateUUID()}`, name: videoTitle, isDefault: tempPageForAddModal.sources.length === 0, sources: [ { type: 'youtube', source: videoId, fileName: videoUrl, videoTitle: videoTitle, needsFile: false, startTime: parseTime(startTime), endTime: parseTime(endTime) } ] };
+                        tempPageForAddModal.sources.push(newVariation);
+                    }
+                    renderVariationList(tempPageForAddModal, true);
+                    closeYoutubeSearchModal();
+
+                } else if (currentYoutubeSearchContext === 'source') {
+                    // This context means we are adding to an existing variation.
+                    const page = book.pages.find(p => p.id === currentlyEditingPageId);
+                    const variationIndex = parseInt(managingSourcesVariationIndexInput.value, 10);
+                    const variation = page?.sources[variationIndex];
+                    if (!variation) { showTemporaryMessage("Could not find variation to add sources to.", "error"); closeYoutubeSearchModal(); return; }
+
+                    for (const item of selectedItems) {
+                        const videoId = item.dataset.videoId;
+                        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+                        const videoTitle = await getYouTubeVideoTitle(videoId);
+                        const startTime = item.querySelector('.yt-search-start-time')?.value;
+                        const endTime = item.querySelector('.yt-search-end-time')?.value;
+
+                        variation.sources.push({ type: 'youtube', source: videoId, fileName: videoUrl, videoTitle: videoTitle, needsFile: false, startTime: parseTime(startTime), endTime: parseTime(endTime) });
+                    }
+                    // Re-render the list in the 'Manage Sources' modal
+                    renderSubVariationList(variation);
+                    // Close the search modal and the 'Add/Edit Source' modal, leaving 'Manage Sources' open
+                    closeYoutubeSearchModal();
+                    closeAddEditSourceModal();
+                    showTemporaryMessage(`${selectedItems.length} video(s) added.`, 'success');
+                } else if (currentYoutubeSearchContext === 'sub-variation') {
+                    // This is the same as 'source' context, just a different name from a previous refactor.
+                    const page = book.pages.find(p => p.id === currentlyEditingPageId);
+                    const variationIndex = parseInt(managingSourcesVariationIndexInput.value, 10);
+                    const variation = page?.sources[variationIndex];
+                    if (!variation) { showTemporaryMessage("Could not find variation to add sources to.", "error"); closeYoutubeSearchModal(); return; }
+
+                    for (const item of selectedItems) {
+                        const videoId = item.dataset.videoId;
+                        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+                        const videoTitle = await getYouTubeVideoTitle(videoId);
+                        const startTime = item.querySelector('.yt-search-start-time')?.value;
+                        const endTime = item.querySelector('.yt-search-end-time')?.value;
+
+                        variation.sources.push({ type: 'youtube', source: videoId, fileName: videoUrl, videoTitle: videoTitle, needsFile: false, startTime: parseTime(startTime), endTime: parseTime(endTime) });
+                    }
+                    renderSubVariationList(variation);
+                    closeYoutubeSearchModal();
+                    closeAddEditSourceModal();
+                    showTemporaryMessage(`${selectedItems.length} video(s) added.`, 'success');
+                }
+            }
+
+            function addRecentYoutubeSearch(query) {
+                const cleanedQuery = query.trim().toLowerCase();
+                if (!cleanedQuery) return;
+
+                // Remove if it already exists to move it to the top
+                const existingIndex = recentYoutubeSearches.indexOf(cleanedQuery);
+                if (existingIndex > -1) {
+                    recentYoutubeSearches.splice(existingIndex, 1);
+                }
+
+                // Add to the beginning
+                recentYoutubeSearches.unshift(cleanedQuery);
+
+                // Limit to 10 recent searches
+                if (recentYoutubeSearches.length > 10) {
+                    recentYoutubeSearches.length = 10;
+                }
+
+                localStorage.setItem(YT_RECENT_SEARCHES_KEY, JSON.stringify(recentYoutubeSearches));
+                renderRecentYoutubeSearches(); // Re-render the list
+            }
+
+            function removeRecentYoutubeSearch(query) {
+                const cleanedQuery = query.trim().toLowerCase();
+                recentYoutubeSearches = recentYoutubeSearches.filter(q => q !== cleanedQuery);
+                localStorage.setItem(YT_RECENT_SEARCHES_KEY, JSON.stringify(recentYoutubeSearches));
+                renderRecentYoutubeSearches();
+            }
+
+            function renderRecentYoutubeSearches() {
+                const container = document.getElementById('youtubeRecentSearchesContainer');
+                container.innerHTML = '';
+                if (recentYoutubeSearches.length === 0) {
+                    container.classList.add('hidden');
+                    return;
+                }
+
+                recentYoutubeSearches.forEach(query => {
+                    const item = document.createElement('div');
+                    item.className = 'recent-search-item';
+                    item.innerHTML = `
+                        <span class="flex-grow">${query}</span>
+                        <button class="remove-recent-search-btn" title="Remove search">&times;</button>
+                    `;
+                    item.querySelector('span').addEventListener('click', () => {
+                        youtubeSearchQueryInput.value = query;
+                        handleYoutubeSearch(false);
+                        container.classList.add('hidden');
+                    });
+                    item.querySelector('.remove-recent-search-btn').addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent triggering the search
+                        removeRecentYoutubeSearch(query);
+                    });
+                    container.appendChild(item);
+                });
+            }
+
+
+
+            function createOrLoadYtPreviewPlayer(videoId, autoplay = false) {
+                currentYtPreviewVideoId = videoId;
+                console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `createOrLoadYtPreviewPlayer called for videoId: ${videoId}. Player exists: ${!!ytPreviewPlayer}`);
+                if (!ytPreviewPlayer || ytPreviewPlayer.isDestroyed?.()) {
+                    console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Creating NEW YT.Player instance.`);
+                    ytPreviewPlayer = new YT.Player('youtube-preview-player', {
+                        height: '0', width: '0', videoId: videoId, // This line is correct
+                        playerVars: { 'playsinline': 1, 'controls': 0, 'autoplay': 0, 'loop': 0 }, // Always set autoplay to 0 here, control it via API calls
+                        events: {
+                            'onReady': onYtPreviewPlayerReady,
+                            'onStateChange': onYtPreviewPlayerStateChange,
+                            'onError': onYtPreviewPlayerError
+                        }
+                    });
+                } else {
+                    console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Re-using existing player. Cueing video: ${videoId}`);
+                    // We always cue here. The onStateChange handler will catch the CUED event
+                    // and allow us to initialize sliders correctly.
+                    // The play/pause button in the UI will handle starting playback.
+                    ytPreviewPlayer.cueVideoById({videoId: videoId});
+                }
+            }
+
+
+
             function limitAppendixEffectsForTrigger(triggerType, effectSelectElement) { // This function is correct
                 const allOptions = [
                     { value: 'start_pages', text: 'Start Pages' },
@@ -11385,6 +12603,7 @@
                     { value: 'set_time', text: 'Set Time of Day' },
                     { value: 'toggle_time', text: 'Toggle Time of Day' },
                     { value: 'transition_variation', text: 'Transition Variation' },
+                    { value: 'set_page_title', text: 'Set Page Title' }
                 ];
 
                 const allowedOptions = triggerType === 'condition'
@@ -11434,6 +12653,9 @@
                 const otherConditions = conditions.filter(c => !c.type.startsWith('page_') && !c.type.startsWith('tag_'));
 
                 // *** LOG: Log the conditions being passed to the builder.
+                // --- DEBUG LOG ---
+                console.log(`%c[DEBUG] initializeConditionBuilder: Initializing for "${pageListContainerId}" with conditions:`, 'color: orange', JSON.parse(JSON.stringify(conditions)));
+                // --- END DEBUG LOG ---
                 console.log(`LOG: Initializing condition builder "${pageListContainerId}" with ${conditions.length} conditions.`);
 
                 // --- 1. Setup Page Conditions ---
@@ -11469,19 +12691,29 @@
                 // --- 2. Setup Tag Conditions ---
                 if (tagListContainer) {
                     tagListContainer.innerHTML = ''; // Clear previous
-                    const tagConditionsMap = new Map(tagConditions.map(c => [parseInt(c.params.tagId, 10), c.type === 'tag_is' ? 'is' : 'not']));
+                    const tagConditionsMap = new Map(tagConditions.map(c => {
+                        const numericTagId = parseInt(String(c.params.tagId).replace('tag_', ''), 10);
+                        return [numericTagId, c.type === 'tag_is' ? 'is' : 'not'];
+                    }));
+                    // --- DEBUG LOG ---
+                    console.log(`%c[DEBUG] initializeConditionBuilder: Processed tag conditions map:`, 'color: orange', tagConditionsMap);
+                    // --- END DEBUG LOG ---
                     const allTags = book.settings.chapterTags || [];
                     if (allTags.length > 0) {
                         allTags.sort((a, b) => a.name.localeCompare(b.name)).forEach(tag => {
                             const itemDiv = document.createElement('div');
                             itemDiv.className = 'plot-thread-page-item';
                             itemDiv.dataset.tagId = tag.id;
-                            const state = tagConditionsMap.get(tag.id) || 'none';
+                            const numericTagId = parseInt(String(tag.id).replace('tag_', ''), 10);
+                            const state = tagConditionsMap.get(numericTagId) || 'none';
                             let iconClass = '';
                             if (state === 'is') iconClass = 'fas fa-check';
                             else if (state === 'not') iconClass = 'fas fa-times';
                             itemDiv.dataset.state = state;
                             itemDiv.innerHTML = `<span class="page-title">${tag.name}</span><div class="condition-box state-${state === 'is' ? 'active' : (state === 'not' ? 'inactive' : 'none')}"><i class="${iconClass}"></i></div>`;
+                            // --- DEBUG LOG ---
+                            console.log(`%c[DEBUG] initializeConditionBuilder: Rendering tag "${tag.name}" (ID: ${tag.id}) with initial state: ${state}`, 'color: orange');
+                            // --- END DEBUG LOG ---
                             itemDiv.addEventListener('click', () => {
                                 const currentState = itemDiv.dataset.state;
                                 const box = itemDiv.querySelector('.condition-box');
@@ -11546,6 +12778,9 @@
                 const paramsDiv = clone.querySelector('.condition-params');
 
                 // Populate type select with ONLY non-page conditions
+                // --- DEBUG LOG ---
+                console.log(`%c[DEBUG] addConditionItem: Adding item with data:`, 'color: orange', JSON.parse(JSON.stringify(conditionData)));
+                // --- END DEBUG LOG ---
                 const conditionTypes = [
                     { value: 'chapter_is', text: 'Chapter is' },
                     { value: 'time_is', text: 'Time of Day is' }
@@ -11611,7 +12846,139 @@
                 book.settings.chapterTags = book.settings.chapterTags.filter(tag => usedTagIds.has(tag.id));
                 if (originalCount !== book.settings.chapterTags.length) console.log(`Cleaned up ${originalCount - book.settings.chapterTags.length} unused tags.`);
             }
+            
+// --- Spotify Auth Functions (from reference) ---
+            function getSpotifyClientId() {
+                return book.settings.spotifyClientId || SPOTIFY_DEFAULT_CLIENT_ID;
+            }
 
+            async function redirectToSpotifyLogin() {
+                const verifier = generateCodeVerifier(128);
+                const challenge = await generateCodeChallenge(verifier);
+
+                localStorage.setItem("spotify_code_verifier", verifier);
+
+                const params = new URLSearchParams();
+                params.append("client_id", getSpotifyClientId());
+                params.append("response_type", "code");
+                params.append("redirect_uri", SPOTIFY_REDIRECT_URI);
+                params.append("scope", SPOTIFY_SCOPES);
+                params.append("code_challenge_method", "S256");
+                params.append("code_challenge", challenge);
+
+                document.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
+            }
+
+            async function handleSpotifyRedirect(code) {
+                const verifier = localStorage.getItem("spotify_code_verifier");
+                if (!verifier) {
+                    showTemporaryMessage("Spotify login error: Code verifier not found. Please try again.", "error");
+                    return;
+                }
+
+                try {
+                    const tokenData = await getSpotifyAccessToken(code, verifier);
+                    storeSpotifyTokens(tokenData);
+                    // Clean URL
+                    window.history.pushState({}, document.title, window.location.pathname);
+                    showTemporaryMessage("Successfully logged in to Spotify!", "success");
+                    updateSpotifyLoginUI();
+                } catch (error) {
+                    showTemporaryMessage(`Error fetching Spotify token: ${error.message}`, "error");
+                    logoutSpotify();
+                }
+            }
+
+            async function getSpotifyAccessToken(code, verifier) {
+                const params = new URLSearchParams();
+                params.append("client_id", getSpotifyClientId());
+                params.append("grant_type", "authorization_code");
+                params.append("code", code);
+                params.append("redirect_uri", SPOTIFY_REDIRECT_URI);
+                params.append("code_verifier", verifier);
+
+                const response = await fetch("https://accounts.spotify.com/api/token", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: params
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error_description || "Failed to get Spotify access token.");
+                }
+                return response.json();
+            }
+
+            function storeSpotifyTokens(tokenData) {
+                const expiryTime = new Date().getTime() + tokenData.expires_in * 1000;
+                localStorage.setItem('spotify_access_token', tokenData.access_token);
+                localStorage.setItem('spotify_token_expiry', expiryTime);
+                if (tokenData.refresh_token) {
+                    localStorage.setItem('spotify_refresh_token', tokenData.refresh_token);
+                }
+            }
+
+            function logoutSpotify() {
+                localStorage.removeItem('spotify_access_token');
+                localStorage.removeItem('spotify_refresh_token');
+                localStorage.removeItem('spotify_token_expiry');
+                localStorage.removeItem('spotify_code_verifier');
+                showTemporaryMessage("Logged out from Spotify.", "info");
+                updateSpotifyLoginUI();
+            }
+
+            async function updateSpotifyLoginUI() {
+                const accessToken = localStorage.getItem('spotify_access_token');
+                const expiryTime = localStorage.getItem('spotify_token_expiry');
+
+                if (accessToken && new Date().getTime() < expiryTime) {
+                    spotifyLoginContainer.classList.add('hidden');
+                    spotifyLogoutContainer.classList.remove('hidden');
+                    // Fetch user profile to display name
+                    try {
+                        const response = await fetch("https://api.spotify.com/v1/me", {
+                            headers: { 'Authorization': `Bearer ${accessToken}` }
+                        });
+                        if (!response.ok) throw new Error('Could not fetch profile.');
+                        const data = await response.json();
+                        spotifyUserStatus.textContent = `Logged in as: ${data.display_name}`;
+                    } catch (e) {
+                        spotifyUserStatus.textContent = 'Logged in to Spotify.';
+                    }
+                } else {
+                    spotifyLoginContainer.classList.remove('hidden');
+                    spotifyLogoutContainer.classList.add('hidden');
+                }
+            }
+
+            // --- PKCE Helper Functions ---
+            function generateCodeVerifier(length) {
+                let text = '';
+                let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                for (let i = 0; i < length; i++) {
+                    text += possible.charAt(Math.floor(Math.random() * possible.length));
+                }
+                return text;
+            }
+
+            async function generateCodeChallenge(codeVerifier) {
+                const data = new TextEncoder().encode(codeVerifier);
+                const digest = await window.crypto.subtle.digest('SHA-256', data);
+                return btoa(String.fromCharCode.apply(null, [...new Uint8Array(digest)]))
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=+$/, '');
+            }
+
+            function checkForSpotifyRedirect() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                const state = urlParams.get('state'); // Spotify doesn't use state with PKCE but good to check
+                if (code) {
+                    handleSpotifyRedirect(code);
+                }
+            }
             // --- Initial Setup ---
             function initializeApp() {
                 console.log("Initializing app...");
@@ -11627,6 +12994,8 @@
                     console.error("PiP Video element not found!");
                 }
 
+                // Check for Spotify redirect on page load
+                checkForSpotifyRedirect();
 
                 const loadedFromStorage = loadFromLocalStorage();
                 if (!loadedFromStorage) {
@@ -11644,6 +13013,7 @@
                     daytimeTransitionPhrases = book.settings.daytimeTransitionPhrases;
                     nighttimeTransitionPhrases = book.settings.nighttimeTransitionPhrases;
                     autoplayOnClickSetting = book.settings.autoplayOnClick;
+                    youtubeApiKeys = book.settings.youtubeApiKeys || [];
                     syrinscapeAuthToken = book.settings.syrinscapeAuthToken;
                     syrinscapePlayerReady = false;
                     currentTimeOfDay = book.currentTimeOfDay;
@@ -11673,14 +13043,6 @@
                 if (openStoryPlotterButton) {
                     openStoryPlotterButton.addEventListener('click', openStoryPlotterModal);
                 } else {
-                    console.warn("Story Plotter button not found in HTML.");
-                }
-                if (exportChapterButton) {
-                    exportChapterButton.addEventListener('click', () => exportChapterById(book.activeChapterId)); // This line is correct
-                    const activeChapter = book.chapters.find(ch => ch.id == book.activeChapterId);
-                    exportChapterButton.disabled = !activeChapter || activeChapter.isIndex;
-                    exportChapterButton.title = (!activeChapter || activeChapter.isIndex) ? "Cannot export Index" : `Export chapter '${activeChapter?.name}'`;
-                } else {
                      console.warn("Export Chapter button not found in HTML.");
                 }
 
@@ -11688,7 +13050,7 @@
                 updateFuseIndex();
                 updateChapterKeywordList();
                 renderChapterTabs();
-                renderPageList();
+                renderPageList(); // This line is correct
                 updateUIState();
 
                 if (initializeSyrinscapeButton) {
@@ -11696,17 +13058,44 @@
                 }
                 if (addSyrinscapeSearchButton) {
                     addSyrinscapeSearchButton.addEventListener('click', () => openSyrinscapeSearchModal('add'));
-                }
+                } // This line is correct
                 if (sourceVariationSyrinscapeSearchButton) { // This line is correct
                     sourceVariationSyrinscapeSearchButton.addEventListener('click', () => openSyrinscapeSearchModal('variation'));
                 }
                 if (executeSyrinscapeSearchButton) {
                     executeSyrinscapeSearchButton.addEventListener('click', executeSyrinscapeAPISearch);
                 }
+                if (executeYoutubeSearchButton) {
+                    executeYoutubeSearchButton.addEventListener('click', () => handleYoutubeSearch(false));
+                }
+
                 if (cancelSyrinscapeSearchButton) {
                     cancelSyrinscapeSearchButton.addEventListener('click', closeSyrinscapeSearchModal);
                 }
+                // YouTube Search Listeners
+                if (addYoutubeSearchButton) addYoutubeSearchButton.addEventListener('click', () => openYoutubeSearchModal('add'));
+                if (sourceYoutubeSearchButton) sourceYoutubeSearchButton.addEventListener('click', () => openYoutubeSearchModal('source'));
+                if (youtubeSearchQueryInput) {
+                    youtubeSearchQueryInput.addEventListener('focus', () => {
+                        if (recentYoutubeSearches.length > 0) {
+                            document.getElementById('youtubeRecentSearchesContainer').classList.remove('hidden');
+                        }
+                    });
+                    youtubeSearchQueryInput.addEventListener('keydown', (event) => {
+                        if (event.key === 'Enter') {
+                            handleYoutubeSearch(false);
+                        }
+                    });
+                    youtubeSearchQueryInput.addEventListener('blur', () => {
+                        // Use a timeout to allow click on a recent search item before hiding
+                        setTimeout(() => document.getElementById('youtubeRecentSearchesContainer').classList.add('hidden'), 150);
+                    });
+                }
+
+                if (executeYoutubeSearchButton) executeYoutubeSearchButton.addEventListener('click', () => handleYoutubeSearch(false));
+                if (cancelYoutubeSearchButton) cancelYoutubeSearchButton.addEventListener('click', closeYoutubeSearchModal);
                 if (syrinscapeAuthToken) {
+                    addSelectedYoutubeVideosButton.addEventListener('click', addSelectedYoutubeVideos);
                     initializeSyrinscapePlayer();
                 }
                 evaluateAppendixStateTriggers(); // Initial evaluation on load
@@ -11718,7 +13107,7 @@
                 plotterZoomInButton.addEventListener('click', () => { plotBoardView.scale = Math.min(PLOT_BOARD_MAX_ZOOM, plotBoardView.scale * 1.1); applyPlotBoardTransform(); });
                 plotterZoomOutButton.addEventListener('click', () => { plotBoardView.scale = Math.max(PLOT_BOARD_MIN_ZOOM, plotBoardView.scale / 1.1); applyPlotBoardTransform(); });
                 plotterResetViewButton.addEventListener('click', resetPlotBoardView);
-
+                
 
                 if(cancelPlotThreadMenuButton) cancelPlotThreadMenuButton.addEventListener('click', closePlotThreadMenu);                
                 if(savePlotThreadChangesButton) savePlotThreadChangesButton.addEventListener('click', savePlotThreadMenuChanges);
@@ -11729,27 +13118,6 @@
                 // PiP Button Listener
                 if (togglePipButton) {
                     togglePipButton.addEventListener('click', togglePictureInPicture);
-                }
-
-                // Load Sample Book Button Listener
-                if (loadSampleBookButton) {
-                    loadSampleBookButton.addEventListener('click', async () => { // This line is correct
-                        try {
-                            const response = await fetch('./storyteller-sample-book.json');
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}. Make sure storyteller-sample-book.json is in the same directory.`);
-                            }
-                            const loadedData = await response.json();
-                            // For the sample book, we'll just do a full overwrite. // This line is correct
-                            const importChoices = { pages: 'overwrite', chapters: 'overwrite', collections: 'overwrite', appendix: 'overwrite', settings: 'merge' };
-                            loadBookFromFile(loadedData, { target: { value: '' } }, importChoices); // Pass a mock event
-                            showTemporaryMessage("Sample book loaded!", "success");
-                            closeGuidebookModal(); // Close the guidebook after loading
-                        } catch (error) {
-                            console.error("Error loading sample book:", error); // This line is correct
-                            showTemporaryMessage(`Failed to load sample book: ${error.message}`, "error", 6000);
-                        }
-                    });
                 }
 
 
