@@ -14066,9 +14066,14 @@
                             };
                             const jsonString = JSON.stringify(savableBook);
                             
-    const keepAliveEnabled = document.getElementById('settingKeepAlive').checked;
-    settings.keepAlive = keepAliveEnabled;
-    toggleBackgroundMode(keepAliveEnabled);
+    
+                            const __kaBox = document.getElementById('settingKeepAlive') || document.getElementById('settingsEnableBackgroundKeepAlive');
+                            if (__kaBox) {
+                                const keepAliveEnabled = __kaBox.checked;
+                                if (typeof settings !== 'undefined') settings.keepAlive = keepAliveEnabled;
+                                if (typeof toggleBackgroundMode === 'function') toggleBackgroundMode(keepAliveEnabled);
+                            }
+    
 
         localStorage.setItem(LOCAL_STORAGE_KEY, jsonString);
                         } catch (error) {
@@ -16393,7 +16398,179 @@ function toggleBackgroundMode(enable) {
                         console.log("Storyteller Initialized.");
                     }
 
-                    // --- Start the application ---
+                    \n
+                    // ===== NATIVE APPLICATION EXTENDER ===== //
+                    // We are safely inside DOMContentLoaded with full access to the local scope!
+
+                    // 1. ACTIVE SOUNDS TRACKER
+                    const __activeSoundsContainer = document.getElementById('activeSoundsListContainer');
+                    if (__activeSoundsContainer) {
+                        function updateActiveSoundsUINative() {
+                            const longSounds = [];
+                            if (typeof activeSounds !== 'undefined') {
+                                Object.keys(activeSounds).forEach(pageId => {
+                                    const sd = activeSounds[pageId];
+                                    let duration = Infinity;
+                                    let isShort = false;
+                                    
+                                    if (sd.sourceDetail) {
+                                        if (sd.sourceDetail.type === 'file' && sd.node && sd.node.buffer) {
+                                            duration = sd.node.buffer.duration;
+                                            if (duration < 5 && (!sd.page || !sd.page.loop)) isShort = true;
+                                        } else if (sd.sourceDetail.type === 'youtube' && sd.youtubePlayer && typeof sd.youtubePlayer.getDuration === 'function') {
+                                            duration = sd.youtubePlayer.getDuration() || Infinity;
+                                            if (sd.sourceDetail.endTime && sd.sourceDetail.startTime) {
+                                                duration = sd.sourceDetail.endTime - sd.sourceDetail.startTime;
+                                            }
+                                            if (duration < 5) isShort = true;
+                                        } else if (sd.sourceDetail.type === 'syrinscape') {
+                                            if (sd.sourceDetail.syrinscapePlayDuration) {
+                                                duration = parseFloat(sd.sourceDetail.syrinscapePlayDuration);
+                                                if (duration < 5) isShort = true;
+                                            } else if (sd.sourceDetail.syrinscapeKind && (sd.sourceDetail.syrinscapeKind.includes('oneshot') || sd.sourceDetail.syrinscapeKind.includes('element'))) {
+                                                isShort = true;
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (!isShort) {
+                                        let title = 'Unknown Sound';
+                                        if (typeof book !== 'undefined' && book && book.pages) {
+                                            const p = book.pages.find(page => page.id == pageId);
+                                            if (p) title = p.title;
+                                        }
+                                        longSounds.push({ id: parseInt(pageId, 10), title: title, isSt: false });
+                                    }
+                                });
+                            }
+
+                            if (typeof activeSoundtrackId !== 'undefined' && activeSoundtrackId && typeof isStPlaying !== 'undefined' && isStPlaying) {
+                                const st = (typeof book !== 'undefined' && book && book.soundtracks) ? book.soundtracks.find(s => s.id == activeSoundtrackId) : null;
+                                if (st) {
+                                    longSounds.push({ id: activeSoundtrackId, title: st.name + ' (Playlist)', isSt: true });
+                                }
+                            }
+
+                            __activeSoundsContainer.style.display = 'block';
+                            __activeSoundsContainer.innerHTML = '';
+                            
+                            const header = document.createElement('div');
+                            header.className = 'text-[0.65rem] font-bold text-[var(--accent-gold-light)] mb-1 uppercase tracking-widest text-center border-b border-stone-700/50 pb-1 w-full';
+                            header.innerHTML = '<i class="fas fa-music mr-2"></i>Active Audio';
+                            __activeSoundsContainer.appendChild(header);
+
+                            if (longSounds.length === 0) {
+                                const emptyMsg = document.createElement('div');
+                                emptyMsg.className = 'text-xs text-stone-500 italic text-center w-full mt-2';
+                                emptyMsg.textContent = 'No active audio.';
+                                __activeSoundsContainer.appendChild(emptyMsg);
+                                return;
+                            }
+
+                            const ul = document.createElement('ul');
+                            ul.className = 'space-y-1.5 flex-grow overflow-y-auto max-h-[15vh] w-full mt-1 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-transparent';
+                            
+                            longSounds.forEach(sound => {
+                                const li = document.createElement('li');
+                                li.className = 'flex justify-between items-center bg-black/40 border border-stone-700/60 rounded px-2 py-1 text-sm text-stone-300 hover:border-stone-500 transition-colors';
+                                
+                                const span = document.createElement('span');
+                                span.className = 'truncate pr-2 text-xs font-semibold';
+                                span.style.maxWidth = '155px';
+                                span.title = sound.title;
+                                span.textContent = sound.title;
+                                li.appendChild(span);
+                                
+                                const btn = document.createElement('button');
+                                btn.className = 'text-red-400 hover:text-red-500 cursor-pointer ml-1 flex-shrink-0 transition-transform hover:scale-110 active:scale-95';
+                                btn.innerHTML = '<i class="fas fa-stop-circle"></i>';
+                                
+                                btn.onclick = () => {
+                                    if (sound.isSt) {
+                                        if (typeof stopSoundtrack === 'function') stopSoundtrack();
+                                    } else {
+                                        if (typeof stopSingleSound === 'function') stopSingleSound(sound.id);
+                                    }
+                                    updateActiveSoundsUINative(); 
+                                };
+                                
+                                li.appendChild(btn);
+                                ul.appendChild(li);
+                            });
+                            
+                            __activeSoundsContainer.appendChild(ul);
+                        }
+
+                        setInterval(updateActiveSoundsUINative, 1000);
+                        setTimeout(updateActiveSoundsUINative, 100); 
+                    }
+
+                    // 2. SOUNDTRACK MODAL CONTROLS
+                    const __openManageBtn = document.getElementById('openManageSoundtracksButton');
+                    if (__openManageBtn) {
+                        __openManageBtn.removeAttribute('onclick'); 
+                        __openManageBtn.onclick = () => {
+                            if (typeof book !== 'undefined' && book) {
+                                book.soundtracks = book.soundtracks || [];
+                                if (typeof renderManifestList === 'function') renderManifestList();
+                                document.getElementById('manageSoundtracksModal').style.display = 'flex';
+                                document.getElementById('modalOverlay').style.display = 'block';
+                                document.getElementById('editSoundtrackContainer').classList.add('hidden');
+                            }
+                        };
+                    }
+
+                    const __addStBtn = document.getElementById('addSoundtrackBtn');
+                    if (__addStBtn) {
+                        __addStBtn.onclick = () => {
+                            if (typeof book !== 'undefined' && book) {
+                                const newSt = { id: 'st_' + Date.now(), name: 'New Playlist', icon: 'fas fa-music', keywords: [], timeOfDay: 'none', chapter: 'none', songs: [] };
+                                book.soundtracks = book.soundtracks || [];
+                                book.soundtracks.push(newSt);
+                                if (typeof openEditSoundtrack === 'function') openEditSoundtrack(newSt);
+                                if (typeof renderManifestList === 'function') renderManifestList();
+                            }
+                        };
+                    }
+
+                    const __saveStBtn = document.getElementById('saveSoundtrackBtn');
+                    if (__saveStBtn) {
+                        __saveStBtn.onclick = () => {
+                            if (typeof editStCurrentId !== 'undefined' && editStCurrentId && typeof book !== 'undefined' && book) {
+                                const st = book.soundtracks.find(s => s.id === editStCurrentId);
+                                if (st) {
+                                    st.name = document.getElementById('editStName').value.trim() || 'Unnamed';
+                                    st.icon = document.getElementById('editStIcon').value.trim() || 'fas fa-music';
+                                    st.keywords = document.getElementById('editStKeywords').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+                                    st.timeOfDay = document.getElementById('editStTimeOfDay').value;
+                                    st.chapter = document.getElementById('editStChapter').value;
+                                    if (typeof showTemporaryMessage === 'function') showTemporaryMessage('Saved playlist settings.', 'success');
+                                    if (typeof renderManifestList === 'function') renderManifestList();
+                                    if (typeof renderSoundtrackIcons === 'function') renderSoundtrackIcons();
+                                }
+                            }
+                        };
+                    }
+
+                    const __closeStBtn = document.getElementById('closeSoundtracksModalBtn');
+                    if (__closeStBtn) {
+                        __closeStBtn.onclick = () => {
+                            document.getElementById('manageSoundtracksModal').style.display = 'none';
+                            document.getElementById('modalOverlay').style.display = 'none';
+                            if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+                        };
+                    }
+
+                    const __manageOverlayClose = document.getElementById('modalOverlay');
+                    if (__manageOverlayClose) {
+                        __manageOverlayClose.addEventListener('click', () => {
+                            if (document.getElementById('manageSoundtracksModal').style.display === 'flex') {
+                                if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+                            }
+                        });
+                    }
+                    // =================================================== //
+\n// --- Start the application ---\n
                     initializeApp();
 
                 }); // End DOMContentLoaded listener
