@@ -10086,6 +10086,7 @@
                         const includePages = saveSwitchPages.checked;
                         const includeAppendix = saveSwitchAppendix.checked;
                         const includeSettings = saveSwitchSettings.checked;
+                        const includeSoundtracks = document.getElementById('saveSwitchSoundtracks') ? document.getElementById('saveSwitchSoundtracks').checked : true;
 
                         console.log("Saving to file with options:", { fileName, includeChapters, includeCollections, includePages, includeAppendix, includeSettings });
 
@@ -10114,6 +10115,9 @@
                             } // This line is correct
                             if (includeAppendix) {
                                 partialBook.appendix = fullBook.appendix;
+                            }
+                            if (includeSoundtracks) {
+                                partialBook.soundtracks = fullBook.soundtracks;
                             }
                             if (includeSettings) {
                                 partialBook.settings = fullBook.settings;
@@ -10195,6 +10199,7 @@
                                 if (loadedData.chapters && loadedData.chapters.length > 0) detectedParts.chapters = true;
                                 if (loadedData.collections && loadedData.collections.length > 0) detectedParts.collections = true;
                                 if (loadedData.appendix && loadedData.appendix.length > 0) detectedParts.appendix = true;
+                                if (loadedData.soundtracks && loadedData.soundtracks.length > 0) detectedParts.soundtracks = true;
                                 if (loadedData.settings) detectedParts.settings = true;
 
                                 for (const part in detectedParts) {
@@ -10482,6 +10487,22 @@
                             }
 
                             // Process Appendix
+                            
+                            // Process Soundtracks
+                            if (importChoices.soundtracks && importChoices.soundtracks !== 'skip') {
+                                if (importChoices.soundtracks === 'overwrite') {
+                                    book.soundtracks = [];
+                                }
+                                (loadedData.soundtracks || []).forEach(loadedSt => {
+                                    const existingIndex = book.soundtracks.findIndex(s => s.id === loadedSt.id);
+                                    if (existingIndex > -1 && importChoices.soundtracks === 'merge') {
+                                        book.soundtracks[existingIndex] = loadedSt;
+                                    } else if (existingIndex === -1) {
+                                        book.soundtracks.push(loadedSt);
+                                    }
+                                });
+                            }
+    
                             if (importChoices.appendix && importChoices.appendix !== 'skip') {
                                 if (importChoices.appendix === 'overwrite') {
                                     book.appendix = [];
@@ -14057,10 +14078,11 @@
                                 storyPlot: book.storyPlot ? {
                                     nodes: Array.isArray(book.storyPlot.nodes) ? book.storyPlot.nodes : [],
                                     threads: Array.isArray(book.storyPlot.threads) ? book.storyPlot.threads : [],
-                                    nextPlotNodeId: book.storyPlot.nextPlotNodeId ?? 0, // This line is correct
+                                    nextPlotNodeId: book.storyPlot.nextPlotNodeId ?? 0,
                                     nextPlotThreadId: book.storyPlot.nextPlotThreadId ?? 0,
                                     viewTransform: book.storyPlot.viewTransform ? { ...book.storyPlot.viewTransform } : { x: 0, y: 0, scale: 1.0 }
                                 } : getDefaultBook().storyPlot,
+                                soundtracks: Array.isArray(book.soundtracks) ? book.soundtracks : [],
                                 // Ensure name is saved for appendix entries
                                 appendix: Array.isArray(book.appendix) ? book.appendix.map(entry => ({ ...entry, name: entry.name || null })) : []
                             };
@@ -16569,7 +16591,133 @@ function toggleBackgroundMode(enable) {
                             }
                         });
                     }
-                    // =================================================== //
+                    
+                    // --- ROBUST MODAL BUTTON BINDINGS ---
+                    const __stIds = [
+                        'addStSongBtn', 'saveStSongBtn', 'cancelStSongBtn', 
+                        'importSpotifyPlaylistBtn', 'executeSpotifyImportBtn', 'cancelSpotifyImportBtn',
+                        'openIconPickerBtn', 'cancelIconPickerBtn'
+                    ];
+                    
+                    __stIds.forEach(id => {
+                        const btn = document.getElementById(id);
+                        if (btn) btn.removeAttribute('onclick'); // clear previous
+                    });
+
+                    const __addStSongBtn = document.getElementById('addStSongBtn');
+                    if (__addStSongBtn) __addStSongBtn.onclick = () => {
+                        document.getElementById('stSongEditIndex').value = '';
+                        document.getElementById('stSongName').value = '';
+                        document.getElementById('stSongYoutubeUrl').value = '';
+                        document.getElementById('stSongVolume').value = 100;
+                        document.getElementById('stSongFile').value = '';
+                        document.getElementById('stAddSongModal').style.display = 'flex';
+                    };
+
+                    const __cancelStSongBtn = document.getElementById('cancelStSongBtn');
+                    if (__cancelStSongBtn) __cancelStSongBtn.onclick = () => {
+                        document.getElementById('stAddSongModal').style.display = 'none';
+                    };
+
+                    const __saveStSongBtn = document.getElementById('saveStSongBtn');
+                    if (__saveStSongBtn) __saveStSongBtn.onclick = () => {
+                        if(typeof editStCurrentId === 'undefined' || !editStCurrentId) return;
+                        const st = (typeof book !== 'undefined' && book) ? book.soundtracks.find(s => s.id === editStCurrentId) : null;
+                        if (!st) return;
+                        
+                        const idx = document.getElementById('stSongEditIndex').value;
+                        const typeBox = document.querySelector('input[name="stSongType"]:checked');
+                        const type = typeBox ? typeBox.value : 'youtube';
+                        
+                        let songData = {
+                            name: document.getElementById('stSongName').value.trim() || 'New Song',
+                            type: type,
+                            volume: parseInt(document.getElementById('stSongVolume').value) || 100
+                        };
+                        
+                        if (type === 'youtube') {
+                            const url = document.getElementById('stSongYoutubeUrl').value.trim();
+                            songData.url = url;
+                            const m = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                            songData.videoId = m ? m[1] : null;
+                        } else if (type === 'file') {
+                            const fileInput = document.getElementById('stSongFile');
+                            if (fileInput && fileInput.files.length > 0) {
+                                songData.fileData = fileInput.files[0];
+                                if (songData.name === 'New Song') songData.name = fileInput.files[0].name;
+                            }
+                        }
+                        
+                        if (idx === '') {
+                            st.songs.push(songData);
+                        } else {
+                            if(type === 'file' && !songData.fileData && st.songs[idx] && st.songs[idx].fileData) {
+                                songData.fileData = st.songs[idx].fileData;
+                            }
+                            st.songs[idx] = songData;
+                        }
+                        
+                        document.getElementById('stAddSongModal').style.display = 'none';
+                        if (typeof renderStSongs === 'function') renderStSongs(st);
+                    };
+
+                    const __importSpotifyBtn = document.getElementById('importSpotifyPlaylistBtn');
+                    if (__importSpotifyBtn) __importSpotifyBtn.onclick = () => {
+                        document.getElementById('spotifyImportModal').style.display = 'flex';
+                    };
+
+                    const __cancelSpotifyBtn = document.getElementById('cancelSpotifyImportBtn');
+                    if (__cancelSpotifyBtn) __cancelSpotifyBtn.onclick = () => {
+                        document.getElementById('spotifyImportModal').style.display = 'none';
+                    };
+
+                    const __execSpotifyBtn = document.getElementById('executeSpotifyImportBtn');
+                    if (__execSpotifyBtn) __execSpotifyBtn.onclick = async () => {
+                        const url = document.getElementById('spotifyPlaylistUrlInput').value.trim();
+                        const status = document.getElementById('spotifyImportStatus');
+                        if (!url.includes('spotify.com/playlist/')) {
+                            status.innerText = "Invalid Spotify Playlist URL.";
+                            return;
+                        }
+                        status.innerText = "Conversion endpoint is disabled. Use manual entry for now.";
+                    };
+                    
+                    const __openIconPickerBtn = document.getElementById('openIconPickerBtn');
+                    if (__openIconPickerBtn) __openIconPickerBtn.onclick = () => {
+                        document.getElementById('iconPickerModal').style.display = 'flex';
+                        if (typeof renderIconPicker === 'function') renderIconPicker();
+                    };
+                    
+                    const __cancelIconPickerBtn = document.getElementById('cancelIconPickerBtn');
+                    if (__cancelIconPickerBtn) __cancelIconPickerBtn.onclick = () => {
+                        document.getElementById('iconPickerModal').style.display = 'none';
+                    };
+
+
+                    function renderIconPicker() {
+                        const grid = document.getElementById('iconPickerGrid');
+                        if (!grid) return;
+                        const icons = [
+                            'fas fa-music', 'fas fa-drum', 'fas fa-guitar', 'fas fa-play', 'fas fa-headphones', 
+                            'fas fa-volume-up', 'fas fa-wind', 'fas fa-fire', 'fas fa-tint', 'fas fa-bolt', 
+                            'fas fa-leaf', 'fas fa-skull', 'fas fa-dragon', 'fas fa-ghost', 'fas fa-khanda', 
+                            'fas fa-shield-alt', 'fas fa-meteor', 'fas fa-magic', 'fas fa-moon', 'fas fa-sun',
+                            'fas fa-campground', 'fas fa-dungeon', 'fas fa-horse', 'fas fa-spider'
+                        ];
+                        grid.innerHTML = '';
+                        icons.forEach(ic => {
+                            const btn = document.createElement('button');
+                            btn.className = 'w-10 h-10 flex items-center justify-center bg-stone-800 border border-stone-600 rounded hover:border-accent-gold-light hover:text-accent-gold-light transition-colors';
+                            btn.innerHTML = '<i class="' + ic + '"></i>';
+                            btn.onclick = () => {
+                                document.getElementById('editStIcon').value = ic;
+                                document.getElementById('iconPickerModal').style.display = 'none';
+                            };
+                            grid.appendChild(btn);
+                        });
+                    }
+    
+// =================================================== //
 
 // --- Start the application ---
 
@@ -16614,7 +16762,12 @@ function toggleBackgroundMode(enable) {
                     <input type="hidden" id="editStId">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="md:col-span-2"> <label class="block text-sm font-medium mb-1">Playlist Name:</label> <input type="text" id="editStName"> </div>
-                        <div> <label class="block text-sm font-medium mb-1">Icon Style (FontAwesome class):</label> <input type="text" id="editStIcon" placeholder="fas fa-music"> </div>
+                        <div> <label class="block text-sm font-medium mb-1">Icon Style:</label> 
+                        <div class="flex gap-2">
+                            <input type="text" id="editStIcon" class="flex-grow" placeholder="fas fa-music"> 
+                            <button id="openIconPickerBtn" class="btn-rpg-sm flex-shrink-0" title="Choose Icon"><i class="fas fa-search"></i></button>
+                        </div>
+                    </div>
                         <div class="md:col-span-2"> <label class="block text-sm font-medium mb-1">Trigger Keywords (comma-separated):</label> <input type="text" id="editStKeywords" placeholder="e.g., tavern start, battle music"> </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Time of Day Auto-Play:</label>
@@ -16693,6 +16846,21 @@ function toggleBackgroundMode(enable) {
 
 
 
+
+    <!-- Icon Picker Modal -->
+    <div id="iconPickerModal" class="modal" style="max-width: 500px; z-index: 1080;">
+        <div class="modal-body">
+            <h3 class="modal-title text-sm"><i class="fas fa-icons mr-2"></i>Choose Playlist Icon</h3>
+            <div class="modal-content">
+                <div class="grid grid-cols-6 gap-2 max-h-64 overflow-y-auto p-2 bg-black/20 border border-stone-700 rounded" id="iconPickerGrid">
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions mt-4">
+            <button id="cancelIconPickerBtn" class="btn-rpg-sm">Cancel</button>
+        </div>
+    </div>
+    
 </body>
 
 </html>
