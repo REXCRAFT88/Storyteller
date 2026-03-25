@@ -2883,8 +2883,11 @@
 </head>
 
 <body class="p-4 md:p-8">
-<div id="activeSoundsListContainer" class="mb-4" style="max-height: 15vh; overflow-y: auto; width: 100%; background: rgba(20,20,20,0.85); padding: 8px; border-radius: 8px; border: 1px solid var(--border-stone);">
-    </div>
+
+<!-- Active Sounds UI Container -->
+<div id="activeSoundsListContainer" class="w-64 flex-shrink-0 bg-black/50 p-2 rounded-lg border border-stone-700 shadow-md" style="display: none; height: fit-content; max-height: 20vh;"></div>
+
+
 
 
     <div class="text-center">
@@ -14059,7 +14062,12 @@
                                 appendix: Array.isArray(book.appendix) ? book.appendix.map(entry => ({ ...entry, name: entry.name || null })) : []
                             };
                             const jsonString = JSON.stringify(savableBook);
-                            localStorage.setItem(LOCAL_STORAGE_KEY, jsonString);
+                            
+    const keepAliveEnabled = document.getElementById('settingKeepAlive').checked;
+    settings.keepAlive = keepAliveEnabled;
+    toggleBackgroundMode(keepAliveEnabled);
+
+        localStorage.setItem(LOCAL_STORAGE_KEY, jsonString);
                         } catch (error) {
                             console.error("Error autosaving to local storage:", error);
                             showTemporaryMessage("Autosave failed. Check console.", "error");
@@ -16219,6 +16227,7 @@ window.editStSong = function(index) {
 }
 
     
+
 // ===== ACTIVE SOUNDS TRACKER ===== //
 function updateActiveSoundsUI() {
     const container = document.getElementById('activeSoundsListContainer');
@@ -16228,7 +16237,7 @@ function updateActiveSoundsUI() {
     if (typeof activeSounds !== 'undefined') {
         Object.keys(activeSounds).forEach(pageId => {
             const sd = activeSounds[pageId];
-            let duration = Infinity; // Default to indefinite (ambient)
+            let duration = Infinity;
             let isShort = false;
             
             if (sd.sourceDetail) {
@@ -16246,7 +16255,7 @@ function updateActiveSoundsUI() {
                         duration = parseFloat(sd.sourceDetail.syrinscapePlayDuration);
                         if (duration < 5) isShort = true;
                     } else if (sd.sourceDetail.syrinscapeKind && (sd.sourceDetail.syrinscapeKind.includes('oneshot') || sd.sourceDetail.syrinscapeKind.includes('element'))) {
-                        isShort = true; // Syrinscape oneshots are assumed short unless duration is explicitly >= 5
+                        isShort = true;
                     }
                 }
             }
@@ -16271,19 +16280,21 @@ function updateActiveSoundsUI() {
         return;
     }
 
-    container.style.display = 'block';
-    let htmlStr = '<div class="text-[0.65rem] font-bold text-gray-400 mb-1.5 uppercase tracking-widest pl-1">Active Audio</div>';
-    htmlStr += '<ul class="space-y-1.5">';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '0.5rem';
+
+    let htmlStr = '<div class="text-[0.65rem] font-bold text-gray-400 mb-1 uppercase tracking-widest pl-1">Active Audio</div>';
+    htmlStr += '<ul class="space-y-1.5 flex-grow overflow-y-auto max-h-[15vh] w-full">';
     
     longSounds.forEach(sound => {
-        htmlStr += `
-            <li class="flex justify-between items-center bg-black/40 border border-stone-700/60 rounded px-2 py-1.5 text-sm text-stone-300 hover:border-stone-500 transition-colors">
-                <span class="truncate pr-2 text-xs font-semibold" style="max-width: 155px;" title="${sound.title}">${sound.title}</span>
-                <button class="text-red-400 hover:text-red-500 cursor-pointer ml-1 flex-shrink-0 transition-transform hover:scale-110 active:scale-95" onclick="${sound.isSt ? 'stopSoundtrack()' : 'stopSingleSound(' + sound.id + ')'}">
-                    <i class="fas fa-stop-circle"></i>
-                </button>
-            </li>
-        `;
+        // Build the string safely without string template literal nesting to avoid any JS evaluation bugs during injection
+        htmlStr += '<li class="flex justify-between items-center bg-black/40 border border-stone-700/60 rounded px-2 py-1.5 text-sm text-stone-300 hover:border-stone-500 transition-colors">';
+        htmlStr += '<span class="truncate pr-2 text-xs font-semibold" style="max-width: 155px;" title="' + sound.title + '">' + sound.title + '</span>';
+        
+        const clickAction = sound.isSt ? 'stopSoundtrack()' : 'stopSingleSound(' + sound.id + ')';
+        htmlStr += '<button class="text-red-400 hover:text-red-500 cursor-pointer ml-1 flex-shrink-0 transition-transform hover:scale-110 active:scale-95" onclick="' + clickAction + '">';
+        htmlStr += '<i class="fas fa-stop-circle"></i></button></li>';
     });
     
     htmlStr += '</ul>';
@@ -16292,7 +16303,26 @@ function updateActiveSoundsUI() {
 
 // Start tracking loop
 setInterval(updateActiveSoundsUI, 1000);
-\n    // --- Initial Setup ---
+
+// ===== BACKGROUND KEEP-ALIVE HACK ===== //
+let keepAliveAudio = null;
+function toggleBackgroundMode(enable) {
+    if (enable) {
+        if (!keepAliveAudio) {
+            // Base64 encoded extremely short silent MP3
+            keepAliveAudio = new Audio('data:audio/mp3;base64,//OExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/');
+            keepAliveAudio.loop = true;
+            keepAliveAudio.volume = 0.01;
+        }
+        keepAliveAudio.play().catch(e => console.log("Keep-alive auto-play prevented until user interaction."));
+    } else {
+        if (keepAliveAudio) {
+            keepAliveAudio.pause();
+        }
+    }
+}
+
+    // --- Initial Setup ---
                     function initializeApp() {
                         console.log("Initializing app...");
 
