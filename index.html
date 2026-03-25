@@ -2884,8 +2884,7 @@
 
 <body class="p-4 md:p-8">
 
-<!-- Active Sounds UI Container -->
-<div id="activeSoundsListContainer" class="w-64 flex-shrink-0 bg-black/50 p-2 rounded-lg border border-stone-700 shadow-md" style="display: none; height: fit-content; max-height: 20vh;"></div>
+
 
 
 
@@ -2895,7 +2894,11 @@
     </div>
     <div class="main-container max-w-7xl mx-auto p-6 md:p-8 rounded-lg shadow-md">
         <div class="space-y-4">
-            <div class="flex justify-end items-start gap-4 mb-2">
+            <div class="flex justify-between w-full items-start gap-4 mb-2">
+
+<!-- Active Sounds UI Container -->
+<div id="activeSoundsListContainer" class="w-72 flex-shrink-0 bg-black/60 p-2 rounded border-2 border-[var(--accent-gold-dark)] shadow-md text-stone-300" style="display: none; height: fit-content; max-height: 25vh;"></div>
+
                 <!-- Right-Side Controls -->
                 <div class="flex-shrink-0 space-y-2 w-96">
                     <div class="flex flex-wrap justify-end gap-4">
@@ -15375,6 +15378,8 @@
 
                     function limitAppendixEffectsForTrigger(triggerType, effectSelectElement) { // This function is correct
                         const allOptions = [
+                            { value: 'play_soundtrack', text: 'Play Soundtrack' },
+                            { value: 'stop_soundtrack', text: 'Stop Soundtrack' },
                             { value: 'start_pages', text: 'Start Pages' },
                             { value: 'end_pages', text: 'End Pages' },
                             { value: 'increase_volume', text: 'Increase Volume' },
@@ -16221,6 +16226,7 @@ window.editStSong = function(index) {
 
     
 
+
 // ===== ACTIVE SOUNDS TRACKER ===== //
 function updateActiveSoundsUI() {
     const container = document.getElementById('activeSoundsListContainer');
@@ -16254,14 +16260,21 @@ function updateActiveSoundsUI() {
             }
             
             if (!isShort) {
-                const title = window.book ? (window.book.pages.find(p => p.id == pageId)?.title || 'Unknown Sound') : 'Unknown';
+                // Fix: search through chapters for the page
+                let title = 'Unknown Sound';
+                if (window.book && window.book.chapters) {
+                    for (const ch of window.book.chapters) {
+                        const p = (ch.pages || []).find(page => page.id == pageId);
+                        if (p) { title = p.title; break; }
+                    }
+                }
                 longSounds.push({ id: pageId, title: title, isSt: false });
             }
         });
     }
 
     if (typeof activeSoundtrackId !== 'undefined' && activeSoundtrackId && typeof isStPlaying !== 'undefined' && isStPlaying) {
-        const st = window.book ? window.book.soundtracks.find(s => s.id == activeSoundtrackId) : null;
+        const st = window.book && window.book.soundtracks ? window.book.soundtracks.find(s => s.id == activeSoundtrackId) : null;
         if (st) {
             longSounds.push({ id: activeSoundtrackId, title: st.name + ' (Playlist)', isSt: true });
         }
@@ -16277,15 +16290,15 @@ function updateActiveSoundsUI() {
     container.style.flexDirection = 'column';
     container.style.gap = '0.5rem';
 
-    let htmlStr = '<div class="text-[0.65rem] font-bold text-gray-400 mb-1 uppercase tracking-widest pl-1">Active Audio</div>';
-    htmlStr += '<ul class="space-y-1.5 flex-grow overflow-y-auto max-h-[15vh] w-full">';
+    let htmlStr = '<div class="text-[0.65rem] font-bold text-accent-gold-light mb-1 uppercase tracking-widest pl-1"><i class="fas fa-music mr-2"></i>Active Audio</div>';
+    htmlStr += '<ul class="space-y-1.5 flex-grow overflow-y-auto max-h-[20vh] w-full">';
     
     longSounds.forEach(sound => {
-        // Build the string safely without string template literal nesting to avoid any JS evaluation bugs during injection
-        htmlStr += '<li class="flex justify-between items-center bg-black/40 border border-stone-700/60 rounded px-2 py-1.5 text-sm text-stone-300 hover:border-stone-500 transition-colors">';
-        htmlStr += '<span class="truncate pr-2 text-xs font-semibold" style="max-width: 155px;" title="' + sound.title + '">' + sound.title + '</span>';
+        htmlStr += '<li class="flex justify-between items-center bg-black/40 border border-stone-700/60 rounded px-2 py-1.5 text-sm text-stone-300 hover:border-accent-gold-dark transition-colors">';
+        htmlStr += '<span class="truncate pr-2 text-xs font-semibold" style="max-width: 170px;" title="' + sound.title + '">' + sound.title + '</span>';
         
-        const clickAction = sound.isSt ? 'stopSoundtrack()' : 'stopSingleSound(' + sound.id + ')';
+        // FIX: Wrapped sound.id in escaped single quotes so the onclick parameter is treated as a string!
+        const clickAction = sound.isSt ? 'stopSoundtrack()' : 'stopSingleSound(\'' + sound.id + '\')';
         htmlStr += '<button class="text-red-400 hover:text-red-500 cursor-pointer ml-1 flex-shrink-0 transition-transform hover:scale-110 active:scale-95" onclick="' + clickAction + '">';
         htmlStr += '<i class="fas fa-stop-circle"></i></button></li>';
     });
@@ -16295,6 +16308,7 @@ function updateActiveSoundsUI() {
 }
 
 // Start tracking loop
+
 setInterval(updateActiveSoundsUI, 1000);
 
 // ===== BACKGROUND KEEP-ALIVE HACK ===== //
@@ -16577,13 +16591,13 @@ function toggleBackgroundMode(enable) {
 
     <!-- Active Sounds UI (Top Left) -->
     
+
 <!-- ================== BULLETPROOF SCRIPT INJECTION ================== -->
 <script>
-    console.log("[BULLETPROOF] Script loaded successfully! Wiring Soundtrack buttons...");
+    console.log("[BULLETPROOF] Script loaded successfully! Wiring ALL Soundtrack buttons...");
     
     // Globally defined and attached directly to the window so nothing can kill it
     window.openManageSoundtracksModal = function() {
-        console.log("[BULLETPROOF] opening soundtrack manager...");
         try {
             if (typeof book !== 'undefined') window.book.soundtracks = window.book.soundtracks || [];
             if (typeof renderManifestList === 'function') renderManifestList();
@@ -16598,17 +16612,62 @@ function toggleBackgroundMode(enable) {
     // Attach listener via event delegation to guarantee it functions regardless of DOM structure
     document.addEventListener('DOMContentLoaded', () => {
         document.body.addEventListener('click', (e) => {
+            // Main Top Bar Button
             const btn = e.target.closest('#openManageSoundtracksButton');
             if (btn) {
-                console.log("[BULLETPROOF] Button click intercepted.");
                 window.openManageSoundtracksModal();
+                return;
             }
+            
+            // Modal Add Playlist Button
+            const addBtn = e.target.closest('#addSoundtrackBtn');
+            if (addBtn) {
+                if (typeof book !== 'undefined') {
+                    const newSt = { id: 'st_' + Date.now(), name: 'New Playlist', icon: 'fas fa-music', keywords: [], timeOfDay: 'none', chapter: 'none', songs: [] };
+                    window.book.soundtracks = window.book.soundtracks || [];
+                    window.book.soundtracks.push(newSt);
+                    if (typeof openEditSoundtrack === 'function') openEditSoundtrack(newSt);
+                    if (typeof renderManifestList === 'function') renderManifestList();
+                }
+                return;
+            }
+            
+            // Modal Save Button
+            const saveBtn = e.target.closest('#saveSoundtrackBtn');
+            if (saveBtn) {
+                if (typeof editStCurrentId !== 'undefined' && editStCurrentId && typeof book !== 'undefined') {
+                    const st = window.book.soundtracks.find(s => s.id === editStCurrentId);
+                    if (st) {
+                        st.name = document.getElementById('editStName').value.trim() || 'Unnamed';
+                        st.icon = document.getElementById('editStIcon').value.trim() || 'fas fa-music';
+                        st.keywords = document.getElementById('editStKeywords').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+                        st.timeOfDay = document.getElementById('editStTimeOfDay').value;
+                        st.chapter = document.getElementById('editStChapter').value;
+                        if (typeof showTemporaryMessage === 'function') showTemporaryMessage('Saved playlist settings.', 'success');
+                        if (typeof renderManifestList === 'function') renderManifestList();
+                        if (typeof renderSoundtrackIcons === 'function') renderSoundtrackIcons();
+                    }
+                }
+                return;
+            }
+            
+            // Modal Close Button
+            const closeBtn = e.target.closest('#closeSoundtracksModalBtn');
+            if (closeBtn) {
+                document.getElementById('manageSoundtracksModal').style.display = 'none';
+                document.getElementById('modalOverlay').style.display = 'none';
+                if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+                if (typeof renderSoundtrackIcons === 'function') renderSoundtrackIcons();
+                return;
+            }
+            
         });
         
-        console.log("[BULLETPROOF] Event listeners successfully mapped.");
+        console.log("[BULLETPROOF] Modal Event listeners successfully mapped.");
     });
 </script>
 <!-- ================================================================== -->
+
 
 </body>
 
