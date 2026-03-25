@@ -2921,6 +2921,7 @@
                             <div class="dropdown-content">
                                 <button id="openStoryPlotterButton" title="Open Story Plotter"> <i
                                         class="fas fa-project-diagram fa-fw"></i> <span>Story Plotter</span> </button>
+                                <button id="openManageSoundtracksButton" title="Manage Soundtracks"> <i class="fas fa-music fa-fw"></i> <span>Manage Soundtracks</span> </button>
                                 <button id="openAppendixModalButton" title="Open Appendix"> <i
                                         class="fas fa-scroll fa-fw"></i> <span>Appendix</span> </button>
                                 <button id="togglePipButton" title="Toggle Picture-in-Picture Status"> <i
@@ -16369,6 +16370,115 @@ window.editStSong = function(index) {
 
                 }); // End DOMContentLoaded listener
             </script>
+
+    <!-- Soundtrack UI -->
+    <div id="soundtrackIconsContainer" class="soundtrack-icons-container"></div>
+    <div id="soundtrackBar" class="soundtrack-bar">
+        <div class="controls">
+            <button id="stPrevBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Previous Song"><i class="fas fa-step-backward"></i></button>
+            <button id="stPlayPauseBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Play/Pause"><i class="fas fa-play"></i></button>
+            <button id="stNextBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Next Song"><i class="fas fa-step-forward"></i></button>
+        </div>
+        <div class="track-info">
+            <span id="stTrackTitle" class="track-title">No Track Selected</span>
+            <span id="stPlaylistName" class="playlist-name">Playlist: None</span>
+        </div>
+        <div class="volume-control">
+            <i class="fas fa-volume-up text-xs text-gray-400"></i>
+            <input type="range" id="stVolumeSlider" min="0" max="100" value="100" class="w-full">
+            <button id="stCloseBtn" class="btn-rpg-sm btn-rpg-sm-icon ml-2" title="Hide Player"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+    
+    <!-- Soundtrack Modals -->
+    <div id="manageSoundtracksModal" class="modal" style="max-width: 800px; z-index: 1045;">
+        <div class="modal-body">
+            <h3 class="modal-title"><i class="fas fa-music mr-2"></i>Manage Soundtracks</h3>
+            <div class="modal-content">
+                <div class="flex justify-between items-center mb-2">
+                    <button id="addSoundtrackBtn" class="btn-rpg-sm btn-success-sm"><i class="fas fa-plus mr-1"></i> Add Playlist</button>
+                    <div>
+                        <button id="importSpotifyPlaylistBtn" class="btn-rpg-sm" title="Import from Spotify via YouTube search"><i class="fab fa-spotify mr-1 text-green-500"></i> Import Spotify</button>
+                    </div>
+                </div>
+                <ul id="soundtracksList" class="space-y-2 max-h-64 overflow-y-auto bg-black/20 p-2 border border-stone-700 rounded mb-4"></ul>
+                
+                <div id="editSoundtrackContainer" class="hidden border-t border-dashed border-stone-700 pt-4 mt-2">
+                    <input type="hidden" id="editStId">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2"> <label class="block text-sm font-medium mb-1">Playlist Name:</label> <input type="text" id="editStName"> </div>
+                        <div> <label class="block text-sm font-medium mb-1">Icon Style (FontAwesome class):</label> <input type="text" id="editStIcon" placeholder="fas fa-music"> </div>
+                        <div class="md:col-span-2"> <label class="block text-sm font-medium mb-1">Trigger Keywords (comma-separated):</label> <input type="text" id="editStKeywords" placeholder="e.g., tavern start, battle music"> </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Time of Day Auto-Play:</label>
+                            <select id="editStTimeOfDay">
+                                <option value="none">None</option><option value="day">Day</option><option value="night">Night</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Chapter Auto-Play (if possible check code):</label>
+                            <select id="editStChapter"><option value="none">None</option></select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-sm font-bold text-[var(--accent-gold-light)]">Songs</h4>
+                            <button id="addStSongBtn" class="btn-rpg-sm btn-success-sm"><i class="fas fa-plus mr-1"></i> Add Song</button>
+                        </div>
+                        <ul id="stSongsList" class="space-y-2 max-h-48 overflow-y-auto bg-black/20 p-2 border border-stone-700 rounded"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button id="closeSoundtracksModalBtn" class="btn-rpg-sm">Close</button>
+            <button id="saveSoundtrackBtn" class="btn-rpg hidden">Save Playlist</button>
+        </div>
+    </div>
+    
+    <!-- Add Song Modal -->
+    <div id="stAddSongModal" class="modal" style="max-width: 500px; z-index: 1060;">
+        <div class="modal-body">
+            <h3 class="modal-title text-sm"><i class="fas fa-plus mr-2"></i>Add/Edit Song</h3>
+            <div class="modal-content space-y-3">
+                <input type="hidden" id="stSongEditIndex">
+                <div> <label class="block text-sm font-medium mb-1">Source Type:</label>
+                    <div class="flex gap-4">
+                        <label><input type="radio" name="stSongType" value="youtube" checked> YouTube URL</label>
+                        <label><input type="radio" name="stSongType" value="file"> Local File</label>
+                    </div>
+                </div>
+                <div id="stSongYoutubeContainer"> <label class="block text-sm font-medium mb-1">YouTube URL:</label> <input type="text" id="stSongYoutubeUrl"> </div>
+                <div id="stSongFileContainer" class="hidden"> <label class="block text-sm font-medium mb-1">File:</label> <input type="file" id="stSongFile" accept="audio/*"> </div>
+                <div> <label class="block text-sm font-medium mb-1">Song Name:</label> <input type="text" id="stSongName"> </div>
+                <div class="flex gap-4">
+                    <div class="flex-grow"> <label class="block text-sm font-medium mb-1">Volume Override (Optional - default 100):</label> <input type="number" id="stSongVolume" min="0" max="100" placeholder="100"> </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions mt-4">
+            <button id="cancelStSongBtn" class="btn-rpg-sm">Cancel</button>
+            <button id="saveStSongBtn" class="btn-rpg">Save Song</button>
+        </div>
+    </div>
+    
+    <!-- Spotify Import Modal -->
+    <div id="spotifyImportModal" class="modal" style="max-width: 600px; z-index: 1060;">
+        <div class="modal-body">
+            <h3 class="modal-title text-sm"><i class="fab fa-spotify mr-2 text-green-500"></i>Import Spotify Playlist</h3>
+            <div class="modal-content space-y-3">
+                <p class="text-xs text-gray-400">Paste a Spotify Playlist URL. The app will fetch track details via User token and try to find matching YouTube audio. Requires Spotify Login.</p>
+                <div> <label class="block text-sm font-medium mb-1">Spotify Playlist URL:</label> <input type="text" id="spotifyPlaylistUrlInput" placeholder="https://open.spotify.com/playlist/..."> </div>
+                <div id="spotifyImportStatus" class="text-sm font-bold text-yellow-400 mt-2"></div>
+            </div>
+        </div>
+        <div class="modal-actions mt-4">
+            <button id="cancelSpotifyImportBtn" class="btn-rpg-sm">Cancel</button>
+            <button id="executeSpotifyImportBtn" class="btn-rpg">Import & Convert</button>
+        </div>
+    </div>
+
 </body>
 
 </html>
