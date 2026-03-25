@@ -15992,13 +15992,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stCloseBtn) stCloseBtn.onclick = stopSoundtrack;
     
     // Check if openManageSoundtracksButton exists and attach listeners
-    window.openManageSoundtracksModal = function() {
-                book.soundtracks = book.soundtracks || [];
-                renderManifestList();
-                document.getElementById('manageSoundtracksModal').style.display = 'flex';
-                document.getElementById('modalOverlay').style.display = 'block';
-                document.getElementById('editSoundtrackContainer').classList.add('hidden');
-            }
 
     document.getElementById('closeSoundtracksModalBtn')?.addEventListener('click', () => {
         document.getElementById('manageSoundtracksModal').style.display = 'none';
@@ -16583,6 +16576,40 @@ function toggleBackgroundMode(enable) {
 
 
     <!-- Active Sounds UI (Top Left) -->
-    </body>
+    
+<!-- ================== BULLETPROOF SCRIPT INJECTION ================== -->
+<script>
+    console.log("[BULLETPROOF] Script loaded successfully! Wiring Soundtrack buttons...");
+    
+    // Globally defined and attached directly to the window so nothing can kill it
+    window.openManageSoundtracksModal = function() {
+        console.log("[BULLETPROOF] opening soundtrack manager...");
+        try {
+            if (typeof book !== 'undefined') window.book.soundtracks = window.book.soundtracks || [];
+            if (typeof renderManifestList === 'function') renderManifestList();
+            document.getElementById('manageSoundtracksModal').style.display = 'flex';
+            document.getElementById('modalOverlay').style.display = 'block';
+            document.getElementById('editSoundtrackContainer').classList.add('hidden');
+        } catch(e) {
+            console.error("[BULLETPROOF] Error opening soundtracks:", e);
+        }
+    };
+
+    // Attach listener via event delegation to guarantee it functions regardless of DOM structure
+    document.addEventListener('DOMContentLoaded', () => {
+        document.body.addEventListener('click', (e) => {
+            const btn = e.target.closest('#openManageSoundtracksButton');
+            if (btn) {
+                console.log("[BULLETPROOF] Button click intercepted.");
+                window.openManageSoundtracksModal();
+            }
+        });
+        
+        console.log("[BULLETPROOF] Event listeners successfully mapped.");
+    });
+</script>
+<!-- ================================================================== -->
+
+</body>
 
 </html>
