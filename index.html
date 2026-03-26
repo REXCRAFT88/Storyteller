@@ -2879,6 +2879,43 @@
     .soundtrack-icon .tooltip { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); background: var(--bg-secondary); border: 1px solid var(--accent-gold-dark); color: var(--accent-gold-light); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; margin-right: 8px; }
     .soundtrack-icon:hover .tooltip { opacity: 1; pointer-events: auto; }
 
+
+    /* Soundtrack Responsive Outside Attach (Tasks 5 & 6) */
+    .soundtrack-icons-container {
+        position: fixed;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        z-index: 1030;
+        padding-right: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    @media (min-width: 1400px) {
+        .soundtrack-icons-container {
+            position: absolute;
+            right: -240px; /* Attach to outside border */
+            top: 50%;
+            transform: translateY(-50%);
+            padding-right: 0;
+            width: 220px;
+            align-items: stretch;
+            background: rgba(28, 25, 23, 0.6); /* Optional subtle backdrop */
+            padding: 1rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border-stone-700);
+        }
+        .soundtrack-icon {
+            width: 100% !important;
+            height: 3rem !important;
+            border-radius: 1.5rem !important;
+            justify-content: flex-start !important;
+            padding: 0 1rem !important;
+        }
+    }
+
 </style>
 </head>
 
@@ -2892,12 +2929,13 @@
     <div class="text-center">
         <h1 class="text-4xl md:text-5xl font-bold mb-6 mt-8">Storyteller</h1>
     </div>
-    <div class="main-container max-w-7xl mx-auto p-6 md:p-8 rounded-lg shadow-md">
+    <div class="main-container relative max-w-7xl mx-auto p-6 md:p-8 rounded-lg shadow-md">
+    <div id="soundtrackIconsContainer" class="soundtrack-icons-container"></div>
         <div class="space-y-4">
             <div class="flex justify-between w-full items-start gap-4 mb-2">
 
 <!-- Active Sounds UI Container -->
-<div id="activeSoundsListContainer" class="w-64 flex-shrink-0 flex flex-col items-center justify-center p-2 rounded bg-stone-900 border border-stone-800 shadow-inner" style="display: block; height: fit-content; max-height: 20vh;"></div>
+<div id="activeSoundsListContainer" class="min-w-[16rem] max-w-xl flex-1 flex flex-col p-2 rounded bg-stone-900 border border-stone-800 shadow-inner" style="display: block; height: fit-content; max-height: 25vh;"></div>
 
                 <!-- Right-Side Controls -->
                 <div class="flex-shrink-0 space-y-2 w-96">
@@ -3040,6 +3078,15 @@
                                     (1.0)</span> <span id="settingsAccuracyValue"
                                     class="text-sm w-10 text-right">0.80</span> </div>
                             <p class="text-xs text-gray-400 mt-1">Controls how closely spoken words must match
+                                keywords/PKs (higher value = stricter). Default: 0.80.</p>
+                        </div>
+                        <div class="border-t border-stone-700 pt-4">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Master Volume Affects Soundtracks</span>
+                                <div class="rpg-toggle-switch"><input type="checkbox"
+                                        id="settingsMasterVolSoundtracksCheckbox" checked><span class="slider"></span></div>
+                            </label>
+                            <p class="text-xs text-gray-400 mt-1">If enabled, the global Master Volume slider will also scale the volume of background Soundtracks.</p>
                                 keywords/PKs (higher value = stricter). Default: 0.80.</p>
                         </div>
                         <div class="border-t border-stone-700 pt-4">
@@ -4736,6 +4783,11 @@
                                             checked><span class="slider"></span></div>
                                 </label>
                                 <label class="flex items-center justify-between cursor-pointer">
+                                <label class="flex items-center justify-between cursor-pointer">
+                                    <span class="text-sm">Soundtracks</span>
+                                    <div class="rpg-toggle-switch"><input type="checkbox" id="saveSwitchSoundtracks"
+                                            checked><span class="slider"></span></div>
+                                </label>
                                     <span class="text-sm">Settings</span>
                                     <div class="rpg-toggle-switch"><input type="checkbox" id="saveSwitchSettings"
                                             checked><span class="slider"></span></div>
@@ -5230,6 +5282,7 @@
                     // --- State Variables ---
                     let audioContext; let recognition;
                     let isListening = false;
+                    let isSmartFilteringEnabled = true;
                     let pttActive = false;
                     let lastInterimWordCount = 0;
                     let consumedWordsForUtterance = new Set();
@@ -7145,6 +7198,13 @@
                         masterVolumeValueSpan.textContent = `${newVolume}`;
                         book.settings.masterVolume = newVolume; // Save to book settings
                         currentMasterVolume = newVolume; // Update global state
+                        
+                        if (typeof book !== 'undefined' && book.settings && book.settings.masterVolumeAffectsSoundtracks !== false) {
+                            if (typeof activeSoundtrackId !== 'undefined' && activeSoundtrackId && isStPlaying && typeof stPlayerNode !== 'undefined') {
+                                const stVolSlider = document.getElementById('stVolumeSlider');
+                                if (stVolSlider) stVolSlider.dispatchEvent(new Event('input'));
+                            }
+                        }
 
                         // Adjust volume of currently playing sounds
                         Object.values(activeSounds).forEach(soundData => {
@@ -11710,6 +11770,8 @@
                         // Determine loop settings based on current UI state, which should be accurate
                         // due to evaluateSyrinscapeLoopControls being called on modal open and control changes.
                         let finalLoop = newLoop;
+                        const newLoopIndefinitely = editLoopIndefinitelyCheckbox.checked;
+                        const newLoopCountValue = parseInt(editLoopCountInput.value, 10);
                         let finalLoopCount = newLoop ? (newLoopIndefinitely ? -1 : (isNaN(newLoopCountValue) || newLoopCountValue < 1 ? 0 : newLoopCountValue)) : 0;
 
 
@@ -15808,7 +15870,7 @@ function renderSoundtrackIcons() {
     (book.soundtracks || []).forEach(st => {
         const iconDiv = document.createElement('div');
         iconDiv.className = 'soundtrack-icon' + (activeSoundtrackId === st.id ? ' active' : '');
-        iconDiv.innerHTML = '<i class="' + (st.icon || 'fas fa-music') + '"></i><div class="tooltip">' + st.name + '</div>';
+        iconDiv.innerHTML = '<i class="' + (st.icon || 'fas fa-music') + '"></i><span class="st-name-label hidden md:hidden min-[1400px]:block ml-2 text-sm font-semibold truncate">' + st.name + '</span><div class="tooltip min-[1400px]:hidden">' + st.name + '</div>';
         iconDiv.onclick = () => { toggleSoundtrack(st.id); };
         container.appendChild(iconDiv);
     });
@@ -15846,6 +15908,18 @@ function updateSoundtrackBarUI() {
     }
 }
 
+
+function getSoundtrackFinalVol(st, song) {
+    const baseVol = globalSoundtrackVolume / 100;
+    const playlistVol = (st.volume !== undefined ? st.volume : 100) / 100;
+    const songVol = (song.volume !== undefined ? song.volume : 100) / 100;
+    let finalVol = Math.max(baseVol * playlistVol * songVol, 0.001);
+    if (typeof book !== 'undefined' && book.settings && book.settings.masterVolumeAffectsSoundtracks !== false) {
+        const mv = typeof currentMasterVolume !== 'undefined' ? currentMasterVolume : 100;
+        finalVol = Math.max(finalVol * (mv / 100), 0.001);
+    }
+    return finalVol;
+}
 function playStSong(st, songIndex) {
     if (!st || !st.songs || st.songs.length === 0) return;
     
@@ -15864,9 +15938,7 @@ function playStSong(st, songIndex) {
     if (!song) return;
     
     document.getElementById('stTrackTitle').innerText = song.name;
-    const baseVol = globalSoundtrackVolume / 100;
-    const songVol = (song.volume !== undefined ? song.volume : 100) / 100;
-    const finalVol = Math.max(baseVol * songVol, 0.001); // Avoid 0
+    const finalVol = getSoundtrackFinalVol(st, song);
 
     if (song.type === 'file' && song.fileData) {
         initAudioContext();
@@ -15951,7 +16023,7 @@ function pauseSoundtrack() {
     if (stPlayerNode) {
         if (stPlayerNode.gainNode && audioContext) {
             stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0);
-            setTimeout(() => { if (stPlayerNode && stPlayerNode.context) audioContext.suspend(); }, 1000);
+            // NOT suspending audioContext to avoid breaking global audio
         } else if (stPlayerNode.pauseVideo) {
              stPlayerNode.pauseVideo();
         }
@@ -15964,10 +16036,10 @@ function resumeSoundtrack() {
     isStPlaying = true;
     if (stPlayerNode) {
         if (stPlayerNode.gainNode && audioContext) {
-            audioContext.resume();
+            if(audioContext.state === 'suspended') audioContext.resume();
             const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
             const song = st.songs[activeStSongIndex];
-            const finalVol = Math.max((globalSoundtrackVolume/100) * ((song.volume || 100)/100), 0.001);
+            const finalVol = getSoundtrackFinalVol(st, song);
             stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 1.0);
         } else if (stPlayerNode.playVideo) {
              stPlayerNode.playVideo();
@@ -16004,7 +16076,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (activeSoundtrackId && isStPlaying && stPlayerNode) {
                 const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
                 const song = st.songs[activeStSongIndex];
-                const finalVol = Math.max((globalSoundtrackVolume/100) * ((song.volume || 100)/100), 0.001);
+                const finalVol = getSoundtrackFinalVol(st, song);
                 if (stPlayerNode.gainNode && audioContext) {
                     stPlayerNode.gainNode.gain.setTargetAtTime(finalVol, audioContext.currentTime, 0.1);
                 } else if (stPlayerNode.setVolume) {
@@ -16048,9 +16120,11 @@ document.addEventListener('DOMContentLoaded', () => {
             st.keywords = document.getElementById('editStKeywords').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
             st.timeOfDay = document.getElementById('editStTimeOfDay').value;
             st.chapter = document.getElementById('editStChapter').value;
+            st.volume = parseInt(document.getElementById('editStVolume').value, 10) || 100;
             showTemporaryMessage('Saved playlist settings.', 'success');
             renderManifestList();
             renderSoundtrackIcons();
+            saveToLocalStorage();
         }
     });
 
@@ -16107,6 +16181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         document.getElementById('stAddSongModal').style.display = 'none';
         renderStSongs(st);
+        saveToLocalStorage();
     });
 
     // Spotify Import Logic
@@ -16140,18 +16215,58 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const newSt = { id: 'st_' + Date.now(), name: data.name || 'Spotify Import', icon: 'fab fa-spotify', keywords: [], timeOfDay: 'none', chapter: 'none', songs: [] };
             
-            statusDiv.innerText = "Playlist fetched! Need a YouTube API key to map to video URLs. Generating empty stubs...";
-            
-            data.tracks.items.forEach(item => {
+            const apiKeys = book && book.settings && book.settings.youtubeApiKeys ? book.settings.youtubeApiKeys : [];
+            let apiKeyIndex = 0;
+            let apiKey = apiKeys.length > 0 ? apiKeys[apiKeyIndex] : null;
+
+            if (!apiKey) {
+                statusDiv.innerText = "Playlist fetched! No YouTube API key found in Settings. Generating empty stubs...";
+            } else {
+                statusDiv.innerText = `Playlist fetched! Mapping ${data.tracks.items.length} tracks to YouTube...`;
+            }
+
+            for (let i = 0; i < data.tracks.items.length; i++) {
+                const item = data.tracks.items[i];
                 if(item.track) {
                     const artistStr = item.track.artists ? item.track.artists[0].name : 'Unknown';
-                    newSt.songs.push({ name: item.track.name + " - " + artistStr, type: 'youtube', volume: 100, url: '', videoId: null });
+                    const songName = item.track.name + " - " + artistStr;
+                    let videoId = null;
+                    let url = '';
+
+                    if (apiKey) {
+                        try {
+                            statusDiv.innerText = `Mapping track ${i + 1}/${data.tracks.items.length}: ${songName}...`;
+                            let ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(songName + ' auto-generated')}&key=${apiKey}&type=video&videoEmbeddable=true&maxResults=1`);
+                            
+                            if (!ytRes.ok && ytRes.status === 403) {
+                                // Try next key
+                                apiKeyIndex++;
+                                if (apiKeyIndex < apiKeys.length) {
+                                    apiKey = apiKeys[apiKeyIndex];
+                                    ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(songName + ' auto-generated')}&key=${apiKey}&type=video&videoEmbeddable=true&maxResults=1`);
+                                } else {
+                                    apiKey = null;
+                                }
+                            }
+                            
+                            if (ytRes && ytRes.ok) {
+                                const ytData = await ytRes.json();
+                                if (ytData.items && ytData.items.length > 0) {
+                                    videoId = ytData.items[0].id.videoId;
+                                    url = `https://www.youtube.com/watch?v=${videoId}`;
+                                }
+                            }
+                        } catch(e) { console.warn("YT search failed for " + songName, e); }
+                    }
+                    newSt.songs.push({ name: songName, type: 'youtube', volume: 100, url: url, videoId: videoId });
                 }
-            });
+            }
+            statusDiv.innerText = "Playlist imported successfully!";
             
             book.soundtracks.push(newSt);
             openEditSoundtrack(newSt);
             renderManifestList();
+            saveToLocalStorage();
             
             setTimeout(() => {
                 document.getElementById('spotifyImportModal').style.display = 'none';
@@ -16185,6 +16300,7 @@ function renderManifestList() {
                 if(activeSoundtrackId === st.id) stopSoundtrack();
                 renderManifestList();
                 document.getElementById('editSoundtrackContainer').classList.add('hidden');
+                saveToLocalStorage();
             }
         };
     });
@@ -16490,15 +16606,14 @@ function toggleBackgroundMode(enable) {
                             }
 
                             const ul = document.createElement('ul');
-                            ul.className = 'space-y-1.5 flex-grow overflow-y-auto max-h-[15vh] w-full mt-1 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-transparent';
+                            ul.className = 'grid grid-cols-1 min-[900px]:grid-cols-2 lg:grid-cols-2 gap-2 flex-grow overflow-y-auto max-h-[20vh] w-full mt-1 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-transparent';
                             
                             longSounds.forEach(sound => {
                                 const li = document.createElement('li');
-                                li.className = 'flex justify-between items-center bg-black/40 border border-stone-700/60 rounded px-2 py-1 text-sm text-stone-300 hover:border-stone-500 transition-colors';
+                                li.className = 'flex justify-between items-center bg-black/40 border border-stone-700/60 rounded px-2 py-1.5 text-sm text-stone-300 hover:border-stone-500 transition-colors w-full';
                                 
                                 const span = document.createElement('span');
-                                span.className = 'truncate pr-2 text-xs font-semibold';
-                                span.style.maxWidth = '155px';
+                                span.className = 'truncate pr-2 text-xs font-semibold flex-1';
                                 span.title = sound.title;
                                 span.textContent = sound.title;
                                 li.appendChild(span);
@@ -16566,6 +16681,7 @@ function toggleBackgroundMode(enable) {
                                     st.keywords = document.getElementById('editStKeywords').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
                                     st.timeOfDay = document.getElementById('editStTimeOfDay').value;
                                     st.chapter = document.getElementById('editStChapter').value;
+            st.volume = parseInt(document.getElementById('editStVolume').value, 10) || 100;
                                     if (typeof showTemporaryMessage === 'function') showTemporaryMessage('Saved playlist settings.', 'success');
                                     if (typeof renderManifestList === 'function') renderManifestList();
                                     if (typeof renderSoundtrackIcons === 'function') renderSoundtrackIcons();
@@ -16727,7 +16843,7 @@ function toggleBackgroundMode(enable) {
             </script>
 
     <!-- Soundtrack UI -->
-    <div id="soundtrackIconsContainer" class="soundtrack-icons-container"></div>
+    
     <div id="soundtrackBar" class="soundtrack-bar">
         <div class="controls">
             <button id="stPrevBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Previous Song"><i class="fas fa-step-backward"></i></button>
@@ -16778,6 +16894,10 @@ function toggleBackgroundMode(enable) {
                         <div>
                             <label class="block text-sm font-medium mb-1">Chapter Auto-Play (if possible check code):</label>
                             <select id="editStChapter"><option value="none">None</option></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Playlist Master Volume:</label>
+                            <input type="number" id="editStVolume" min="0" max="100" value="100" class="w-full bg-stone-800 border-stone-600 border text-white p-1 rounded">
                         </div>
                     </div>
                     
