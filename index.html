@@ -6900,7 +6900,7 @@
                             paramsContainer.innerHTML = '<label class="block text-sm font-medium mb-1 mt-2">Select Soundtrack:</label><select class="appendix-st-select bg-stone-900 border border-stone-700 rounded px-2 py-1 w-full text-sm"></select>';
                             const stSelect = paramsContainer.querySelector('.appendix-st-select');
                             stSelect.innerHTML = '<option value="">-- Select --</option>';
-                            (window.book.soundtracks || []).forEach(st => {
+                            (book.soundtracks || []).forEach(st => {
                                 stSelect.innerHTML += '<option value="'+st.id+'">'+st.name+'</option>';
                             });
                             if (params && params.soundtrackId) stSelect.value = params.soundtrackId;
@@ -7747,12 +7747,18 @@
                         for (const pk of primaryKeys) {
                             if (IGNORED_WORDS.has(pk)) continue;
 
-                            if (!isSmartFilteringEnabled) { // Exact phrase matching for PK if smart filtering is off
-                                const escapedPk = pk.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'); // Escape regex special chars
+                            if (!isSmartFilteringEnabled) {
+                                const escapedPk = pk.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                                 const pkRegex = new RegExp(`\\b${escapedPk}\\b`, 'i');
-                                const match = text.match(pkRegex);
-                                if (match) {
-                                    return true;
+                                if (text.match(pkRegex)) return true;
+                            } else {
+                                if (typeof fuseInstance !== 'undefined' && fuseInstance) {
+                                    for (const word of wordsInText) {
+                                        const results = fuseInstance.search(word);
+                                        for (const res of results) {
+                                            if (res.item.pageId === page.id && page.primaryKey.includes(res.item.keyword) && (1.0 - res.score) >= minConfidence) return true;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -15921,6 +15927,7 @@ function getSoundtrackFinalVol(st, song) {
     return finalVol;
 }
 function playStSong(st, songIndex) {
+    if (typeof audioContext !== 'undefined' && audioContext && audioContext.state === 'suspended') audioContext.resume();
     if (!st || !st.songs || st.songs.length === 0) return;
     
     // Stop current
@@ -16145,6 +16152,31 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancelStSongBtn')?.addEventListener('click', () => {
         document.getElementById('stAddSongModal').style.display = 'none';
     });
+
+
+    const stUrlInput = document.getElementById('stSongYoutubeUrl');
+    if (stUrlInput) {
+        stUrlInput.addEventListener('blur', async () => {
+            const url = stUrlInput.value.trim();
+            const nameInput = document.getElementById('stSongName');
+            const apiKeys = book && book.settings && book.settings.youtubeApiKeys ? book.settings.youtubeApiKeys : [];
+            const apiKey = apiKeys.length > 0 ? apiKeys[0] : null;
+            if (url && apiKey && !nameInput.value) {
+                const match = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?]+)/);
+                if (match) {
+                    try {
+                        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${match[1]}&key=${apiKey}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.items && data.items.length > 0) {
+                                nameInput.value = data.items[0].snippet.title;
+                            }
+                        }
+                    } catch(e) {}
+                }
+            }
+        });
+    }
 
     document.getElementById('saveStSongBtn')?.addEventListener('click', () => {
         const st = book.soundtracks.find(s => s.id === editStCurrentId);
@@ -16782,21 +16814,7 @@ function toggleBackgroundMode(enable) {
                         document.getElementById('spotifyImportModal').style.display = 'flex';
                     };
 
-                    const __cancelSpotifyBtn = document.getElementById('cancelSpotifyImportBtn');
-                    if (__cancelSpotifyBtn) __cancelSpotifyBtn.onclick = () => {
-                        document.getElementById('spotifyImportModal').style.display = 'none';
-                    };
 
-                    const __execSpotifyBtn = document.getElementById('executeSpotifyImportBtn');
-                    if (__execSpotifyBtn) __execSpotifyBtn.onclick = async () => {
-                        const url = document.getElementById('spotifyPlaylistUrlInput').value.trim();
-                        const status = document.getElementById('spotifyImportStatus');
-                        if (!url.includes('spotify.com/playlist/')) {
-                            status.innerText = "Invalid Spotify Playlist URL.";
-                            return;
-                        }
-                        status.innerText = "Conversion endpoint is disabled. Use manual entry for now.";
-                    };
                     
                     const __openIconPickerBtn = document.getElementById('openIconPickerBtn');
                     if (__openIconPickerBtn) __openIconPickerBtn.onclick = () => {
