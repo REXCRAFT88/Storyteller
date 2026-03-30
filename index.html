@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8">ckl
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Storyteller</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -2863,60 +2863,176 @@
         .remove-recent-search-btn:hover {
             color: var(--recent-search-remove-btn-hover-color);
         }
-    
-    /* Soundtrack System Styles */
-    .soundtrack-bar { position: fixed; bottom: 0; left: 0; right: 0; background-color: var(--bg-secondary); border-top: 2px solid var(--accent-gold-dark); box-shadow: 0 -2px 10px rgba(0,0,0,0.5); z-index: 1040; display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; gap: 1rem; color: var(--text-primary); font-family: 'Inter', sans-serif; transition: transform 0.3s; transform: translateY(100%); }
-    .soundtrack-bar.active { transform: translateY(0); }
-    .soundtrack-bar .track-info { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .soundtrack-bar .track-title { font-weight: bold; color: var(--accent-gold-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1rem; }
-    .soundtrack-bar .playlist-name { font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .soundtrack-bar .controls { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
-    .soundtrack-bar .volume-control { display: flex; align-items: center; gap: 0.5rem; width: 150px; flex-shrink: 0; }
-    .soundtrack-icons-container { position: fixed; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 0.25rem; z-index: 1030; padding-right: 0.5rem; }
-    .soundtrack-icon { width: 44px; height: 44px; background-color: var(--bg-tertiary); border: 2px solid var(--border-stone); border-radius: 4px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.3); margin-bottom: 4px; }
-    .soundtrack-icon:hover { border-color: var(--accent-gold-light); color: var(--text-primary); transform: translateX(-2px); }
-    .soundtrack-icon.active { border-color: #a3e635; color: #a3e635; box-shadow: 0 0 10px rgba(163, 230, 53, 0.5); }
-    .soundtrack-icon .tooltip { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); background: var(--bg-secondary); border: 1px solid var(--accent-gold-dark); color: var(--accent-gold-light); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; margin-right: 8px; }
-    .soundtrack-icon:hover .tooltip { opacity: 1; pointer-events: auto; }
 
+        /* Soundtrack System Styles */
+        .soundtrack-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--bg-secondary);
+            border-top: 2px solid var(--accent-gold-dark);
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+            z-index: 1040;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 1rem;
+            gap: 1rem;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            transition: transform 0.3s;
+            transform: translateY(100%);
+        }
 
-    /* Soundtrack Responsive Outside Attach (Tasks 5 & 6) */
-    .soundtrack-icons-container {
-        position: fixed;
-        right: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        z-index: 1030;
-        padding-right: 0.5rem;
-        transition: all 0.3s ease;
-    }
-    @media (min-width: 1400px) {
+        .soundtrack-bar.active {
+            transform: translateY(0);
+        }
+
+        .soundtrack-bar .track-info {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .soundtrack-bar .track-title {
+            font-weight: bold;
+            color: var(--accent-gold-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 1rem;
+        }
+
+        .soundtrack-bar .playlist-name {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .soundtrack-bar .controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .soundtrack-bar .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 150px;
+            flex-shrink: 0;
+        }
+
         .soundtrack-icons-container {
-            position: absolute;
-            right: -240px; /* Attach to outside border */
+            position: fixed;
+            right: 0;
             top: 50%;
             transform: translateY(-50%);
-            padding-right: 0;
-            width: 220px;
-            align-items: stretch;
-            background: rgba(28, 25, 23, 0.6); /* Optional subtle backdrop */
-            padding: 1rem;
-            border-radius: 1rem;
-            border: 1px solid var(--border-stone-700);
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            z-index: 1030;
+            padding-right: 0.5rem;
         }
-        .soundtrack-icon {
-            width: 100% !important;
-            height: 3rem !important;
-            border-radius: 1.5rem !important;
-            justify-content: flex-start !important;
-            padding: 0 1rem !important;
-        }
-    }
 
-</style>
+        .soundtrack-icon {
+            width: 44px;
+            height: 44px;
+            background-color: var(--bg-tertiary);
+            border: 2px solid var(--border-stone);
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            margin-bottom: 4px;
+        }
+
+        .soundtrack-icon:hover {
+            border-color: var(--accent-gold-light);
+            color: var(--text-primary);
+            transform: translateX(-2px);
+        }
+
+        .soundtrack-icon.active {
+            border-color: #a3e635;
+            color: #a3e635;
+            box-shadow: 0 0 10px rgba(163, 230, 53, 0.5);
+        }
+
+        .soundtrack-icon .tooltip {
+            position: absolute;
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent-gold-dark);
+            color: var(--accent-gold-light);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            margin-right: 8px;
+        }
+
+        .soundtrack-icon:hover .tooltip {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+
+        /* Soundtrack Responsive Outside Attach (Tasks 5 & 6) */
+        .soundtrack-icons-container {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            z-index: 1030;
+            padding-right: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        @media (min-width: 1400px) {
+            .soundtrack-icons-container {
+                position: absolute;
+                right: -240px;
+                /* Attach to outside border */
+                top: 50%;
+                transform: translateY(-50%);
+                padding-right: 0;
+                width: 220px;
+                align-items: stretch;
+                background: rgba(28, 25, 23, 0.6);
+                /* Optional subtle backdrop */
+                padding: 1rem;
+                border-radius: 1rem;
+                border: 1px solid var(--border-stone-700);
+            }
+
+            .soundtrack-icon {
+                width: 100% !important;
+                height: 3rem !important;
+                border-radius: 1.5rem !important;
+                justify-content: flex-start !important;
+                padding: 0 1rem !important;
+            }
+        }
+    </style>
 </head>
 
 <body class="p-4 md:p-8">
@@ -2930,12 +3046,14 @@
         <h1 class="text-4xl md:text-5xl font-bold mb-6 mt-8">Storyteller</h1>
     </div>
     <div class="main-container relative max-w-7xl mx-auto p-6 md:p-8 rounded-lg shadow-md">
-    <div id="soundtrackIconsContainer" class="soundtrack-icons-container"></div>
+        <div id="soundtrackIconsContainer" class="soundtrack-icons-container"></div>
         <div class="space-y-4">
             <div class="flex justify-between w-full items-start gap-4 mb-2">
 
-<!-- Active Sounds UI Container -->
-<div id="activeSoundsListContainer" class="min-w-[16rem] max-w-xl flex-1 flex flex-col p-2 rounded bg-stone-900 border border-stone-800 shadow-inner" style="display: block; height: fit-content; max-height: 25vh;"></div>
+                <!-- Active Sounds UI Container -->
+                <div id="activeSoundsListContainer"
+                    class="min-w-[16rem] max-w-xl flex-1 flex flex-col p-2 rounded bg-stone-900 border border-stone-800 shadow-inner"
+                    style="display: block; height: fit-content; max-height: 25vh;"></div>
 
                 <!-- Right-Side Controls -->
                 <div class="flex-shrink-0 space-y-2 w-96">
@@ -2969,7 +3087,9 @@
                             <div class="dropdown-content">
                                 <button id="openStoryPlotterButton" title="Open Story Plotter"> <i
                                         class="fas fa-project-diagram fa-fw"></i> <span>Story Plotter</span> </button>
-                                <button id="openManageSoundtracksButton" onclick="openManageSoundtracksModal()" title="Manage Soundtracks"> <i class="fas fa-music fa-fw"></i> <span>Manage Soundtracks</span> </button>
+                                <button id="openManageSoundtracksButton" onclick="openManageSoundtracksModal()"
+                                    title="Manage Soundtracks"> <i class="fas fa-music fa-fw"></i> <span>Manage
+                                        Soundtracks</span> </button>
                                 <button id="openAppendixModalButton" title="Open Appendix"> <i
                                         class="fas fa-scroll fa-fw"></i> <span>Appendix</span> </button>
                                 <button id="togglePipButton" title="Toggle Picture-in-Picture Status"> <i
@@ -3082,12 +3202,15 @@
                         </div>
                         <div class="border-t border-stone-700 pt-4">
                             <label class="flex items-center justify-between cursor-pointer">
-                                <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Master Volume Affects Soundtracks</span>
+                                <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Master Volume
+                                    Affects Soundtracks</span>
                                 <div class="rpg-toggle-switch"><input type="checkbox"
-                                        id="settingsMasterVolSoundtracksCheckbox" checked><span class="slider"></span></div>
+                                        id="settingsMasterVolSoundtracksCheckbox" checked><span class="slider"></span>
+                                </div>
                             </label>
-                            <p class="text-xs text-gray-400 mt-1">If enabled, the global Master Volume slider will also scale the volume of background Soundtracks.</p>
-                                keywords/PKs (higher value = stricter). Default: 0.80.</p>
+                            <p class="text-xs text-gray-400 mt-1">If enabled, the global Master Volume slider will also
+                                scale the volume of background Soundtracks.</p>
+                            keywords/PKs (higher value = stricter). Default: 0.80.</p>
                         </div>
                         <div class="border-t border-stone-700 pt-4">
                             <span class="block text-sm font-semibold text-[var(--accent-gold-light)] mb-2">Audio
@@ -4107,8 +4230,8 @@
                                 <label class="block text-sm font-medium mb-1">Action:</label>
                                 <select id="appendixEffectTypeSelect">
                                     <option value="play_soundtrack">Play Soundtrack</option>
-<option value="stop_soundtrack">Stop Soundtrack</option>
-<option value="start_pages">Start Pages</option>
+                                    <option value="stop_soundtrack">Stop Soundtrack</option>
+                                    <option value="start_pages">Start Pages</option>
                                     <option value="end_pages">End Pages</option>
                                     <option value="increase_volume">Increase Volume</option>
                                     <option value="decrease_volume">Decrease Volume</option>
@@ -4275,7 +4398,8 @@
                                     Sounds" button will also attempt to stop all Syrinscape sounds via
                                     <code>syrinscape.player.controlSystem.stopAll()</code>. Individual Syrinscape sounds
                                     are stopped using their Element ID and Kind. If a duration is set, the sound will
-                                    stop after that time.</p>
+                                    stop after that time.
+                                </p>
                                 <h4>Syrinscape Preview in Search</h4>
                                 <p>In the "Search Syrinscape Sounds" modal, each result will have a single Play/Stop
                                     toggle button (<i class="fas fa-play"></i> / <i class="fas fa-stop"></i>). This
@@ -4327,7 +4451,8 @@
                                     Plotter thread, the system will typically select variations based on the
                                     <strong>destination chapter</strong> of the thread and the <strong>current time of
                                         day</strong> (after any time change specified by the thread). This ensures
-                                    sounds play in the context of the new scene.</p>
+                                    sounds play in the context of the new scene.
+                                </p>
                             </div>
                             <div class="guidebook-section">
                                 <h3><i class="fas fa-route fa-fw mr-2"></i>Chapter & Time Transitions</h3>
@@ -4370,7 +4495,8 @@
                                     <li><strong>Built-in Enter Phrases:</strong> <code>enter</code>,
                                         <code>go into</code>, <code>going into</code>, <code>wandering into</code>,
                                         <code>arrive at</code>, <code>move to</code>, <code>walk into</code>,
-                                        <code>run into</code>, <code>head to</code>, etc.</li>
+                                        <code>run into</code>, <code>head to</code>, etc.
+                                    </li>
                                     <li><strong>Custom Enter Phrases:</strong> Add your own comma-separated phrases in
                                         the Settings <i class="fas fa-gear"></i> area.</li>
                                     <li><strong>Chapter Keywords:</strong> Defined in the "Edit Chapter" modal (pencil
@@ -4412,7 +4538,8 @@
                                     speaking an "Exit Phrase" followed by one of the *active* chapter's keywords.</p>
                                 <ul class="list-disc ml-6 text-sm text-gray-300">
                                     <li><strong>Built-in Exit Phrases:</strong> <code>leave</code>, <code>exit</code>,
-                                        <code>depart from</code>, <code>leaving</code>, <code>exiting</code>.</li>
+                                        <code>depart from</code>, <code>leaving</code>, <code>exiting</code>.
+                                    </li>
                                     <li><strong>Custom Exit Phrases:</strong> Add your own comma-separated phrases in
                                         the Settings <i class="fas fa-gear"></i> area (e.g., "run from", "escape the").
                                     </li>
@@ -4783,11 +4910,11 @@
                                             checked><span class="slider"></span></div>
                                 </label>
                                 <label class="flex items-center justify-between cursor-pointer">
-                                <label class="flex items-center justify-between cursor-pointer">
-                                    <span class="text-sm">Soundtracks</span>
-                                    <div class="rpg-toggle-switch"><input type="checkbox" id="saveSwitchSoundtracks"
-                                            checked><span class="slider"></span></div>
-                                </label>
+                                    <label class="flex items-center justify-between cursor-pointer">
+                                        <span class="text-sm">Soundtracks</span>
+                                        <div class="rpg-toggle-switch"><input type="checkbox" id="saveSwitchSoundtracks"
+                                                checked><span class="slider"></span></div>
+                                    </label>
                                     <span class="text-sm">Settings</span>
                                     <div class="rpg-toggle-switch"><input type="checkbox" id="saveSwitchSettings"
                                             checked><span class="slider"></span></div>
@@ -6895,31 +7022,31 @@
                         };
 
                         switch (effectType) {
-                            
-                        case 'play_soundtrack':
-                            paramsContainer.innerHTML = '<label class="block text-sm font-medium mb-1 mt-2">Select Soundtrack:</label><select class="appendix-st-select bg-stone-900 border border-stone-700 rounded px-2 py-1 w-full text-sm"></select>';
-                            const stSelect = paramsContainer.querySelector('.appendix-st-select');
-                            stSelect.innerHTML = '<option value="">-- Select --</option>';
-                            (book.soundtracks || []).forEach(st => {
-                                stSelect.innerHTML += '<option value="'+st.id+'">'+st.name+'</option>';
-                            });
-                            if (params && params.soundtrackId) stSelect.value = params.soundtrackId;
-                            targetContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2">Target: Global Context (Audio System)</p>';
-                            break;
-                        case 'stop_soundtrack':
-                            paramsContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2">Stops the currently playing soundtrack.</p>';
-                            targetContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2">Target: Global Context (Audio System)</p>';
-                            break;
-                        case 'start_pages':
+
+                            case 'play_soundtrack':
+                                paramsContainer.innerHTML = '<label class="block text-sm font-medium mb-1 mt-2">Select Soundtrack:</label><select class="appendix-st-select bg-stone-900 border border-stone-700 rounded px-2 py-1 w-full text-sm"></select>';
+                                const stSelect = paramsContainer.querySelector('.appendix-st-select');
+                                stSelect.innerHTML = '<option value="">-- Select --</option>';
+                                (book.soundtracks || []).forEach(st => {
+                                    stSelect.innerHTML += '<option value="' + st.id + '">' + st.name + '</option>';
+                                });
+                                if (params && params.soundtrackId) stSelect.value = params.soundtrackId;
+                                targetContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2">Target: Global Context (Audio System)</p>';
+                                break;
+                            case 'stop_soundtrack':
+                                paramsContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2">Stops the currently playing soundtrack.</p>';
+                                targetContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2">Target: Global Context (Audio System)</p>';
+                                break;
+                            case 'start_pages':
                             case 'end_pages':
                             case 'reset_volume':
                                 createPageSelector(targetContainer, effectId);
                                 break;
 
-                            
+
                             case 'play_soundtrack':
                                 const stSel = paramsContainer.querySelector('.appendix-st-select');
-                                if(stSel) params.soundtrackId = stSel.value;
+                                if (stSel) params.soundtrackId = stSel.value;
                                 break;
                             case 'stop_soundtrack':
                                 break;
@@ -7198,7 +7325,7 @@
                         masterVolumeValueSpan.textContent = `${newVolume}`;
                         book.settings.masterVolume = newVolume; // Save to book settings
                         currentMasterVolume = newVolume; // Update global state
-                        
+
                         if (typeof book !== 'undefined' && book.settings && book.settings.masterVolumeAffectsSoundtracks !== false) {
                             if (typeof activeSoundtrackId !== 'undefined' && activeSoundtrackId && isStPlaying && typeof stPlayerNode !== 'undefined') {
                                 const stVolSlider = document.getElementById('stVolumeSlider');
@@ -9676,7 +9803,7 @@
                             ? entry.effects.map(eff => {
                                 let reversedType = eff.type;
                                 switch (eff.type) {
-                                    
+
                                     case 'play_soundtrack': reversedType = 'stop_soundtrack'; break;
                                     case 'stop_soundtrack': return null;
                                     case 'start_pages': reversedType = 'end_pages'; break;
@@ -10553,7 +10680,7 @@
                             }
 
                             // Process Appendix
-                            
+
                             // Process Soundtracks
                             if (importChoices.soundtracks && importChoices.soundtracks !== 'skip') {
                                 if (importChoices.soundtracks === 'overwrite') {
@@ -10568,7 +10695,7 @@
                                     }
                                 });
                             }
-    
+
                             if (importChoices.appendix && importChoices.appendix !== 'skip') {
                                 if (importChoices.appendix === 'overwrite') {
                                     book.appendix = [];
@@ -14155,17 +14282,17 @@
                                 appendix: Array.isArray(book.appendix) ? book.appendix.map(entry => ({ ...entry, name: entry.name || null })) : []
                             };
                             const jsonString = JSON.stringify(savableBook);
-                            
-    
+
+
                             const __kaBox = document.getElementById('settingKeepAlive') || document.getElementById('settingsEnableBackgroundKeepAlive');
                             if (__kaBox) {
                                 const keepAliveEnabled = __kaBox.checked;
                                 if (typeof settings !== 'undefined') settings.keepAlive = keepAliveEnabled;
                                 if (typeof toggleBackgroundMode === 'function') toggleBackgroundMode(keepAliveEnabled);
                             }
-    
 
-        localStorage.setItem(LOCAL_STORAGE_KEY, jsonString);
+
+                            localStorage.setItem(LOCAL_STORAGE_KEY, jsonString);
                         } catch (error) {
                             console.error("Error autosaving to local storage:", error);
                             showTemporaryMessage("Autosave failed. Check console.", "error");
@@ -15860,570 +15987,355 @@
                             handleSpotifyRedirect(code);
                         }
                     }
-                    
-// ===== SOUNDTRACK SYSTEM LOGIC ===== //
-let activeSoundtrackId = null;
-let activeStSongIndex = 0;
-let stPlayerNode = null; 
-let isStPlaying = false;
-let globalSoundtrackVolume = 100;
-let editStCurrentId = null;
 
-function renderSoundtrackIcons() {
-    const container = document.getElementById('soundtrackIconsContainer');
-    if(!container) return;
-    container.innerHTML = '';
-    (book.soundtracks || []).forEach(st => {
-        const iconDiv = document.createElement('div');
-        iconDiv.className = 'soundtrack-icon' + (activeSoundtrackId === st.id ? ' active' : '');
-        iconDiv.innerHTML = '<i class="' + (st.icon || 'fas fa-music') + '"></i><span class="st-name-label hidden md:hidden min-[1400px]:block ml-2 text-sm font-semibold truncate">' + st.name + '</span><div class="tooltip min-[1400px]:hidden">' + st.name + '</div>';
-        iconDiv.onclick = () => { toggleSoundtrack(st.id); };
-        container.appendChild(iconDiv);
-    });
-}
+                    // ===== SOUNDTRACK SYSTEM LOGIC ===== //
+                    let activeSoundtrackId = null;
+                    let activeStSongIndex = 0;
+                    let stPlayerNode = null;
+                    let isStPlaying = false;
+                    let globalSoundtrackVolume = 100;
+                    let editStCurrentId = null;
 
-function updateSoundtrackBarUI() {
-    const bar = document.getElementById('soundtrackBar');
-    if (!bar) return;
-    if (activeSoundtrackId) {
-        bar.classList.add('active');
-        const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
-        document.getElementById('stPlaylistName').innerText = 'Playlist: ' + (st ? st.name : '');
-        
-        let songName = 'No Track Started';
-        if (st && st.songs && st.songs.length > 0) {
-            const currentSong = st.songs[activeStSongIndex];
-            songName = currentSong ? currentSong.name : 'Unknown';
-        }
-        document.getElementById('stTrackTitle').innerText = songName;
-        
-        const playBtnI = document.querySelector('#stPlayPauseBtn i');
-        if (isStPlaying) {
-            playBtnI.className = 'fas fa-pause';
-        } else {
-            playBtnI.className = 'fas fa-play';
-        }
-    } else {
-        bar.classList.remove('active');
-        if (stPlayerNode) {
-            if (stPlayerNode.stop) stPlayerNode.stop();
-            if (stPlayerNode.pauseVideo) stPlayerNode.pauseVideo();
-            if (stPlayerNode.destroy) stPlayerNode.destroy();
-            stPlayerNode = null;
-        }
-    }
-}
-
-
-function getSoundtrackFinalVol(st, song) {
-    const baseVol = globalSoundtrackVolume / 100;
-    const playlistVol = (st.volume !== undefined ? st.volume : 100) / 100;
-    const songVol = (song.volume !== undefined ? song.volume : 100) / 100;
-    let finalVol = Math.max(baseVol * playlistVol * songVol, 0.001);
-    if (typeof book !== 'undefined' && book.settings && book.settings.masterVolumeAffectsSoundtracks !== false) {
-        const mv = typeof currentMasterVolume !== 'undefined' ? currentMasterVolume : 100;
-        finalVol = Math.max(finalVol * (mv / 100), 0.001);
-    }
-    return finalVol;
-}
-function playStSong(st, songIndex) {
-    if (typeof audioContext !== 'undefined' && audioContext && audioContext.state === 'suspended') audioContext.resume();
-    if (!st || !st.songs || st.songs.length === 0) return;
-    
-    // Stop current
-    if (stPlayerNode) {
-        if (stPlayerNode.gainNode && audioContext) {
-            stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0);
-            setTimeout(() => { if (stPlayerNode && stPlayerNode.stop) stPlayerNode.stop(); }, 1000);
-        } else if (stPlayerNode.destroy) {
-            stPlayerNode.destroy(); // YT player
-        }
-    }
-    
-    activeStSongIndex = songIndex;
-    const song = st.songs[songIndex];
-    if (!song) return;
-    
-    document.getElementById('stTrackTitle').innerText = song.name;
-    const finalVol = getSoundtrackFinalVol(st, song);
-
-    if (song.type === 'file' && song.fileData) {
-        initAudioContext();
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            audioContext.decodeAudioData(e.target.result, function(buffer) {
-                const source = audioContext.createBufferSource();
-                source.buffer = buffer;
-                const gainNode = audioContext.createGain();
-                gainNode.gain.value = 0.001; // start silent for fade
-                source.connect(gainNode);
-                gainNode.connect(masterGainNode); 
-                
-                source.onended = () => { nextStSong(); };
-                source.start();
-                gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 2.0); // Fade in
-                
-                stPlayerNode = source;
-                stPlayerNode.gainNode = gainNode; 
-                isStPlaying = true;
-                updateSoundtrackBarUI();
-            });
-        };
-        reader.readAsArrayBuffer(song.fileData);
-    } else if (song.type === 'youtube' && song.videoId) {
-        const dummyDiv = document.createElement('div');
-        dummyDiv.style.display = 'none';
-        document.body.appendChild(dummyDiv);
-        
-        if (typeof YT === 'undefined' || !YT.Player) {
-            setTimeout(() => playStSong(st, songIndex), 500);
-            return;
-        }
-        
-        stPlayerNode = new YT.Player(dummyDiv, {
-            height: '0',
-            width: '0',
-            videoId: song.videoId,
-            playerVars: { 'autoplay': 1, 'controls': 0, 'start': song.startTime || 0 },
-            events: {
-                'onReady': (event) => {
-                    event.target.setVolume(finalVol * 100);
-                    event.target.playVideo();
-                    isStPlaying = true;
-                    updateSoundtrackBarUI();
-                },
-                'onStateChange': (event) => {
-                    if (event.data == YT.PlayerState.ENDED) {
-                        nextStSong();
+                    function renderSoundtrackIcons() {
+                        const container = document.getElementById('soundtrackIconsContainer');
+                        if (!container) return;
+                        container.innerHTML = '';
+                        (book.soundtracks || []).forEach(st => {
+                            const iconDiv = document.createElement('div');
+                            iconDiv.className = 'soundtrack-icon' + (activeSoundtrackId === st.id ? ' active' : '');
+                            iconDiv.innerHTML = '<i class="' + (st.icon || 'fas fa-music') + '"></i><span class="st-name-label hidden md:hidden min-[1400px]:block ml-2 text-sm font-semibold truncate">' + st.name + '</span><div class="tooltip min-[1400px]:hidden">' + st.name + '</div>';
+                            iconDiv.onclick = () => { toggleSoundtrack(st.id); };
+                            container.appendChild(iconDiv);
+                        });
                     }
-                }
-            }
-        });
-    }
-}
 
-function stopSoundtrack() {
-    activeSoundtrackId = null;
-    isStPlaying = false;
-    updateSoundtrackBarUI();
-    renderSoundtrackIcons();
-}
+                    function updateSoundtrackBarUI() {
+                        const bar = document.getElementById('soundtrackBar');
+                        if (!bar) return;
+                        if (activeSoundtrackId) {
+                            bar.classList.add('active');
+                            const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
+                            document.getElementById('stPlaylistName').innerText = 'Playlist: ' + (st ? st.name : '');
 
-function toggleSoundtrack(id) {
-    if (activeSoundtrackId === id) {
-        if (isStPlaying) {
-            pauseSoundtrack();
-        } else {
-            resumeSoundtrack();
-        }
-    } else {
-        const st = book.soundtracks.find(s => s.id === id);
-        activeSoundtrackId = id;
-        activeStSongIndex = 0;
-        playStSong(st, 0);
-        renderSoundtrackIcons();
-    }
-}
+                            let songName = 'No Track Started';
+                            if (st && st.songs && st.songs.length > 0) {
+                                const currentSong = st.songs[activeStSongIndex];
+                                songName = currentSong ? currentSong.name : 'Unknown';
+                            }
+                            document.getElementById('stTrackTitle').innerText = songName;
 
-function pauseSoundtrack() {
-    isStPlaying = false;
-    if (stPlayerNode) {
-        if (stPlayerNode.gainNode && audioContext) {
-            stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0);
-            // NOT suspending audioContext to avoid breaking global audio
-        } else if (stPlayerNode.pauseVideo) {
-             stPlayerNode.pauseVideo();
-        }
-    }
-    updateSoundtrackBarUI();
-    renderSoundtrackIcons();
-}
+                            const playBtnI = document.querySelector('#stPlayPauseBtn i');
+                            if (isStPlaying) {
+                                playBtnI.className = 'fas fa-pause';
+                            } else {
+                                playBtnI.className = 'fas fa-play';
+                            }
 
-function resumeSoundtrack() {
-    isStPlaying = true;
-    if (stPlayerNode) {
-        if (stPlayerNode.gainNode && audioContext) {
-            if(audioContext.state === 'suspended') audioContext.resume();
-            const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
-            const song = st.songs[activeStSongIndex];
-            const finalVol = getSoundtrackFinalVol(st, song);
-            stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 1.0);
-        } else if (stPlayerNode.playVideo) {
-             stPlayerNode.playVideo();
-        }
-    } else {
-        const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
-        playStSong(st, activeStSongIndex);
-    }
-    updateSoundtrackBarUI();
-    renderSoundtrackIcons();
-}
-
-function nextStSong() {
-    if (!activeSoundtrackId) return;
-    const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
-    if (!st || !st.songs || st.songs.length === 0) return;
-    activeStSongIndex = (activeStSongIndex + 1) % st.songs.length;
-    playStSong(st, activeStSongIndex);
-}
-
-function prevStSong() {
-    if (!activeSoundtrackId) return;
-    const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
-    if (!st || !st.songs || st.songs.length === 0) return;
-    activeStSongIndex = (activeStSongIndex - 1 + st.songs.length) % st.songs.length;
-    playStSong(st, activeStSongIndex);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const stVolSlider = document.getElementById('stVolumeSlider');
-    if (stVolSlider) {
-        stVolSlider.addEventListener('input', (e) => {
-            globalSoundtrackVolume = parseInt(e.target.value, 10);
-            if (activeSoundtrackId && isStPlaying && stPlayerNode) {
-                const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
-                const song = st.songs[activeStSongIndex];
-                const finalVol = getSoundtrackFinalVol(st, song);
-                if (stPlayerNode.gainNode && audioContext) {
-                    stPlayerNode.gainNode.gain.setTargetAtTime(finalVol, audioContext.currentTime, 0.1);
-                } else if (stPlayerNode.setVolume) {
-                    stPlayerNode.setVolume(finalVol * 100);
-                }
-            }
-        });
-    }
-
-    const stPlayBtn = document.getElementById('stPlayPauseBtn');
-    if (stPlayBtn) stPlayBtn.onclick = () => { if (isStPlaying) pauseSoundtrack(); else resumeSoundtrack(); };
-    const stNextBtn = document.getElementById('stNextBtn');
-    if (stNextBtn) stNextBtn.onclick = nextStSong;
-    const stPrevBtn = document.getElementById('stPrevBtn');
-    if (stPrevBtn) stPrevBtn.onclick = prevStSong;
-    const stCloseBtn = document.getElementById('stCloseBtn');
-    if (stCloseBtn) stCloseBtn.onclick = stopSoundtrack;
-    
-    // Check if openManageSoundtracksButton exists and attach listeners
-
-    document.getElementById('closeSoundtracksModalBtn')?.addEventListener('click', () => {
-        document.getElementById('manageSoundtracksModal').style.display = 'none';
-        document.getElementById('modalOverlay').style.display = 'none';
-        saveToLocalStorage();
-        renderSoundtrackIcons();
-    });
-    
-    document.getElementById('addSoundtrackBtn')?.addEventListener('click', () => {
-         const newSt = { id: 'st_' + Date.now(), name: 'New Playlist', icon: 'fas fa-music', keywords: [], timeOfDay: 'none', chapter: 'none', songs: [] };
-         book.soundtracks.push(newSt);
-         openEditSoundtrack(newSt);
-         renderManifestList();
-    });
-
-    document.getElementById('saveSoundtrackBtn')?.addEventListener('click', () => {
-        if(!editStCurrentId) return;
-        const st = book.soundtracks.find(s => s.id === editStCurrentId);
-        if(st) {
-            st.name = document.getElementById('editStName').value.trim() || 'Unnamed';
-            st.icon = document.getElementById('editStIcon').value.trim() || 'fas fa-music';
-            st.keywords = document.getElementById('editStKeywords').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
-            st.timeOfDay = document.getElementById('editStTimeOfDay').value;
-            st.chapter = document.getElementById('editStChapter').value;
-            st.volume = parseInt(document.getElementById('editStVolume').value, 10) || 100;
-            showTemporaryMessage('Saved playlist settings.', 'success');
-            renderManifestList();
-            renderSoundtrackIcons();
-            saveToLocalStorage();
-        }
-    });
-
-    document.getElementById('addStSongBtn')?.addEventListener('click', () => {
-        document.getElementById('stSongEditIndex').value = '';
-        document.getElementById('stSongName').value = '';
-        document.getElementById('stSongYoutubeUrl').value = '';
-        document.getElementById('stSongVolume').value = 100;
-        document.getElementById('stSongFile').value = '';
-        document.getElementById('stAddSongModal').style.display = 'flex';
-    });
-
-    document.querySelectorAll('input[name="stSongType"]').forEach(r => r.addEventListener('change', e => {
-        document.getElementById('stSongYoutubeContainer').classList.toggle('hidden', e.target.value!=='youtube');
-        document.getElementById('stSongFileContainer').classList.toggle('hidden', e.target.value!=='file');
-    }));
-
-    document.getElementById('cancelStSongBtn')?.addEventListener('click', () => {
-        document.getElementById('stAddSongModal').style.display = 'none';
-    });
-
-
-    const stUrlInput = document.getElementById('stSongYoutubeUrl');
-    if (stUrlInput) {
-        stUrlInput.addEventListener('blur', async () => {
-            const url = stUrlInput.value.trim();
-            const nameInput = document.getElementById('stSongName');
-            const apiKeys = book && book.settings && book.settings.youtubeApiKeys ? book.settings.youtubeApiKeys : [];
-            const apiKey = apiKeys.length > 0 ? apiKeys[0] : null;
-            if (url && apiKey && !nameInput.value) {
-                const match = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?]+)/);
-                if (match) {
-                    try {
-                        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${match[1]}&key=${apiKey}`);
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.items && data.items.length > 0) {
-                                nameInput.value = data.items[0].snippet.title;
+                            const shuffleBtn = document.getElementById('stShuffleBtn');
+                            if (shuffleBtn) {
+                                shuffleBtn.classList.toggle('active', st.shuffle === true);
+                                shuffleBtn.style.color = st.shuffle ? 'var(--accent-gold-light)' : 'var(--text-secondary)';
+                            }
+                        } else {
+                            bar.classList.remove('active');
+                            if (stPlayerNode) {
+                                if (stPlayerNode.stop) stPlayerNode.stop();
+                                if (stPlayerNode.pauseVideo) stPlayerNode.pauseVideo();
+                                if (stPlayerNode.destroy) stPlayerNode.destroy();
+                                stPlayerNode = null;
                             }
                         }
-                    } catch(e) {}
-                }
-            }
-        });
-    }
-
-    document.getElementById('saveStSongBtn')?.addEventListener('click', () => {
-        const st = book.soundtracks.find(s => s.id === editStCurrentId);
-        const idx = document.getElementById('stSongEditIndex').value;
-        const type = document.querySelector('input[name="stSongType"]:checked').value;
-        
-        let songData = {
-            name: document.getElementById('stSongName').value.trim() || 'New Song',
-            type: type,
-            volume: parseInt(document.getElementById('stSongVolume').value) || 100
-        };
-        
-        if (type === 'youtube') {
-            const url = document.getElementById('stSongYoutubeUrl').value.trim();
-            songData.url = url;
-            const m = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-            songData.videoId = m ? m[1] : null;
-        } else if (type === 'file') {
-            const fileInput = document.getElementById('stSongFile');
-            if (fileInput.files.length > 0) {
-                songData.fileData = fileInput.files[0];
-                if (songData.name === 'New Song') songData.name = fileInput.files[0].name;
-            }
-        }
-        
-        if (idx === '') {
-            st.songs.push(songData);
-        } else {
-            if(type === 'file' && !songData.fileData && st.songs[idx].fileData) {
-                songData.fileData = st.songs[idx].fileData;
-            }
-            st.songs[idx] = songData;
-        }
-        
-        document.getElementById('stAddSongModal').style.display = 'none';
-        renderStSongs(st);
-        saveToLocalStorage();
-    });
-
-    // Spotify Import Logic
-    document.getElementById('importSpotifyPlaylistBtn')?.addEventListener('click', () => {
-        document.getElementById('spotifyImportModal').style.display = 'flex';
-    });
-
-    document.getElementById('cancelSpotifyImportBtn')?.addEventListener('click', () => {
-        document.getElementById('spotifyImportModal').style.display = 'none';
-    });
-
-    document.getElementById('executeSpotifyImportBtn')?.addEventListener('click', async () => {
-        const url = document.getElementById('spotifyPlaylistUrlInput').value.trim();
-        const statusDiv = document.getElementById('spotifyImportStatus');
-        const token = localStorage.getItem('spotify_access_token');
-        if(!token) {
-            statusDiv.innerText = "Error: Please log in to Spotify via Settings first.";
-            return;
-        }
-        const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
-        if(!match) { statusDiv.innerText = "Invalid Spotify URL."; return; }
-        
-        statusDiv.innerText = "Fetching playlist mapping... (this takes a moment)";
-        try {
-            const res = await fetch("https://api.spotify.com/v1/playlists/" + match[1], { headers: { 'Authorization': `Bearer ${token}`} });
-            const data = await res.json();
-            
-            if (!data.tracks) {
-                statusDiv.innerText = "Error fetching playlist or empty playlist."; return;
-            }
-            
-            const newSt = { id: 'st_' + Date.now(), name: data.name || 'Spotify Import', icon: 'fab fa-spotify', keywords: [], timeOfDay: 'none', chapter: 'none', songs: [] };
-            
-            const apiKeys = book && book.settings && book.settings.youtubeApiKeys ? book.settings.youtubeApiKeys : [];
-            let apiKeyIndex = 0;
-            let apiKey = apiKeys.length > 0 ? apiKeys[apiKeyIndex] : null;
-
-            if (!apiKey) {
-                statusDiv.innerText = "Playlist fetched! No YouTube API key found in Settings. Generating empty stubs...";
-            } else {
-                statusDiv.innerText = `Playlist fetched! Mapping ${data.tracks.items.length} tracks to YouTube...`;
-            }
-
-            for (let i = 0; i < data.tracks.items.length; i++) {
-                const item = data.tracks.items[i];
-                if(item.track) {
-                    const artistStr = item.track.artists ? item.track.artists[0].name : 'Unknown';
-                    const songName = item.track.name + " - " + artistStr;
-                    let videoId = null;
-                    let url = '';
-
-                    if (apiKey) {
-                        try {
-                            statusDiv.innerText = `Mapping track ${i + 1}/${data.tracks.items.length}: ${songName}...`;
-                            let ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(songName + ' auto-generated')}&key=${apiKey}&type=video&videoEmbeddable=true&maxResults=1`);
-                            
-                            if (!ytRes.ok && ytRes.status === 403) {
-                                // Try next key
-                                apiKeyIndex++;
-                                if (apiKeyIndex < apiKeys.length) {
-                                    apiKey = apiKeys[apiKeyIndex];
-                                    ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(songName + ' auto-generated')}&key=${apiKey}&type=video&videoEmbeddable=true&maxResults=1`);
-                                } else {
-                                    apiKey = null;
-                                }
-                            }
-                            
-                            if (ytRes && ytRes.ok) {
-                                const ytData = await ytRes.json();
-                                if (ytData.items && ytData.items.length > 0) {
-                                    videoId = ytData.items[0].id.videoId;
-                                    url = `https://www.youtube.com/watch?v=${videoId}`;
-                                }
-                            }
-                        } catch(e) { console.warn("YT search failed for " + songName, e); }
                     }
-                    newSt.songs.push({ name: songName, type: 'youtube', volume: 100, url: url, videoId: videoId });
-                }
-            }
-            statusDiv.innerText = "Playlist imported successfully!";
-            
-            book.soundtracks.push(newSt);
-            openEditSoundtrack(newSt);
-            renderManifestList();
-            saveToLocalStorage();
-            
-            setTimeout(() => {
-                document.getElementById('spotifyImportModal').style.display = 'none';
-                statusDiv.innerText='';
-            }, 3000);
-            
-        } catch(err) {
-            statusDiv.innerText = "Error: " + err.message;
-        }
-    });
-});
 
-function renderManifestList() {
-    const list = document.getElementById('soundtracksList');
-    if(!list) return;
-    list.innerHTML = '';
-    (book.soundtracks || []).forEach(st => {
-        const li = document.createElement('li');
-        li.className = 'flex justify-between items-center p-2 border-b border-stone-700 hover:bg-black/20';
-        li.innerHTML = `<span class="text-sm font-semibold text-accent-gold-light"><i class="${st.icon} mr-2"></i>${st.name} (${st.songs?st.songs.length:0} songs)</span>
+
+                    function getSoundtrackFinalVol(st, song) {
+                        const baseVol = globalSoundtrackVolume / 100;
+                        const playlistVol = (st.volume !== undefined ? st.volume : 100) / 100;
+                        const songVol = (song.volume !== undefined ? song.volume : 100) / 100;
+                        let finalVol = Math.max(baseVol * playlistVol * songVol, 0.001);
+                        if (typeof book !== 'undefined' && book.settings && book.settings.masterVolumeAffectsSoundtracks !== false) {
+                            const mv = typeof currentMasterVolume !== 'undefined' ? currentMasterVolume : 100;
+                            finalVol = Math.max(finalVol * (mv / 100), 0.001);
+                        }
+                        return finalVol;
+                    }
+                    function playStSong(st, songIndex) {
+                        if (typeof audioContext !== 'undefined' && audioContext && audioContext.state === 'suspended') audioContext.resume();
+                        if (!st || !st.songs || st.songs.length === 0) return;
+
+                        // Stop current
+                        if (stPlayerNode) {
+                            if (stPlayerNode.gainNode && audioContext) {
+                                stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0);
+                                setTimeout(() => { if (stPlayerNode && stPlayerNode.stop) stPlayerNode.stop(); }, 1000);
+                            } else if (stPlayerNode.destroy) {
+                                stPlayerNode.destroy(); // YT player
+                            }
+                        }
+
+                        activeStSongIndex = songIndex;
+                        const song = st.songs[songIndex];
+                        if (!song) return;
+
+                        document.getElementById('stTrackTitle').innerText = song.name;
+                        const finalVol = getSoundtrackFinalVol(st, song);
+
+                        if (song.type === 'file' && song.fileData) {
+                            initAudioContext();
+                            const reader = new FileReader();
+                            reader.onload = function (e) {
+                                audioContext.decodeAudioData(e.target.result, function (buffer) {
+                                    const source = audioContext.createBufferSource();
+                                    source.buffer = buffer;
+                                    const gainNode = audioContext.createGain();
+                                    gainNode.gain.value = 0.001; // start silent for fade
+                                    source.connect(gainNode);
+                                    gainNode.connect(masterGainNode);
+
+                                    source.onended = () => { nextStSong(); };
+                                    source.start();
+                                    gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 2.0); // Fade in
+
+                                    stPlayerNode = source;
+                                    stPlayerNode.gainNode = gainNode;
+                                    isStPlaying = true;
+                                    updateSoundtrackBarUI();
+                                });
+                            };
+                            reader.readAsArrayBuffer(song.fileData);
+                        } else if (song.type === 'youtube' && song.videoId) {
+                            const dummyDiv = document.createElement('div');
+                            dummyDiv.style.display = 'none';
+                            document.body.appendChild(dummyDiv);
+
+                            if (typeof YT === 'undefined' || !YT.Player) {
+                                setTimeout(() => playStSong(st, songIndex), 500);
+                                return;
+                            }
+
+                            stPlayerNode = new YT.Player(dummyDiv, {
+                                height: '0',
+                                width: '0',
+                                videoId: song.videoId,
+                                playerVars: { 'autoplay': 1, 'controls': 0, 'start': song.startTime || 0 },
+                                events: {
+                                    'onReady': (event) => {
+                                        event.target.setVolume(finalVol * 100);
+                                        event.target.playVideo();
+                                        isStPlaying = true;
+                                        updateSoundtrackBarUI();
+                                    },
+                                    'onStateChange': (event) => {
+                                        if (event.data == YT.PlayerState.ENDED) {
+                                            nextStSong();
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+
+                    function stopSoundtrack() {
+                        activeSoundtrackId = null;
+                        isStPlaying = false;
+                        updateSoundtrackBarUI();
+                        renderSoundtrackIcons();
+                    }
+
+                    function toggleSoundtrack(id) {
+                        if (activeSoundtrackId === id) {
+                            if (isStPlaying) {
+                                pauseSoundtrack();
+                            } else {
+                                resumeSoundtrack();
+                            }
+                        } else {
+                            const st = book.soundtracks.find(s => s.id === id);
+                            activeSoundtrackId = id;
+                            activeStSongIndex = 0;
+                            playStSong(st, 0);
+                            renderSoundtrackIcons();
+                        }
+                    }
+
+                    function pauseSoundtrack() {
+                        isStPlaying = false;
+                        if (stPlayerNode) {
+                            if (stPlayerNode.gainNode && audioContext) {
+                                stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0);
+                                // NOT suspending audioContext to avoid breaking global audio
+                            } else if (stPlayerNode.pauseVideo) {
+                                stPlayerNode.pauseVideo();
+                            }
+                        }
+                        updateSoundtrackBarUI();
+                        renderSoundtrackIcons();
+                    }
+
+                    function resumeSoundtrack() {
+                        isStPlaying = true;
+                        if (stPlayerNode) {
+                            if (stPlayerNode.gainNode && audioContext) {
+                                if (audioContext.state === 'suspended') audioContext.resume();
+                                const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
+                                const song = st.songs[activeStSongIndex];
+                                const finalVol = getSoundtrackFinalVol(st, song);
+                                stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 1.0);
+                            } else if (stPlayerNode.playVideo) {
+                                stPlayerNode.playVideo();
+                            }
+                        } else {
+                            const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
+                            playStSong(st, activeStSongIndex);
+                        }
+                        updateSoundtrackBarUI();
+                        renderSoundtrackIcons();
+                    }
+
+                    function nextStSong() {
+                        if (!activeSoundtrackId) return;
+                        const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
+                        if (!st || !st.songs || st.songs.length === 0) return;
+
+                        if (st.shuffle) {
+                            let newIndex = activeStSongIndex;
+                            if (st.songs.length > 1) {
+                                while (newIndex === activeStSongIndex) {
+                                    newIndex = Math.floor(Math.random() * st.songs.length);
+                                }
+                            }
+                            activeStSongIndex = newIndex;
+                        } else {
+                            activeStSongIndex = (activeStSongIndex + 1) % st.songs.length;
+                        }
+                        playStSong(st, activeStSongIndex);
+                    }
+
+                    function prevStSong() {
+                        if (!activeSoundtrackId) return;
+                        const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
+                        if (!st || !st.songs || st.songs.length === 0) return;
+                        activeStSongIndex = (activeStSongIndex - 1 + st.songs.length) % st.songs.length;
+                        playStSong(st, activeStSongIndex);
+                    }
+
+                    // Redundant initialization removed to fix duplication. Correct initialization is handled in the Extender section below.
+
+
+                    function renderManifestList() {
+                        const list = document.getElementById('soundtracksList');
+                        if (!list) return;
+                        list.innerHTML = '';
+                        (book.soundtracks || []).forEach(st => {
+                            const li = document.createElement('li');
+                            li.className = 'flex justify-between items-center p-2 border-b border-stone-700 hover:bg-black/20';
+                            li.innerHTML = `<span class="text-sm font-semibold text-accent-gold-light"><i class="${st.icon} mr-2"></i>${st.name} (${st.songs ? st.songs.length : 0} songs)</span>
             <div class="flex gap-2">
                 <button class="text-accent-blue hover:text-white btn-edit-st" data-id="${st.id}"><i class="fas fa-edit"></i></button>
                 <button class="text-red-400 hover:text-red-500 btn-del-st" data-id="${st.id}"><i class="fas fa-trash"></i></button>
             </div>`;
-        list.appendChild(li);
-        
-        li.querySelector('.btn-edit-st').onclick = () => openEditSoundtrack(st);
-        li.querySelector('.btn-del-st').onclick = () => {
-            if(confirm('Delete playlist?')) {
-                book.soundtracks = book.soundtracks.filter(s => s.id !== st.id);
-                if(activeSoundtrackId === st.id) stopSoundtrack();
-                renderManifestList();
-                document.getElementById('editSoundtrackContainer').classList.add('hidden');
-                saveToLocalStorage();
-            }
-        };
-    });
-}
+                            list.appendChild(li);
 
-function openEditSoundtrack(st) {
-    document.getElementById('editSoundtrackContainer').classList.remove('hidden');
-    document.getElementById('saveSoundtrackBtn').classList.remove('hidden');
-    editStCurrentId = st.id;
-    document.getElementById('editStName').value = st.name;
-    document.getElementById('editStIcon').value = st.icon || 'fas fa-music';
-    document.getElementById('editStKeywords').value = (st.keywords || []).join(', ');
-    document.getElementById('editStTimeOfDay').value = st.timeOfDay || 'none';
-    
-    // populate chapter select
-    const chSelect = document.getElementById('editStChapter');
-    chSelect.innerHTML = '<option value="none">None</option>';
-    book.chapters.forEach(ch => {
-        chSelect.innerHTML += `<option value="${ch.id}">${ch.name}</option>`;
-    });
-    chSelect.value = st.chapter || 'none';
-    
-    renderStSongs(st);
-}
+                            li.querySelector('.btn-edit-st').onclick = () => openEditSoundtrack(st);
+                            li.querySelector('.btn-del-st').onclick = () => {
+                                if (confirm('Delete playlist?')) {
+                                    book.soundtracks = book.soundtracks.filter(s => s.id !== st.id);
+                                    if (activeSoundtrackId === st.id) stopSoundtrack();
+                                    renderManifestList();
+                                    document.getElementById('editSoundtrackContainer').classList.add('hidden');
+                                    saveToLocalStorage();
+                                }
+                            };
+                        });
+                    }
 
-function renderStSongs(st) {
-    const list = document.getElementById('stSongsList');
-    list.innerHTML = '';
-    (st.songs || []).forEach((song, i) => {
-        const li = document.createElement('li');
-        li.className = 'flex justify-between items-center p-2 text-sm border-b border-stone-800';
-        const songTypeBadge = song.type === 'youtube' ? '<i class="fab fa-youtube text-red-500 ml-2"></i>' : '<i class="fas fa-file-audio text-blue-400 ml-2"></i>';
-        li.innerHTML = `<span>${song.name} ${songTypeBadge}</span>
+                    function openEditSoundtrack(st) {
+                        document.getElementById('editSoundtrackContainer').classList.remove('hidden');
+                        document.getElementById('saveSoundtrackBtn').classList.remove('hidden');
+                        editStCurrentId = st.id;
+                        document.getElementById('editStName').value = st.name;
+                        document.getElementById('editStIcon').value = st.icon || 'fas fa-music';
+                        document.getElementById('editStKeywords').value = (st.keywords || []).join(', ');
+                        document.getElementById('editStTimeOfDay').value = st.timeOfDay || 'none';
+
+                        // populate chapter select
+                        const chSelect = document.getElementById('editStChapter');
+                        chSelect.innerHTML = '<option value="none">None</option>';
+                        book.chapters.forEach(ch => {
+                            chSelect.innerHTML += `<option value="${ch.id}">${ch.name}</option>`;
+                        });
+                        chSelect.value = st.chapter || 'none';
+                        document.getElementById('editStShuffle').checked = st.shuffle === true;
+
+                        renderStSongs(st);
+                    }
+
+                    function renderStSongs(st) {
+                        const list = document.getElementById('stSongsList');
+                        list.innerHTML = '';
+                        (st.songs || []).forEach((song, i) => {
+                            const li = document.createElement('li');
+                            li.className = 'flex justify-between items-center p-2 text-sm border-b border-stone-800';
+                            const songTypeBadge = song.type === 'youtube' ? '<i class="fab fa-youtube text-red-500 ml-2"></i>' : '<i class="fas fa-file-audio text-blue-400 ml-2"></i>';
+                            li.innerHTML = `<span>${song.name} ${songTypeBadge}</span>
             <div class="flex gap-2">
                 <button class="text-accent-blue" onclick="window.editStSong(${i})"><i class="fas fa-edit"></i></button>
                 <button class="text-red-400" onclick="window.deleteStSong(${i})"><i class="fas fa-trash"></i></button>
             </div>`;
-        list.appendChild(li);
-    });
-}
+                            list.appendChild(li);
+                        });
+                    }
 
-window.deleteStSong = function(index) {
-    if(confirm('Delete song?')) {
-        const st = book.soundtracks.find(s => s.id === editStCurrentId);
-        st.songs.splice(index, 1);
-        renderStSongs(st);
-    }
-}
-window.editStSong = function(index) {
-    const st = book.soundtracks.find(s => s.id === editStCurrentId);
-    const song = st.songs[index];
-    document.getElementById('stSongEditIndex').value = index;
-    document.getElementById('stSongName').value = song.name;
-    document.getElementById('stSongVolume').value = song.volume || 100;
-    
-    const radioBtn = document.querySelector(`input[name="stSongType"][value="${song.type}"]`);
-    if(radioBtn) radioBtn.checked = true;
-    
-    document.getElementById('stSongYoutubeUrl').value = song.type==='youtube'? song.url : '';
-    
-    document.getElementById('stSongYoutubeContainer').classList.toggle('hidden', song.type!=='youtube');
-    document.getElementById('stSongFileContainer').classList.toggle('hidden', song.type!=='file');
-    
-    document.getElementById('stAddSongModal').style.display = 'flex';
-}
+                    window.deleteStSong = function (index) {
+                        if (confirm('Delete song?')) {
+                            const st = book.soundtracks.find(s => s.id === editStCurrentId);
+                            st.songs.splice(index, 1);
+                            renderStSongs(st);
+                        }
+                    }
+                    window.editStSong = function (index) {
+                        const st = book.soundtracks.find(s => s.id === editStCurrentId);
+                        const song = st.songs[index];
+                        document.getElementById('stSongEditIndex').value = index;
+                        document.getElementById('stSongName').value = song.name;
+                        document.getElementById('stSongVolume').value = song.volume || 100;
 
-    
+                        const radioBtn = document.querySelector(`input[name="stSongType"][value="${song.type}"]`);
+                        if (radioBtn) radioBtn.checked = true;
+
+                        document.getElementById('stSongYoutubeUrl').value = song.type === 'youtube' ? song.url : '';
+
+                        document.getElementById('stSongYoutubeContainer').classList.toggle('hidden', song.type !== 'youtube');
+                        document.getElementById('stSongFileContainer').classList.toggle('hidden', song.type !== 'file');
+
+                        document.getElementById('stAddSongModal').style.display = 'flex';
+                    }
 
 
 
 
 
-// ===== BACKGROUND KEEP-ALIVE HACK ===== //
-let keepAliveAudio = null;
-function toggleBackgroundMode(enable) {
-    if (enable) {
-        if (!keepAliveAudio) {
-            // Base64 encoded extremely short silent MP3
-            keepAliveAudio = new Audio('data:audio/mp3;base64,//OExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/');
-            keepAliveAudio.loop = true;
-            keepAliveAudio.volume = 0.01;
-        }
-        keepAliveAudio.play().catch(e => console.log("Keep-alive auto-play prevented until user interaction."));
-    } else {
-        if (keepAliveAudio) {
-            keepAliveAudio.pause();
-        }
-    }
-}
 
-    // --- Initial Setup ---
+
+                    // ===== BACKGROUND KEEP-ALIVE HACK ===== //
+                    let keepAliveAudio = null;
+                    function toggleBackgroundMode(enable) {
+                        if (enable) {
+                            if (!keepAliveAudio) {
+                                // Base64 encoded extremely short silent MP3
+                                keepAliveAudio = new Audio('data:audio/mp3;base64,//OExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/');
+                                keepAliveAudio.loop = true;
+                                keepAliveAudio.volume = 0.01;
+                            }
+                            keepAliveAudio.play().catch(e => console.log("Keep-alive auto-play prevented until user interaction."));
+                        } else {
+                            if (keepAliveAudio) {
+                                keepAliveAudio.pause();
+                            }
+                        }
+                    }
+
+                    // --- Initial Setup ---
                     function initializeApp() {
                         console.log("Initializing app...");
 
@@ -16568,7 +16480,7 @@ function toggleBackgroundMode(enable) {
                         console.log("Storyteller Initialized.");
                     }
 
-                    
+
                     // ===== NATIVE APPLICATION EXTENDER ===== //
                     // We are safely inside DOMContentLoaded with full access to the local scope!
 
@@ -16582,7 +16494,7 @@ function toggleBackgroundMode(enable) {
                                     const sd = activeSounds[pageId];
                                     let duration = Infinity;
                                     let isShort = false;
-                                    
+
                                     if (sd.sourceDetail) {
                                         if (sd.sourceDetail.type === 'file' && sd.node && sd.node.buffer) {
                                             duration = sd.node.buffer.duration;
@@ -16602,7 +16514,7 @@ function toggleBackgroundMode(enable) {
                                             }
                                         }
                                     }
-                                    
+
                                     if (!isShort) {
                                         let title = 'Unknown Sound';
                                         if (typeof book !== 'undefined' && book && book.pages) {
@@ -16623,7 +16535,7 @@ function toggleBackgroundMode(enable) {
 
                             __activeSoundsContainer.style.display = 'block';
                             __activeSoundsContainer.innerHTML = '';
-                            
+
                             const header = document.createElement('div');
                             header.className = 'text-[0.65rem] font-bold text-[var(--accent-gold-light)] mb-1 uppercase tracking-widest text-center border-b border-stone-700/50 pb-1 w-full';
                             header.innerHTML = '<i class="fas fa-music mr-2"></i>Active Audio';
@@ -16639,45 +16551,45 @@ function toggleBackgroundMode(enable) {
 
                             const ul = document.createElement('ul');
                             ul.className = 'grid grid-cols-1 min-[900px]:grid-cols-2 lg:grid-cols-2 gap-2 flex-grow overflow-y-auto max-h-[20vh] w-full mt-1 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-transparent';
-                            
+
                             longSounds.forEach(sound => {
                                 const li = document.createElement('li');
                                 li.className = 'flex justify-between items-center bg-black/40 border border-stone-700/60 rounded px-2 py-1.5 text-sm text-stone-300 hover:border-stone-500 transition-colors w-full';
-                                
+
                                 const span = document.createElement('span');
                                 span.className = 'truncate pr-2 text-xs font-semibold flex-1';
                                 span.title = sound.title;
                                 span.textContent = sound.title;
                                 li.appendChild(span);
-                                
+
                                 const btn = document.createElement('button');
                                 btn.className = 'text-red-400 hover:text-red-500 cursor-pointer ml-1 flex-shrink-0 transition-transform hover:scale-110 active:scale-95';
                                 btn.innerHTML = '<i class="fas fa-stop-circle"></i>';
-                                
+
                                 btn.onclick = () => {
                                     if (sound.isSt) {
                                         if (typeof stopSoundtrack === 'function') stopSoundtrack();
                                     } else {
                                         if (typeof stopSingleSound === 'function') stopSingleSound(sound.id);
                                     }
-                                    updateActiveSoundsUINative(); 
+                                    updateActiveSoundsUINative();
                                 };
-                                
+
                                 li.appendChild(btn);
                                 ul.appendChild(li);
                             });
-                            
+
                             __activeSoundsContainer.appendChild(ul);
                         }
 
                         setInterval(updateActiveSoundsUINative, 1000);
-                        setTimeout(updateActiveSoundsUINative, 100); 
+                        setTimeout(updateActiveSoundsUINative, 100);
                     }
 
                     // 2. SOUNDTRACK MODAL CONTROLS
                     const __openManageBtn = document.getElementById('openManageSoundtracksButton');
                     if (__openManageBtn) {
-                        __openManageBtn.removeAttribute('onclick'); 
+                        __openManageBtn.removeAttribute('onclick');
                         __openManageBtn.onclick = () => {
                             if (typeof book !== 'undefined' && book) {
                                 book.soundtracks = book.soundtracks || [];
@@ -16710,10 +16622,11 @@ function toggleBackgroundMode(enable) {
                                 if (st) {
                                     st.name = document.getElementById('editStName').value.trim() || 'Unnamed';
                                     st.icon = document.getElementById('editStIcon').value.trim() || 'fas fa-music';
-                                    st.keywords = document.getElementById('editStKeywords').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+                                    st.keywords = document.getElementById('editStKeywords').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
                                     st.timeOfDay = document.getElementById('editStTimeOfDay').value;
                                     st.chapter = document.getElementById('editStChapter').value;
-            st.volume = parseInt(document.getElementById('editStVolume').value, 10) || 100;
+                                    st.volume = parseInt(document.getElementById('editStVolume').value, 10) || 100;
+                                    st.shuffle = document.getElementById('editStShuffle').checked;
                                     if (typeof showTemporaryMessage === 'function') showTemporaryMessage('Saved playlist settings.', 'success');
                                     if (typeof renderManifestList === 'function') renderManifestList();
                                     if (typeof renderSoundtrackIcons === 'function') renderSoundtrackIcons();
@@ -16739,18 +16652,136 @@ function toggleBackgroundMode(enable) {
                             }
                         });
                     }
-                    
+
                     // --- ROBUST MODAL BUTTON BINDINGS ---
                     const __stIds = [
-                        'addStSongBtn', 'saveStSongBtn', 'cancelStSongBtn', 
+                        'stPrevBtn', 'stPlayPauseBtn', 'stNextBtn', 'stShuffleBtn', 'stCloseBtn', 'stVolumeSlider',
+                        'addStSongBtn', 'saveStSongBtn', 'cancelStSongBtn',
                         'importSpotifyPlaylistBtn', 'executeSpotifyImportBtn', 'cancelSpotifyImportBtn',
                         'openIconPickerBtn', 'cancelIconPickerBtn'
                     ];
-                    
+
                     __stIds.forEach(id => {
                         const btn = document.getElementById(id);
                         if (btn) btn.removeAttribute('onclick'); // clear previous
                     });
+
+                    // 3. PLAYBACK CONTROLS
+                    const __stPlayBtn = document.getElementById('stPlayPauseBtn');
+                    if (__stPlayBtn) __stPlayBtn.onclick = () => { if (isStPlaying) pauseSoundtrack(); else resumeSoundtrack(); };
+                    
+                    const __stNextBtn = document.getElementById('stNextBtn');
+                    if (__stNextBtn) __stNextBtn.onclick = nextStSong;
+                    
+                    const __stPrevBtn = document.getElementById('stPrevBtn');
+                    if (__stPrevBtn) __stPrevBtn.onclick = prevStSong;
+                    
+                    const __stShuffleBtn = document.getElementById('stShuffleBtn');
+                    if (__stShuffleBtn) __stShuffleBtn.onclick = () => {
+                        if (!activeSoundtrackId) return;
+                        const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
+                        if (st) {
+                            st.shuffle = !st.shuffle;
+                            updateSoundtrackBarUI();
+                            saveToLocalStorage();
+                        }
+                    };
+
+                    const __stStopBtn = document.getElementById('stCloseBtn');
+                    if (__stStopBtn) __stStopBtn.onclick = stopSoundtrack;
+
+                    const __stVolSlider = document.getElementById('stVolumeSlider');
+                    if (__stVolSlider) {
+                        __stVolSlider.oninput = (e) => {
+                            globalSoundtrackVolume = parseInt(e.target.value, 10);
+                            if (activeSoundtrackId && isStPlaying && stPlayerNode) {
+                                const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
+                                const song = st.songs[activeStSongIndex];
+                                const finalVol = getSoundtrackFinalVol(st, song);
+                                if (stPlayerNode.gainNode && audioContext) {
+                                    stPlayerNode.gainNode.gain.setTargetAtTime(finalVol, audioContext.currentTime, 0.1);
+                                } else if (stPlayerNode.setVolume) {
+                                    stPlayerNode.setVolume(finalVol * 100);
+                                }
+                            }
+                        };
+                    }
+
+                    // 4. SPOTIFY IMPORT EXECUTION
+                    const __executeSpotifyBtn = document.getElementById('executeSpotifyImportBtn');
+                    if (__executeSpotifyBtn) __executeSpotifyBtn.onclick = async () => {
+                        const url = document.getElementById('spotifyPlaylistUrlInput').value.trim();
+                        const statusDiv = document.getElementById('spotifyImportStatus');
+                        const token = localStorage.getItem('spotify_access_token');
+                        if (!token) {
+                            statusDiv.innerText = "Error: Please log in to Spotify via Settings first.";
+                            return;
+                        }
+                        const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
+                        if (!match) { statusDiv.innerText = "Invalid Spotify URL."; return; }
+
+                        statusDiv.innerText = "Fetching playlist mapping... (this takes a moment)";
+                        try {
+                            const res = await fetch("https://api.spotify.com/v1/playlists/" + match[1], { headers: { 'Authorization': `Bearer ${token}` } });
+                            const data = await res.json();
+
+                            if (!data.tracks) {
+                                statusDiv.innerText = "Error fetching playlist or empty playlist."; return;
+                            }
+
+                            const newSt = { id: 'st_' + Date.now(), name: data.name || 'Spotify Import', icon: 'fab fa-spotify', keywords: [], timeOfDay: 'none', chapter: 'none', songs: [], shuffle: false };
+
+                            const apiKeys = book && book.settings && book.settings.youtubeApiKeys ? book.settings.youtubeApiKeys : [];
+                            let apiKeyIndex = 0;
+                            let apiKey = apiKeys.length > 0 ? apiKeys[apiKeyIndex] : null;
+
+                            if (!apiKey) {
+                                statusDiv.innerText = "Playlist fetched! No YouTube API key found in Settings. Generating empty stubs...";
+                            } else {
+                                statusDiv.innerText = `Playlist fetched! Mapping ${data.tracks.items.length} tracks to YouTube...`;
+                            }
+
+                            for (let i = 0; i < data.tracks.items.length; i++) {
+                                const item = data.tracks.items[i];
+                                if (item.track) {
+                                    const artistStr = item.track.artists ? item.track.artists[0].name : 'Unknown';
+                                    const songName = item.track.name + " - " + artistStr;
+                                    let videoId = null;
+                                    let urlStr = '';
+
+                                    if (apiKey) {
+                                        try {
+                                            statusDiv.innerText = `Mapping track ${i + 1}/${data.tracks.items.length}: ${songName}...`;
+                                            let ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(songName + ' auto-generated')}&key=${apiKey}&type=video&videoEmbeddable=true&maxResults=1`);
+
+                                            if (!ytRes.ok && ytRes.status === 403) {
+                                                apiKeyIndex++;
+                                                if (apiKeyIndex < apiKeys.length) {
+                                                    apiKey = apiKeys[apiKeyIndex];
+                                                    ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(songName + ' auto-generated')}&key=${apiKey}&type=video&videoEmbeddable=true&maxResults=1`);
+                                                } else { apiKey = null; }
+                                            }
+
+                                            if (ytRes && ytRes.ok) {
+                                                const ytData = await ytRes.json();
+                                                if (ytData.items && ytData.items.length > 0) {
+                                                    videoId = ytData.items[0].id.videoId;
+                                                    urlStr = `https://www.youtube.com/watch?v=${videoId}`;
+                                                }
+                                            }
+                                        } catch (e) { }
+                                    }
+                                    newSt.songs.push({ name: songName, type: 'youtube', volume: 100, url: urlStr, videoId: videoId });
+                                }
+                            }
+                            statusDiv.innerText = "Playlist imported successfully!";
+                            book.soundtracks.push(newSt);
+                            if (typeof openEditSoundtrack === 'function') openEditSoundtrack(newSt);
+                            if (typeof renderManifestList === 'function') renderManifestList();
+                            saveToLocalStorage();
+                            setTimeout(() => { document.getElementById('spotifyImportModal').style.display = 'none'; statusDiv.innerText = ''; }, 3000);
+                        } catch (err) { statusDiv.innerText = "Error: " + err.message; }
+                    };
 
                     const __addStSongBtn = document.getElementById('addStSongBtn');
                     if (__addStSongBtn) __addStSongBtn.onclick = () => {
@@ -16769,20 +16800,20 @@ function toggleBackgroundMode(enable) {
 
                     const __saveStSongBtn = document.getElementById('saveStSongBtn');
                     if (__saveStSongBtn) __saveStSongBtn.onclick = () => {
-                        if(typeof editStCurrentId === 'undefined' || !editStCurrentId) return;
+                        if (typeof editStCurrentId === 'undefined' || !editStCurrentId) return;
                         const st = (typeof book !== 'undefined' && book) ? book.soundtracks.find(s => s.id === editStCurrentId) : null;
                         if (!st) return;
-                        
+
                         const idx = document.getElementById('stSongEditIndex').value;
                         const typeBox = document.querySelector('input[name="stSongType"]:checked');
                         const type = typeBox ? typeBox.value : 'youtube';
-                        
+
                         let songData = {
                             name: document.getElementById('stSongName').value.trim() || 'New Song',
                             type: type,
                             volume: parseInt(document.getElementById('stSongVolume').value) || 100
                         };
-                        
+
                         if (type === 'youtube') {
                             const url = document.getElementById('stSongYoutubeUrl').value.trim();
                             songData.url = url;
@@ -16795,16 +16826,16 @@ function toggleBackgroundMode(enable) {
                                 if (songData.name === 'New Song') songData.name = fileInput.files[0].name;
                             }
                         }
-                        
+
                         if (idx === '') {
                             st.songs.push(songData);
                         } else {
-                            if(type === 'file' && !songData.fileData && st.songs[idx] && st.songs[idx].fileData) {
+                            if (type === 'file' && !songData.fileData && st.songs[idx] && st.songs[idx].fileData) {
                                 songData.fileData = st.songs[idx].fileData;
                             }
                             st.songs[idx] = songData;
                         }
-                        
+
                         document.getElementById('stAddSongModal').style.display = 'none';
                         if (typeof renderStSongs === 'function') renderStSongs(st);
                     };
@@ -16815,13 +16846,13 @@ function toggleBackgroundMode(enable) {
                     };
 
 
-                    
+
                     const __openIconPickerBtn = document.getElementById('openIconPickerBtn');
                     if (__openIconPickerBtn) __openIconPickerBtn.onclick = () => {
                         document.getElementById('iconPickerModal').style.display = 'flex';
                         if (typeof renderIconPicker === 'function') renderIconPicker();
                     };
-                    
+
                     const __cancelIconPickerBtn = document.getElementById('cancelIconPickerBtn');
                     if (__cancelIconPickerBtn) __cancelIconPickerBtn.onclick = () => {
                         document.getElementById('iconPickerModal').style.display = 'none';
@@ -16832,9 +16863,9 @@ function toggleBackgroundMode(enable) {
                         const grid = document.getElementById('iconPickerGrid');
                         if (!grid) return;
                         const icons = [
-                            'fas fa-music', 'fas fa-drum', 'fas fa-guitar', 'fas fa-play', 'fas fa-headphones', 
-                            'fas fa-volume-up', 'fas fa-wind', 'fas fa-fire', 'fas fa-tint', 'fas fa-bolt', 
-                            'fas fa-leaf', 'fas fa-skull', 'fas fa-dragon', 'fas fa-ghost', 'fas fa-khanda', 
+                            'fas fa-music', 'fas fa-drum', 'fas fa-guitar', 'fas fa-play', 'fas fa-headphones',
+                            'fas fa-volume-up', 'fas fa-wind', 'fas fa-fire', 'fas fa-tint', 'fas fa-bolt',
+                            'fas fa-leaf', 'fas fa-skull', 'fas fa-dragon', 'fas fa-ghost', 'fas fa-khanda',
                             'fas fa-shield-alt', 'fas fa-meteor', 'fas fa-magic', 'fas fa-moon', 'fas fa-sun',
                             'fas fa-campground', 'fas fa-dungeon', 'fas fa-horse', 'fas fa-spider'
                         ];
@@ -16850,155 +16881,196 @@ function toggleBackgroundMode(enable) {
                             grid.appendChild(btn);
                         });
                     }
-    
-// =================================================== //
 
-// --- Start the application ---
+                    // =================================================== //
+
+                    // --- Start the application ---
 
                     initializeApp();
 
                 }); // End DOMContentLoaded listener
             </script>
 
-    <!-- Soundtrack UI -->
-    
-    <div id="soundtrackBar" class="soundtrack-bar">
-        <div class="controls">
-            <button id="stPrevBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Previous Song"><i class="fas fa-step-backward"></i></button>
-            <button id="stPlayPauseBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Play/Pause"><i class="fas fa-play"></i></button>
-            <button id="stNextBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Next Song"><i class="fas fa-step-forward"></i></button>
-        </div>
-        <div class="track-info">
-            <span id="stTrackTitle" class="track-title">No Track Selected</span>
-            <span id="stPlaylistName" class="playlist-name">Playlist: None</span>
-        </div>
-        <div class="volume-control">
-            <i class="fas fa-volume-up text-xs text-gray-400"></i>
-            <input type="range" id="stVolumeSlider" min="0" max="100" value="100" class="w-full">
-            <button id="stCloseBtn" class="btn-rpg-sm btn-rpg-sm-icon ml-2" title="Hide Player"><i class="fas fa-times"></i></button>
-        </div>
-    </div>
-    
-    <!-- Soundtrack Modals -->
-    <div id="manageSoundtracksModal" class="modal" style="z-index: 1045;">
-        <div class="modal-body" style="max-width: 800px; width: 100%;">
-            <h3 class="modal-title"><i class="fas fa-music mr-2"></i>Manage Soundtracks</h3>
-            <div class="modal-content">
-                <div class="flex justify-between items-center mb-2">
-                    <button id="addSoundtrackBtn" class="btn-rpg-sm btn-success-sm"><i class="fas fa-plus mr-1"></i> Add Playlist</button>
-                    <div>
-                        <button id="importSpotifyPlaylistBtn" class="btn-rpg-sm" title="Import from Spotify via YouTube search"><i class="fab fa-spotify mr-1 text-green-500"></i> Import Spotify</button>
-                    </div>
+            <!-- Soundtrack UI -->
+
+            <div id="soundtrackBar" class="soundtrack-bar">
+                <div class="controls">
+                    <button id="stPrevBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Previous Song"><i
+                            class="fas fa-step-backward"></i></button>
+                    <button id="stPlayPauseBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Play/Pause"><i
+                            class="fas fa-play"></i></button>
+                    <button id="stNextBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Next Song"><i
+                            class="fas fa-step-forward"></i></button>
+                    <button id="stShuffleBtn" class="btn-rpg-sm btn-rpg-sm-icon" title="Shuffle Mode"><i
+                            class="fas fa-random"></i></button>
                 </div>
-                <ul id="soundtracksList" class="space-y-2 max-h-64 overflow-y-auto bg-black/20 p-2 border border-stone-700 rounded mb-4"></ul>
-                
-                <div id="editSoundtrackContainer" class="hidden border-t border-dashed border-stone-700 pt-4 mt-2">
-                    <input type="hidden" id="editStId">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2"> <label class="block text-sm font-medium mb-1">Playlist Name:</label> <input type="text" id="editStName"> </div>
-                        <div> <label class="block text-sm font-medium mb-1">Icon Style:</label> 
-                        <div class="flex gap-2">
-                            <input type="text" id="editStIcon" class="flex-grow" placeholder="fas fa-music"> 
-                            <button id="openIconPickerBtn" class="btn-rpg-sm flex-shrink-0" title="Choose Icon"><i class="fas fa-search"></i></button>
-                        </div>
-                    </div>
-                        <div class="md:col-span-2"> <label class="block text-sm font-medium mb-1">Trigger Keywords (comma-separated):</label> <input type="text" id="editStKeywords" placeholder="e.g., tavern start, battle music"> </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Time of Day Auto-Play:</label>
-                            <select id="editStTimeOfDay">
-                                <option value="none">None</option><option value="day">Day</option><option value="night">Night</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Chapter Auto-Play (if possible check code):</label>
-                            <select id="editStChapter"><option value="none">None</option></select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Playlist Master Volume:</label>
-                            <input type="number" id="editStVolume" min="0" max="100" value="100" class="w-full bg-stone-800 border-stone-600 border text-white p-1 rounded">
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4">
+                <div class="track-info">
+                    <span id="stTrackTitle" class="track-title">No Track Selected</span>
+                    <span id="stPlaylistName" class="playlist-name">Playlist: None</span>
+                </div>
+                <div class="volume-control">
+                    <i class="fas fa-volume-up text-xs text-gray-400"></i>
+                    <input type="range" id="stVolumeSlider" min="0" max="100" value="100" class="w-full">
+                    <button id="stCloseBtn" class="btn-rpg-sm btn-rpg-sm-icon ml-2" title="Hide Player"><i
+                            class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <!-- Soundtrack Modals -->
+            <div id="manageSoundtracksModal" class="modal" style="z-index: 1045;">
+                <div class="modal-body" style="max-width: 800px; width: 100%;">
+                    <h3 class="modal-title"><i class="fas fa-music mr-2"></i>Manage Soundtracks</h3>
+                    <div class="modal-content">
                         <div class="flex justify-between items-center mb-2">
-                            <h4 class="text-sm font-bold text-[var(--accent-gold-light)]">Songs</h4>
-                            <button id="addStSongBtn" class="btn-rpg-sm btn-success-sm"><i class="fas fa-plus mr-1"></i> Add Song</button>
+                            <button id="addSoundtrackBtn" class="btn-rpg-sm btn-success-sm"><i
+                                    class="fas fa-plus mr-1"></i> Add Playlist</button>
+                            <div>
+                                <button id="importSpotifyPlaylistBtn" class="btn-rpg-sm"
+                                    title="Import from Spotify via YouTube search"><i
+                                        class="fab fa-spotify mr-1 text-green-500"></i> Import Spotify</button>
+                            </div>
                         </div>
-                        <ul id="stSongsList" class="space-y-2 max-h-48 overflow-y-auto bg-black/20 p-2 border border-stone-700 rounded"></ul>
+                        <ul id="soundtracksList"
+                            class="space-y-2 max-h-64 overflow-y-auto bg-black/20 p-2 border border-stone-700 rounded mb-4">
+                        </ul>
+
+                        <div id="editSoundtrackContainer"
+                            class="hidden border-t border-dashed border-stone-700 pt-4 mt-2">
+                            <input type="hidden" id="editStId">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-2"> <label class="block text-sm font-medium mb-1">Playlist
+                                        Name:</label> <input type="text" id="editStName"> </div>
+                                <div> <label class="block text-sm font-medium mb-1">Icon Style:</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="editStIcon" class="flex-grow" placeholder="fas fa-music">
+                                        <button id="openIconPickerBtn" class="btn-rpg-sm flex-shrink-0"
+                                            title="Choose Icon"><i class="fas fa-search"></i></button>
+                                    </div>
+                                </div>
+                                <div class="md:col-span-2"> <label class="block text-sm font-medium mb-1">Trigger
+                                        Keywords (comma-separated):</label> <input type="text" id="editStKeywords"
+                                        placeholder="e.g., tavern start, battle music"> </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Time of Day Auto-Play:</label>
+                                    <select id="editStTimeOfDay">
+                                        <option value="none">None</option>
+                                        <option value="day">Day</option>
+                                        <option value="night">Night</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Chapter Auto-Play (if possible check
+                                        code):</label>
+                                    <select id="editStChapter">
+                                        <option value="none">None</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Playlist Master Volume:</label>
+                                    <input type="number" id="editStVolume" min="0" max="100" value="100"
+                                        class="w-full bg-stone-800 border-stone-600 border text-white p-1 rounded">
+                                </div>
+                                <div class="flex items-center gap-2 mt-4 content-center">
+                                    <input type="checkbox" id="editStShuffle" class="w-4 h-4">
+                                    <label for="editStShuffle" class="text-sm font-medium">Shuffle Playlist</label>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="text-sm font-bold text-[var(--accent-gold-light)]">Songs</h4>
+                                    <button id="addStSongBtn" class="btn-rpg-sm btn-success-sm"><i
+                                            class="fas fa-plus mr-1"></i> Add Song</button>
+                                </div>
+                                <ul id="stSongsList"
+                                    class="space-y-2 max-h-48 overflow-y-auto bg-black/20 p-2 border border-stone-700 rounded">
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                <div class="modal-actions">
+                    <button id="closeSoundtracksModalBtn" class="btn-rpg-sm">Close</button>
+                    <button id="saveSoundtrackBtn" class="btn-rpg hidden">Save Playlist</button>
+                </div>
             </div>
-        </div>
-        <div class="modal-actions">
-            <button id="closeSoundtracksModalBtn" class="btn-rpg-sm">Close</button>
-            <button id="saveSoundtrackBtn" class="btn-rpg hidden">Save Playlist</button>
-        </div>
-    </div>
-    
-    <!-- Add Song Modal -->
-    <div id="stAddSongModal" class="modal" style="max-width: 500px; z-index: 1060;">
-        <div class="modal-body">
-            <h3 class="modal-title text-sm"><i class="fas fa-plus mr-2"></i>Add/Edit Song</h3>
-            <div class="modal-content space-y-3">
-                <input type="hidden" id="stSongEditIndex">
-                <div> <label class="block text-sm font-medium mb-1">Source Type:</label>
-                    <div class="flex gap-4">
-                        <label><input type="radio" name="stSongType" value="youtube" checked> YouTube URL</label>
-                        <label><input type="radio" name="stSongType" value="file"> Local File</label>
+
+            <!-- Add Song Modal -->
+            <div id="stAddSongModal" class="modal" style="max-width: 500px; z-index: 1060;">
+                <div class="modal-body">
+                    <h3 class="modal-title text-sm"><i class="fas fa-plus mr-2"></i>Add/Edit Song</h3>
+                    <div class="modal-content space-y-3">
+                        <input type="hidden" id="stSongEditIndex">
+                        <div> <label class="block text-sm font-medium mb-1">Source Type:</label>
+                            <div class="flex gap-4">
+                                <label><input type="radio" name="stSongType" value="youtube" checked> YouTube
+                                    URL</label>
+                                <label><input type="radio" name="stSongType" value="file"> Local File</label>
+                            </div>
+                        </div>
+                        <div id="stSongYoutubeContainer"> <label class="block text-sm font-medium mb-1">YouTube
+                                URL:</label> <input type="text" id="stSongYoutubeUrl"> </div>
+                        <div id="stSongFileContainer" class="hidden"> <label
+                                class="block text-sm font-medium mb-1">File:</label> <input type="file" id="stSongFile"
+                                accept="audio/*"> </div>
+                        <div> <label class="block text-sm font-medium mb-1">Song Name:</label> <input type="text"
+                                id="stSongName"> </div>
+                        <div class="flex gap-4">
+                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">Volume Override
+                                    (Optional - default 100):</label> <input type="number" id="stSongVolume" min="0"
+                                    max="100" placeholder="100"> </div>
+                        </div>
                     </div>
                 </div>
-                <div id="stSongYoutubeContainer"> <label class="block text-sm font-medium mb-1">YouTube URL:</label> <input type="text" id="stSongYoutubeUrl"> </div>
-                <div id="stSongFileContainer" class="hidden"> <label class="block text-sm font-medium mb-1">File:</label> <input type="file" id="stSongFile" accept="audio/*"> </div>
-                <div> <label class="block text-sm font-medium mb-1">Song Name:</label> <input type="text" id="stSongName"> </div>
-                <div class="flex gap-4">
-                    <div class="flex-grow"> <label class="block text-sm font-medium mb-1">Volume Override (Optional - default 100):</label> <input type="number" id="stSongVolume" min="0" max="100" placeholder="100"> </div>
+                <div class="modal-actions mt-4">
+                    <button id="cancelStSongBtn" class="btn-rpg-sm">Cancel</button>
+                    <button id="saveStSongBtn" class="btn-rpg">Save Song</button>
                 </div>
             </div>
-        </div>
-        <div class="modal-actions mt-4">
-            <button id="cancelStSongBtn" class="btn-rpg-sm">Cancel</button>
-            <button id="saveStSongBtn" class="btn-rpg">Save Song</button>
-        </div>
-    </div>
-    
-    <!-- Spotify Import Modal -->
-    <div id="spotifyImportModal" class="modal" style="max-width: 600px; z-index: 1060;">
-        <div class="modal-body">
-            <h3 class="modal-title text-sm"><i class="fab fa-spotify mr-2 text-green-500"></i>Import Spotify Playlist</h3>
-            <div class="modal-content space-y-3">
-                <p class="text-xs text-gray-400">Paste a Spotify Playlist URL. The app will fetch track details via User token and try to find matching YouTube audio. Requires Spotify Login.</p>
-                <div> <label class="block text-sm font-medium mb-1">Spotify Playlist URL:</label> <input type="text" id="spotifyPlaylistUrlInput" placeholder="https://open.spotify.com/playlist/..."> </div>
-                <div id="spotifyImportStatus" class="text-sm font-bold text-yellow-400 mt-2"></div>
-            </div>
-        </div>
-        <div class="modal-actions mt-4">
-            <button id="cancelSpotifyImportBtn" class="btn-rpg-sm">Cancel</button>
-            <button id="executeSpotifyImportBtn" class="btn-rpg">Import & Convert</button>
-        </div>
-    </div>
 
-
-    <!-- Active Sounds UI (Top Left) -->
-    
-
-
-
-
-
-    <!-- Icon Picker Modal -->
-    <div id="iconPickerModal" class="modal" style="max-width: 500px; z-index: 1080;">
-        <div class="modal-body">
-            <h3 class="modal-title text-sm"><i class="fas fa-icons mr-2"></i>Choose Playlist Icon</h3>
-            <div class="modal-content">
-                <div class="grid grid-cols-6 gap-2 max-h-64 overflow-y-auto p-2 bg-black/20 border border-stone-700 rounded" id="iconPickerGrid">
+            <!-- Spotify Import Modal -->
+            <div id="spotifyImportModal" class="modal" style="max-width: 600px; z-index: 1060;">
+                <div class="modal-body">
+                    <h3 class="modal-title text-sm"><i class="fab fa-spotify mr-2 text-green-500"></i>Import Spotify
+                        Playlist</h3>
+                    <div class="modal-content space-y-3">
+                        <p class="text-xs text-gray-400">Paste a Spotify Playlist URL. The app will fetch track details
+                            via User token and try to find matching YouTube audio. Requires Spotify Login.</p>
+                        <div> <label class="block text-sm font-medium mb-1">Spotify Playlist URL:</label> <input
+                                type="text" id="spotifyPlaylistUrlInput"
+                                placeholder="https://open.spotify.com/playlist/..."> </div>
+                        <div id="spotifyImportStatus" class="text-sm font-bold text-yellow-400 mt-2"></div>
+                    </div>
+                </div>
+                <div class="modal-actions mt-4">
+                    <button id="cancelSpotifyImportBtn" class="btn-rpg-sm">Cancel</button>
+                    <button id="executeSpotifyImportBtn" class="btn-rpg">Import & Convert</button>
                 </div>
             </div>
-        </div>
-        <div class="modal-actions mt-4">
-            <button id="cancelIconPickerBtn" class="btn-rpg-sm">Cancel</button>
-        </div>
-    </div>
-    
+
+
+            <!-- Active Sounds UI (Top Left) -->
+
+
+
+
+
+
+            <!-- Icon Picker Modal -->
+            <div id="iconPickerModal" class="modal" style="max-width: 500px; z-index: 1080;">
+                <div class="modal-body">
+                    <h3 class="modal-title text-sm"><i class="fas fa-icons mr-2"></i>Choose Playlist Icon</h3>
+                    <div class="modal-content">
+                        <div class="grid grid-cols-6 gap-2 max-h-64 overflow-y-auto p-2 bg-black/20 border border-stone-700 rounded"
+                            id="iconPickerGrid">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions mt-4">
+                    <button id="cancelIconPickerBtn" class="btn-rpg-sm">Cancel</button>
+                </div>
+            </div>
+
 </body>
 
 </html>
