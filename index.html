@@ -2,8 +2,7 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">ckl
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Storyteller</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
@@ -2913,6 +2912,40 @@
             text-overflow: ellipsis;
         }
 
+        .soundtrack-bar .scrubber-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.2rem;
+            width: 100%;
+        }
+
+        .soundtrack-bar .time-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            min-width: 30px;
+        }
+
+        .soundtrack-bar .st-scrubber {
+            flex-grow: 1;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .soundtrack-bar .st-scrubber::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-gold-light);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
         .soundtrack-bar .controls {
             display: flex;
             align-items: center;
@@ -3197,8 +3230,6 @@
                                     class="w-full"> <span class="text-xs text-gray-400 w-12 text-right">Strict
                                     (1.0)</span> <span id="settingsAccuracyValue"
                                     class="text-sm w-10 text-right">0.80</span> </div>
-                            <p class="text-xs text-gray-400 mt-1">Controls how closely spoken words must match
-                                keywords/PKs (higher value = stricter). Default: 0.80.</p>
                         </div>
                         <div class="border-t border-stone-700 pt-4">
                             <label class="flex items-center justify-between cursor-pointer">
@@ -3210,7 +3241,6 @@
                             </label>
                             <p class="text-xs text-gray-400 mt-1">If enabled, the global Master Volume slider will also
                                 scale the volume of background Soundtracks.</p>
-                            keywords/PKs (higher value = stricter). Default: 0.80.</p>
                         </div>
                         <div class="border-t border-stone-700 pt-4">
                             <span class="block text-sm font-semibold text-[var(--accent-gold-light)] mb-2">Audio
@@ -5032,6 +5062,7 @@
                             activeChapterId: 'index',
                             currentTimeOfDay: 'day',
                             collections: [],
+                            soundtracks: [],
                             nextCollectionId: 0,
                             nextPageId: 0,
                             nextTagId: 0,
@@ -10685,6 +10716,8 @@
                             if (importChoices.soundtracks && importChoices.soundtracks !== 'skip') {
                                 if (importChoices.soundtracks === 'overwrite') {
                                     book.soundtracks = [];
+                                } else if (!book.soundtracks) {
+                                    book.soundtracks = [];
                                 }
                                 (loadedData.soundtracks || []).forEach(loadedSt => {
                                     const existingIndex = book.soundtracks.findIndex(s => s.id === loadedSt.id);
@@ -11421,6 +11454,9 @@
                         saveSwitchPages.checked = true;
                         saveSwitchAppendix.checked = true;
                         saveSwitchSettings.checked = true;
+                        if (document.getElementById('saveSwitchSoundtracks')) {
+                            document.getElementById('saveSwitchSoundtracks').checked = true;
+                        }
                         modalOverlay.style.display = 'block';
                         saveFileModal.style.display = 'flex';
                     }
@@ -16003,7 +16039,7 @@
                         (book.soundtracks || []).forEach(st => {
                             const iconDiv = document.createElement('div');
                             iconDiv.className = 'soundtrack-icon' + (activeSoundtrackId === st.id ? ' active' : '');
-                            iconDiv.innerHTML = '<i class="' + (st.icon || 'fas fa-music') + '"></i><span class="st-name-label hidden md:hidden min-[1400px]:block ml-2 text-sm font-semibold truncate">' + st.name + '</span><div class="tooltip min-[1400px]:hidden">' + st.name + '</div>';
+                            iconDiv.innerHTML = '<i class="' + (st.icon || 'fas fa-music') + '"></i><span class="st-name-label hidden min-[1100px]:block ml-2 text-sm font-semibold truncate">' + st.name + '</span><div class="tooltip min-[1100px]:hidden">' + st.name + '</div>';
                             iconDiv.onclick = () => { toggleSoundtrack(st.id); };
                             container.appendChild(iconDiv);
                         });
@@ -16059,9 +16095,12 @@
                         }
                         return finalVol;
                     }
-                    function playStSong(st, songIndex) {
+                    function playStSong(st, songIndex, overrideSong = null) {
                         if (typeof audioContext !== 'undefined' && audioContext && audioContext.state === 'suspended') audioContext.resume();
                         if (!st || !st.songs || st.songs.length === 0) return;
+
+                        const song = overrideSong || st.songs[songIndex];
+                        if (!song) return;
 
                         // Stop current
                         if (stPlayerNode) {
@@ -16074,9 +16113,6 @@
                         }
 
                         activeStSongIndex = songIndex;
-                        const song = st.songs[songIndex];
-                        if (!song) return;
-
                         document.getElementById('stTrackTitle').innerText = song.name;
                         const finalVol = getSoundtrackFinalVol(st, song);
 
@@ -16092,14 +16128,35 @@
                                     source.connect(gainNode);
                                     gainNode.connect(masterGainNode);
 
-                                    source.onended = () => { nextStSong(); };
-                                    source.start();
+                                    const sTime = song.startTime || 0;
+                                    const eTime = song.endTime && song.endTime > sTime ? song.endTime : buffer.duration;
+
+                                    source.onended = () => {
+                                        if (stPlayerNode === source && isStPlaying) {
+                                            nextStSong();
+                                        }
+                                    };
+                                    source.start(0, sTime);
                                     gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 2.0); // Fade in
 
                                     stPlayerNode = source;
                                     stPlayerNode.gainNode = gainNode;
+                                    stPlayerNode.startTimeReal = audioContext.currentTime;
+                                    stPlayerNode.songStartTime = sTime;
+                                    stPlayerNode.songEndTime = eTime;
+                                    stPlayerNode.bufferDuration = buffer.duration;
+
                                     isStPlaying = true;
+                                    startStScrubberUpdate();
                                     updateSoundtrackBarUI();
+
+                                    // Handle end time for file tracks
+                                    if (song.endTime) {
+                                        const duration = eTime - sTime;
+                                        stPlayerNode.endTimeTimeout = setTimeout(() => {
+                                            if (stPlayerNode === source && isStPlaying) nextStSong();
+                                        }, duration * 1000);
+                                    }
                                 });
                             };
                             reader.readAsArrayBuffer(song.fileData);
@@ -16117,12 +16174,18 @@
                                 height: '0',
                                 width: '0',
                                 videoId: song.videoId,
-                                playerVars: { 'autoplay': 1, 'controls': 0, 'start': song.startTime || 0 },
+                                playerVars: {
+                                    'autoplay': 1,
+                                    'controls': 0,
+                                    'start': Math.floor(song.startTime || 0),
+                                    'end': song.endTime ? Math.floor(song.endTime) : undefined
+                                },
                                 events: {
                                     'onReady': (event) => {
                                         event.target.setVolume(finalVol * 100);
                                         event.target.playVideo();
                                         isStPlaying = true;
+                                        startStScrubberUpdate();
                                         updateSoundtrackBarUI();
                                     },
                                     'onStateChange': (event) => {
@@ -16152,14 +16215,19 @@
                         } else {
                             const st = book.soundtracks.find(s => s.id === id);
                             activeSoundtrackId = id;
-                            activeStSongIndex = 0;
-                            playStSong(st, 0);
+                            if (st && st.shuffle && st.songs && st.songs.length > 0) {
+                                activeStSongIndex = Math.floor(Math.random() * st.songs.length);
+                            } else {
+                                activeStSongIndex = 0;
+                            }
+                            playStSong(st, activeStSongIndex);
                             renderSoundtrackIcons();
                         }
                     }
 
                     function pauseSoundtrack() {
                         isStPlaying = false;
+                        if (stScrubberInterval) clearInterval(stScrubberInterval);
                         if (stPlayerNode) {
                             if (stPlayerNode.gainNode && audioContext) {
                                 stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0);
@@ -16174,6 +16242,7 @@
 
                     function resumeSoundtrack() {
                         isStPlaying = true;
+                        startStScrubberUpdate();
                         if (stPlayerNode) {
                             if (stPlayerNode.gainNode && audioContext) {
                                 if (audioContext.state === 'suspended') audioContext.resume();
@@ -16192,6 +16261,69 @@
                         renderSoundtrackIcons();
                     }
 
+                    let stScrubberInterval = null;
+                    function formatTime(seconds) {
+                        if (isNaN(seconds)) return '0:00';
+                        const mins = Math.floor(seconds / 60);
+                        const secs = Math.floor(seconds % 60);
+                        return `${mins}:${secs.toString().padStart(2, '0')}`;
+                    }
+
+                    function startStScrubberUpdate() {
+                        if (stScrubberInterval) clearInterval(stScrubberInterval);
+                        const scrubber = document.getElementById('stScrubber');
+                        const currentLabel = document.getElementById('stCurrentTime');
+                        const totalLabel = document.getElementById('stTotalTime');
+
+                        stScrubberInterval = setInterval(() => {
+                            if (!isStPlaying || !stPlayerNode) {
+                                clearInterval(stScrubberInterval);
+                                return;
+                            }
+
+                            let currentPos = 0;
+                            let totalDur = 0;
+
+                            if (stPlayerNode.getDuration) { // YouTube
+                                currentPos = stPlayerNode.getCurrentTime();
+                                totalDur = stPlayerNode.getDuration();
+                            } else if (stPlayerNode.bufferDuration) { // File
+                                currentPos = stPlayerNode.songStartTime + (audioContext.currentTime - stPlayerNode.startTimeReal);
+                                totalDur = stPlayerNode.bufferDuration;
+                            }
+
+                            if (totalDur > 0) {
+                                scrubber.max = totalDur;
+                                scrubber.value = currentPos;
+                                currentLabel.innerText = formatTime(currentPos);
+                                totalLabel.innerText = formatTime(totalDur);
+                            }
+                        }, 500);
+                    }
+
+                    // Scrubber Input Handling
+                    const __stScrubber = document.getElementById('stScrubber');
+                    if (__stScrubber) {
+                        __stScrubber.oninput = () => {
+                            if (stScrubberInterval) clearInterval(stScrubberInterval);
+                            const currentLabel = document.getElementById('stCurrentTime');
+                            currentLabel.innerText = formatTime(__stScrubber.value);
+                        };
+                        __stScrubber.onchange = () => {
+                            if (stPlayerNode) {
+                                if (stPlayerNode.seekTo) { // YouTube
+                                    stPlayerNode.seekTo(__stScrubber.value, true);
+                                } else if (stPlayerNode.bufferDuration) { // File
+                                    const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
+                                    const song = st.songs[activeStSongIndex];
+                                    const newSong = { ...song, startTime: parseFloat(__stScrubber.value) };
+                                    playStSong(st, activeStSongIndex, newSong); // Re-play from new offset
+                                }
+                            }
+                            startStScrubberUpdate();
+                        };
+                    }
+
                     function nextStSong() {
                         if (!activeSoundtrackId) return;
                         const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
@@ -16203,11 +16335,14 @@
                                 while (newIndex === activeStSongIndex) {
                                     newIndex = Math.floor(Math.random() * st.songs.length);
                                 }
+                            } else {
+                                newIndex = 0;
                             }
                             activeStSongIndex = newIndex;
                         } else {
                             activeStSongIndex = (activeStSongIndex + 1) % st.songs.length;
                         }
+                        console.log(`Playlist Looping: playing song index ${activeStSongIndex + 1}/${st.songs.length}`);
                         playStSong(st, activeStSongIndex);
                     }
 
@@ -16277,7 +16412,7 @@
                             const li = document.createElement('li');
                             li.className = 'flex justify-between items-center p-2 text-sm border-b border-stone-800';
                             const songTypeBadge = song.type === 'youtube' ? '<i class="fab fa-youtube text-red-500 ml-2"></i>' : '<i class="fas fa-file-audio text-blue-400 ml-2"></i>';
-                            li.innerHTML = `<span>${song.name} ${songTypeBadge}</span>
+                            li.innerHTML = `<span><span class="text-gray-500 mr-2">${i + 1}.</span>${song.name} ${songTypeBadge}</span>
             <div class="flex gap-2">
                 <button class="text-accent-blue" onclick="window.editStSong(${i})"><i class="fas fa-edit"></i></button>
                 <button class="text-red-400" onclick="window.deleteStSong(${i})"><i class="fas fa-trash"></i></button>
@@ -16302,6 +16437,8 @@
 
                         const radioBtn = document.querySelector(`input[name="stSongType"][value="${song.type}"]`);
                         if (radioBtn) radioBtn.checked = true;
+                        document.getElementById('stSongStartTime').value = song.startTime || 0;
+                        document.getElementById('stSongEndTime').value = song.endTime || '';
 
                         document.getElementById('stSongYoutubeUrl').value = song.type === 'youtube' ? song.url : '';
 
@@ -16605,7 +16742,7 @@
                     if (__addStBtn) {
                         __addStBtn.onclick = () => {
                             if (typeof book !== 'undefined' && book) {
-                                const newSt = { id: 'st_' + Date.now(), name: 'New Playlist', icon: 'fas fa-music', keywords: [], timeOfDay: 'none', chapter: 'none', songs: [] };
+                                const newSt = { id: 'st_' + Date.now(), name: 'New Playlist', icon: 'fas fa-music', keywords: [], timeOfDay: 'none', chapter: 'none', songs: [], shuffle: false };
                                 book.soundtracks = book.soundtracks || [];
                                 book.soundtracks.push(newSt);
                                 if (typeof openEditSoundtrack === 'function') openEditSoundtrack(newSt);
@@ -16669,19 +16806,23 @@
                     // 3. PLAYBACK CONTROLS
                     const __stPlayBtn = document.getElementById('stPlayPauseBtn');
                     if (__stPlayBtn) __stPlayBtn.onclick = () => { if (isStPlaying) pauseSoundtrack(); else resumeSoundtrack(); };
-                    
+
                     const __stNextBtn = document.getElementById('stNextBtn');
                     if (__stNextBtn) __stNextBtn.onclick = nextStSong;
-                    
+
                     const __stPrevBtn = document.getElementById('stPrevBtn');
                     if (__stPrevBtn) __stPrevBtn.onclick = prevStSong;
-                    
+
                     const __stShuffleBtn = document.getElementById('stShuffleBtn');
                     if (__stShuffleBtn) __stShuffleBtn.onclick = () => {
                         if (!activeSoundtrackId) return;
                         const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
                         if (st) {
                             st.shuffle = !st.shuffle;
+                            if (st.shuffle && st.songs.length > 1 && (!isStPlaying || activeStSongIndex === 0)) {
+                                // If turning shuffle ON and at start or stopped, pick a random song to "show" it works
+                                nextStSong();
+                            }
                             updateSoundtrackBarUI();
                             saveToLocalStorage();
                         }
@@ -16811,7 +16952,9 @@
                         let songData = {
                             name: document.getElementById('stSongName').value.trim() || 'New Song',
                             type: type,
-                            volume: parseInt(document.getElementById('stSongVolume').value) || 100
+                            volume: parseInt(document.getElementById('stSongVolume').value) || 100,
+                            startTime: parseFloat(document.getElementById('stSongStartTime').value) || 0,
+                            endTime: parseFloat(document.getElementById('stSongEndTime').value) || null
                         };
 
                         if (type === 'youtube') {
@@ -16907,6 +17050,11 @@
                 <div class="track-info">
                     <span id="stTrackTitle" class="track-title">No Track Selected</span>
                     <span id="stPlaylistName" class="playlist-name">Playlist: None</span>
+                    <div class="scrubber-container">
+                        <span id="stCurrentTime" class="time-label">0:00</span>
+                        <input type="range" id="stScrubber" class="st-scrubber" value="0" step="0.1" min="0" max="100">
+                        <span id="stTotalTime" class="time-label">0:00</span>
+                    </div>
                 </div>
                 <div class="volume-control">
                     <i class="fas fa-volume-up text-xs text-gray-400"></i>
@@ -17019,6 +17167,14 @@
                             <div class="flex-grow"> <label class="block text-sm font-medium mb-1">Volume Override
                                     (Optional - default 100):</label> <input type="number" id="stSongVolume" min="0"
                                     max="100" placeholder="100"> </div>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">Start Time
+                                    (sec):</label> <input type="number" id="stSongStartTime" min="0" placeholder="0">
+                            </div>
+                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">End Time
+                                    (sec):</label> <input type="number" id="stSongEndTime" min="0" placeholder="End">
+                            </div>
                         </div>
                     </div>
                 </div>
