@@ -38,10 +38,6 @@
             --border-gold-gradient: linear-gradient(to bottom right, #D6C06D, #B8860B, #D6A56D);
             --border-stone: #3a352e;
             /* Darker stone */
-            --fade-duration: 2.0;
-            /* Fade duration in seconds */
-            --min-gain: 0.0001;
-            /* Minimum gain for fades */
             --playing-glow: 0 0 10px rgba(163, 230, 53, 0.5);
             /* Slightly reduced glow */
             --chapter-tab-bg: rgba(87, 78, 68, 0.3);
@@ -7681,7 +7677,8 @@
 
 
                     // --- Create New Page Function (from Modal) ---
-                    async function createNewPageFromModal(returnPageObject = false) {
+                    async function createNewPageFromModal(eventOrReturn = false) {
+                        const returnPageObject = (eventOrReturn === true);
                         console.log("Create New Page button clicked (from modal).");
                         if (!initAudioContext()) { showTemporaryMessage("Audio system not ready.", "error"); return; }
 
@@ -7704,7 +7701,6 @@
                         const syrinscapePlayDurationRaw = addSyrinscapePlayDurationInput.value.trim();
                         const syrinscapePlayDuration = (sourceType === 'syrinscape' && syrinscapePlayDurationRaw) ? parseInt(syrinscapePlayDurationRaw, 10) : null;
 
-
                         if (loop && loopCount === 0 && !loopIndefinitely && !(tempPageForAddModal.sources[0]?.type === 'syrinscape' && tempPageForAddModal.sources[0]?.syrinscapePlayDuration)) {
                             showTemporaryMessage('Invalid Loop Count.', 'error'); return;
                         }
@@ -7714,20 +7710,25 @@
                             const addPageFileInput = document.getElementById('addPageFile');
                             if (sourceType === 'file' && addPageFileInput && addPageFileInput.files.length > 0) {
                                 const file = addPageFileInput.files[0];
+                                const arrayBuffer = await file.arrayBuffer();
+                                if (!initAudioContext()) throw new Error("Audio system not ready.");
+                                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                                 newSourceDetail = {
                                     type: 'file',
-                                    fileData: file, // Note: the system might need to actually read the file via FileReader, but for now we push what the UI normally handles. Wait! Storyteller uses local file references differently. 
-                                    name: file.name,
-                                    startTime: addStartTimeInput.value ? parseFloat(addStartTimeInput.value) : 0,
-                                    endTime: addEndTimeInput.value ? parseFloat(addEndTimeInput.value) : null
+                                    source: audioBuffer,
+                                    fileName: file.name,
+                                    startTime: addStartTimeInput.value ? parseTimeHms(addStartTimeInput.value) : 0,
+                                    endTime: addEndTimeInput.value ? parseTimeHms(addEndTimeInput.value) : null,
+                                    needsFile: false
                                 };
                             } else if (sourceType === 'youtube' && addYoutubeUrlInput.value.trim() !== '') {
                                 newSourceDetail = {
                                     type: 'youtube',
-                                    url: addYoutubeUrlInput.value.trim(),
-                                    videoId: addYoutubeUrlInput.value.trim() ? (addYoutubeUrlInput.value.trim().match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) || [])[1] : null,
-                                    startTime: addStartTimeInput.value ? parseFloat(addStartTimeInput.value) : 0,
-                                    endTime: addEndTimeInput.value ? parseFloat(addEndTimeInput.value) : null
+                                    source: extractYouTubeVideoId(addYoutubeUrlInput.value.trim()),
+                                    fileName: addYoutubeUrlInput.value.trim(),
+                                    videoId: extractYouTubeVideoId(addYoutubeUrlInput.value.trim()),
+                                    startTime: addStartTimeInput.value ? parseTimeHms(addStartTimeInput.value) : 0,
+                                    endTime: addEndTimeInput.value ? parseTimeHms(addEndTimeInput.value) : null
                                 };
                             } else if (sourceType === 'syrinscape' && addSyrinscapeElementIdInput.value) {
                                 newSourceDetail = {
@@ -7735,7 +7736,8 @@
                                     syrinscapeElementId: addSyrinscapeElementIdInput.value,
                                     syrinscapeName: addSyrinscapeSelectedSoundSpan.dataset.syrinscapeName,
                                     syrinscapeKind: addSyrinscapeSelectedSoundSpan.dataset.syrinscapeKind,
-                                    syrinscapePlayDuration: syrinscapePlayDuration
+                                    syrinscapePlayDuration: syrinscapePlayDuration,
+                                    fileName: addSyrinscapeSelectedSoundSpan.dataset.syrinscapeName
                                 }
                             }
 
@@ -7824,7 +7826,6 @@
                         } finally {
                             addButton.disabled = false;
                             addButton.innerHTML = '<i class="fas fa-plus-circle"></i><span> Create New Page</span>';
-                            if (returnPageObject) return null;
                         }
                     }
 
@@ -12074,10 +12075,10 @@
                             });
                             li.querySelector('.manage-sources-button').addEventListener('click', (e) => {
                                 e.stopPropagation(); // This line is correct
-                                openManageSourcesModal(page.id, index);
+                                openManageSourcesModal(page.id, index, false, page.id === -1);
                             });
                             li.querySelector('.remove-source-button').addEventListener('click', handleRemoveSourceClick);
-                            editSourceListUl.appendChild(li);
+                            listUl.appendChild(li);
                         });
                     }
 
@@ -12270,7 +12271,7 @@
 
                     // --- Manage Sources (Sub-Variations) Modal Functions ---
                     function openManageSourcesModal(pageId, variationIndex, autoOpenAdd = false, forAddPage = false) {
-                        const page = book.pages.find(p => p.id === pageId);
+                        const page = (pageId === -1 || forAddPage) ? tempPageForAddModal : book.pages.find(p => p.id === pageId);
                         if (!page) { console.error("Cannot open manage sources: Page not found."); return; }
                         const variation = page.sources[variationIndex];
                         if (!variation) { console.error("Cannot open manage sources: Variation not found."); return; }
@@ -12336,10 +12337,10 @@
                                 renderSubVariationList(variation); // Re-render the list
                                 showTemporaryMessage('Source removed. Save page changes to confirm.', 'info');
                             });
-                            li.querySelector('.edit-sub-variation-button').addEventListener('click', (e) => {
-                                const sourceIndexToEdit = parseInt(e.currentTarget.dataset.index, 10);
-                                openAddEditSourceModal(sourceIndexToEdit);
-                            });
+                             li.querySelector('.edit-sub-variation-button').addEventListener('click', (e) => {
+                                 const sourceIndexToEdit = parseInt(e.currentTarget.dataset.index, 10);
+                                 openAddEditSourceModal(sourceIndexToEdit, currentlyEditingPageId === -1);
+                             });
 
                             subVariationSourceListUl.appendChild(li);
                         });
@@ -16360,32 +16361,17 @@
 
                         const currentRequestId = ++stPlayRequestCount;
 
-                        // Stop current with 3s fade
+                        // Stop current immediately
                         if (stPlayerNode) {
                             if (stPlayerNode.endTimeout) clearTimeout(stPlayerNode.endTimeout);
                             if (stPlayerNode.endTimeTimeout) clearTimeout(stPlayerNode.endTimeTimeout);
 
-                            if (stPlayerNode.gainNode && audioContext) {
-                                const prevNode = stPlayerNode;
-                                prevNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 3.0);
-                                setTimeout(() => { try { if (prevNode && prevNode.stop) prevNode.stop(); } catch(e) {} }, 3000);
-                            } else if (stPlayerNode.setVolume && stPlayerNode.getVolume) {
-                                const prevNode = stPlayerNode;
-                                const startVol = prevNode.getVolume();
-                                let steps = 30; // 3 seconds at 100ms steps
-                                let currentStep = 0;
-                                const interval = setInterval(() => {
-                                    currentStep++;
-                                    const nextVol = Math.max(0, startVol * (1 - currentStep / steps));
-                                    try { prevNode.setVolume(nextVol); } catch(e) {}
-                                    if (currentStep >= steps) {
-                                        clearInterval(interval);
-                                        try { prevNode.destroy(); } catch(e) {}
-                                    }
-                                }, 100);
-                            } else if (stPlayerNode.destroy) {
-                                try { stPlayerNode.destroy(); } catch(e) {}
-                            }
+                            try {
+                                if (stPlayerNode.stop) stPlayerNode.stop();
+                                if (stPlayerNode.pauseVideo) stPlayerNode.pauseVideo();
+                                if (stPlayerNode.destroy) stPlayerNode.destroy();
+                            } catch(e) {}
+                            stPlayerNode = null;
                         }
 
                         activeStSongIndex = songIndex;
@@ -16404,7 +16390,7 @@
                                     const source = audioContext.createBufferSource();
                                     source.buffer = buffer;
                                     const gainNode = audioContext.createGain();
-                                    gainNode.gain.value = 0.001; // start silent for fade
+                                    gainNode.gain.value = finalVol; 
                                     source.connect(gainNode);
                                     gainNode.connect(masterGainNode);
 
@@ -16417,7 +16403,6 @@
                                         }
                                     };
                                     source.start(0, sTime);
-                                    gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 3.0); // 3s Fade in
 
                                     stPlayerNode = source;
                                     stPlayerNode.gainNode = gainNode;
@@ -16468,18 +16453,8 @@
                                         }
 
                                         const targetVol = finalVol * 100;
-                                        event.target.setVolume(0);
+                                        event.target.setVolume(targetVol);
                                         event.target.playVideo();
-                                        
-                                        // 3s Fade in for YouTube
-                                        let steps = 30;
-                                        let currentStep = 0;
-                                        const interval = setInterval(() => {
-                                            currentStep++;
-                                            const nextVol = (currentStep / steps) * targetVol;
-                                            try { event.target.setVolume(nextVol); } catch(e) {}
-                                            if (currentStep >= steps) clearInterval(interval);
-                                        }, 100);
 
                                         isStPlaying = true;
                                         startStScrubberUpdate();
@@ -16506,7 +16481,7 @@
                                         console.log("YouTube track end time reached (timer). Moving to next.");
                                         nextStSong();
                                     }
-                                }, (duration * 1000) + 500); // Add small buffer for fade/sync
+                                }, (duration * 1000) + 100); // Small sync buffer
                             }
                         }
                     }
@@ -16543,7 +16518,7 @@
                         if (stScrubberInterval) clearInterval(stScrubberInterval);
                         if (stPlayerNode) {
                             if (stPlayerNode.gainNode && audioContext) {
-                                stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0);
+                                stPlayerNode.gainNode.gain.value = 0.001;
                                 // NOT suspending audioContext to avoid breaking global audio
                             } else if (stPlayerNode.pauseVideo) {
                                 stPlayerNode.pauseVideo();
@@ -16562,7 +16537,7 @@
                                 const st = book.soundtracks.find(s => s.id === activeSoundtrackId);
                                 const song = st.songs[activeStSongIndex];
                                 const finalVol = getSoundtrackFinalVol(st, song);
-                                stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 1.0);
+                                stPlayerNode.gainNode.gain.value = finalVol;
                             } else if (stPlayerNode.playVideo) {
                                 stPlayerNode.playVideo();
                             }
