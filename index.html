@@ -1729,7 +1729,7 @@
             padding: 12px 25px;
             border-radius: 6px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-            z-index: 1050;
+            z-index: 2100; /* Increased to be above all nested modals */
             display: none;
             font-size: 1rem;
             border: 2px solid var(--accent-gold-dark);
@@ -1930,6 +1930,17 @@
             box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
             border-radius: 8px;
             z-index: 1000; /* Base modal z-index (now above overlay at 800) */
+        }
+
+        /* Specific Modals that open on top of other modals */
+        #addEditAppendixEntryModal, 
+        #appendixEffectModal, 
+        #stAddSongModal, 
+        #iconPickerModal,
+        #addSourceVariationModal, 
+        #editSoundtrackContainer,
+        #addEditSourceVariationModal {
+            z-index: 1100;
         }
 
         .modal-header {
@@ -3104,7 +3115,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
-            z-index: 910;
+            z-index: 700; /* Behind modal overlay (800) */
             padding-right: 0.5rem;
         }
 
@@ -5139,6 +5150,11 @@
                                 <label class="flex items-center justify-between cursor-pointer"><span
                                         class="text-sm">Settings</span>
                                     <div class="rpg-toggle-switch"><input type="checkbox" id="burnSwitchSettings"
+                                            checked><span class="slider"></span></div>
+                                </label>
+                                <label class="flex items-center justify-between cursor-pointer"><span
+                                        class="text-sm">Soundtracks (Playlists)</span>
+                                    <div class="rpg-toggle-switch"><input type="checkbox" id="burnSwitchSoundtracks"
                                             checked><span class="slider"></span></div>
                                 </label>
                             </div>
@@ -7797,8 +7813,9 @@
                             };
                             book.pages.push(newPage);
 
-                            const currentActiveChapter = book.chapters.find(ch => ch.id == book.activeChapterId);
+                            const currentActiveChapter = book.chapters.find(ch => ch.id == book.activeChapterId) || book.chapters.find(ch => ch.isIndex);
                             if (currentActiveChapter && !currentActiveChapter.isIndex) {
+                                if (!currentActiveChapter.pageIds) currentActiveChapter.pageIds = [];
                                 currentActiveChapter.pageIds.push(newPageId);
                                 console.log(`Added page ${newPageId} to chapter "${currentActiveChapter.name}"`);
                             } else {
@@ -13386,11 +13403,12 @@
 
                     function burnBookFromModal() {
                         const toBurn = {
-                            chapters: burnSwitchChapters.checked,
-                            collections: burnSwitchCollections.checked,
-                            pages: burnSwitchPages.checked, // This line is correct
-                            appendix: burnSwitchAppendix.checked,
-                            settings: burnSwitchSettings.checked,
+                            chapters: document.getElementById('burnSwitchChapters').checked,
+                            collections: document.getElementById('burnSwitchCollections').checked,
+                            pages: document.getElementById('burnSwitchPages').checked,
+                            appendix: document.getElementById('burnSwitchAppendix').checked,
+                            settings: document.getElementById('burnSwitchSettings').checked,
+                            soundtracks: document.getElementById('burnSwitchSoundtracks').checked
                         };
 
                         if (Object.values(toBurn).every(v => !v)) {
@@ -13448,6 +13466,12 @@
                             book.appendix = [];
                         }
 
+                        if (toBurn.soundtracks) {
+                            partsBurned.push("Soundtracks");
+                            book.soundtracks = [];
+                            stopSoundtrack();
+                        }
+
                         if (toBurn.settings) {
                             partsBurned.push("Settings");
                             const appendixToKeep = toBurn.appendix ? [] : book.appendix; // Keep appendix if not burned
@@ -13477,6 +13501,7 @@
                         updateChapterKeywordList();
                         renderChapterTabs();
                         renderPageList();
+                        renderSoundtrackIcons();
                         updateUIState(); // This line is correct
                         // Close the modal after burning
                         burnBookModal.style.display = 'none';
@@ -16349,13 +16374,28 @@
                         const song = overrideSong || st.songs[songIndex];
                         if (!song) return;
 
-                        // Stop current
+                        // Stop current with 3s fade
                         if (stPlayerNode) {
                             if (stPlayerNode.gainNode && audioContext) {
-                                stPlayerNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0);
-                                setTimeout(() => { if (stPlayerNode && stPlayerNode.stop) stPlayerNode.stop(); }, 1000);
+                                const prevNode = stPlayerNode;
+                                prevNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 3.0);
+                                setTimeout(() => { if (prevNode && prevNode.stop) prevNode.stop(); }, 3000);
+                            } else if (stPlayerNode.setVolume && stPlayerNode.getVolume) {
+                                const prevNode = stPlayerNode;
+                                const startVol = prevNode.getVolume();
+                                let steps = 30; // 3 seconds at 100ms steps
+                                let currentStep = 0;
+                                const interval = setInterval(() => {
+                                    currentStep++;
+                                    const nextVol = Math.max(0, startVol * (1 - currentStep / steps));
+                                    try { prevNode.setVolume(nextVol); } catch(e) {}
+                                    if (currentStep >= steps) {
+                                        clearInterval(interval);
+                                        try { prevNode.destroy(); } catch(e) {}
+                                    }
+                                }, 100);
                             } else if (stPlayerNode.destroy) {
-                                stPlayerNode.destroy(); // YT player
+                                stPlayerNode.destroy(); // Fallback YT player
                             }
                         }
 
@@ -16384,7 +16424,7 @@
                                         }
                                     };
                                     source.start(0, sTime);
-                                    gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 2.0); // Fade in
+                                    gainNode.gain.exponentialRampToValueAtTime(finalVol, audioContext.currentTime + 3.0); // 3s Fade in
 
                                     stPlayerNode = source;
                                     stPlayerNode.gainNode = gainNode;
@@ -16429,8 +16469,20 @@
                                 },
                                 events: {
                                     'onReady': (event) => {
-                                        event.target.setVolume(finalVol * 100);
+                                        const targetVol = finalVol * 100;
+                                        event.target.setVolume(0);
                                         event.target.playVideo();
+                                        
+                                        // 3s Fade in for YouTube
+                                        let steps = 30;
+                                        let currentStep = 0;
+                                        const interval = setInterval(() => {
+                                            currentStep++;
+                                            const nextVol = (currentStep / steps) * targetVol;
+                                            try { event.target.setVolume(nextVol); } catch(e) {}
+                                            if (currentStep >= steps) clearInterval(interval);
+                                        }, 100);
+
                                         isStPlaying = true;
                                         startStScrubberUpdate();
                                         updateSoundtrackBarUI();
@@ -16442,6 +16494,18 @@
                                     }
                                 }
                             });
+                            
+                            // 3. Robust "end time" handler for YouTube
+                            if (song.endTime && song.endTime > (song.startTime || 0)) {
+                                const duration = song.endTime - (song.startTime || 0);
+                                if (stPlayerNode.endTimeout) clearTimeout(stPlayerNode.endTimeout);
+                                stPlayerNode.endTimeout = setTimeout(() => {
+                                    if (stPlayerNode && isStPlaying) {
+                                        console.log("YouTube track end time reached (timer). Moving to next.");
+                                        nextStSong();
+                                    }
+                                }, (duration * 1000) + 500); // Add small buffer for fade/sync
+                            }
                         }
                     }
 
@@ -16643,8 +16707,12 @@
                         // populate chapter select
                         const chSelect = document.getElementById('editStChapter');
                         chSelect.innerHTML = '<option value="none">None</option>';
+                        const addedChIds = new Set();
                         book.chapters.forEach(ch => {
-                            chSelect.innerHTML += `<option value="${ch.id}">${ch.name}</option>`;
+                            if (!addedChIds.has(ch.id)) {
+                                chSelect.innerHTML += `<option value="${ch.id}">${ch.name}</option>`;
+                                addedChIds.add(ch.id);
+                            }
                         });
 
                         // Set multi-select values
@@ -16676,11 +16744,9 @@
                     }
 
                     window.deleteStSong = function (index) {
-                        if (confirm('Delete song?')) {
-                            const st = book.soundtracks.find(s => s.id === editStCurrentId);
-                            st.songs.splice(index, 1);
-                            renderStSongs(st);
-                        }
+                        const st = book.soundtracks.find(s => s.id === editStCurrentId);
+                        st.songs.splice(index, 1);
+                        renderStSongs(st);
                     }
                     window.editStSong = function (index) {
                         const st = book.soundtracks.find(s => s.id === editStCurrentId);
@@ -17382,6 +17448,36 @@
                         });
 
                         grid.innerHTML = '';
+
+                        // Add "Use Custom" option if searching
+                        if (searchQuery.trim().length > 2) {
+                            const customIconClasses = [
+                                `fas fa-${searchQuery.trim().toLowerCase()}`,
+                                `fab fa-${searchQuery.trim().toLowerCase()}`,
+                                `far fa-${searchQuery.trim().toLowerCase()}`
+                            ];
+                            
+                            customIconClasses.forEach(iconClass => {
+                                const btn = document.createElement('button');
+                                btn.className = 'w-10 h-10 flex items-center justify-center text-xl text-stone-400 hover:text-[var(--accent-gold-light)] hover:bg-white/10 rounded transition-all border border-stone-700 bg-stone-900/40';
+                                btn.innerHTML = `<i class="${iconClass}"></i>`;
+                                btn.title = `Custom: ${iconClass}`;
+                                btn.onclick = () => {
+                                    const stId = document.getElementById('iconPickerModal').dataset.stId;
+                                    const soundtrack = book.soundtracks.find(st => st.id === stId);
+                                    if (soundtrack) {
+                                        soundtrack.icon = iconClass;
+                                        saveToLocalStorage();
+                                        if (typeof renderSoundtrackMenu === 'function') renderSoundtrackMenu();
+                                        if (typeof renderSoundtrackIcons === 'function') renderSoundtrackIcons();
+                                        if (document.getElementById('editStIcon')) document.getElementById('editStIcon').value = iconClass;
+                                        if (typeof renderManifestList === 'function') renderManifestList();
+                                    }
+                                    closeIconPicker();
+                                };
+                                grid.appendChild(btn);
+                            });
+                        }
                         filteredIcons.forEach(iconClass => {
                             const btn = document.createElement('button');
                             btn.className = 'w-10 h-10 flex items-center justify-center text-xl text-stone-400 hover:text-[var(--accent-gold-light)] hover:bg-white/10 rounded transition-all';
@@ -17435,6 +17531,15 @@
                     if (cancelIconPickerBtn) {
                         cancelIconPickerBtn.onclick = closeIconPicker;
                     }
+
+                    // --- Song Modal Type Radio Listener ---
+                    document.querySelectorAll('input[name="stSongType"]').forEach(radio => {
+                        radio.addEventListener('change', (e) => {
+                            const isYoutube = e.target.value === 'youtube';
+                            document.getElementById('stSongYoutubeContainer').classList.toggle('hidden', !isYoutube);
+                            document.getElementById('stSongFileContainer').classList.toggle('hidden', isYoutube);
+                        });
+                    });
 
                     // --- Time Utilities ---
                     function formatTimeHms(seconds) {
