@@ -321,8 +321,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(brick_wall.png);
-            background-size: 1000px;
+            background-image: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url(brick_wall.png);
+            background-size: 250px;
+            background-repeat: repeat;
             background-attachment: fixed;
             z-index: -20;
             transition: filter 0.4s ease;
@@ -352,8 +353,8 @@
         .torch-container {
             position: fixed;
             top: 15vh;
-            width: 150px;
-            height: 300px;
+            width: 300px;
+            height: 600px;
             pointer-events: none;
             z-index: -10;
             display: flex;
@@ -363,11 +364,11 @@
         }
 
         .torch-left {
-            left: calc(50% - 780px);
+            left: calc(50% - 950px);
         }
 
         .torch-right {
-            right: calc(50% - 780px);
+            right: calc(50% - 950px);
         }
 
         /* Hide torches on small screens so they don't overlap content */
@@ -377,17 +378,17 @@
 
         .torch-glow {
             position: absolute;
-            top: 20px;
-            width: 250px;
-            height: 250px;
-            background: radial-gradient(circle, rgba(255, 136, 0, 0.4) 0%, rgba(255, 68, 0, 0.2) 40%, transparent 70%);
+            top: -250px;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(255, 136, 0, 0.5) 0%, rgba(255, 68, 0, 0.25) 50%, transparent 80%);
             border-radius: 50%;
             animation: flicker 3s infinite alternate;
             z-index: -1;
         }
 
         .torch-img {
-            width: 120px;
+            width: 240px;
             /* animation removed */
         }
 
