@@ -5695,7 +5695,7 @@
                         } else {
                             const timeInputStart = container.closest('.modal-content, .yt-video-item')?.querySelector('.yt-search-start-time, #addStartTime, #sourceStartTime');
                             if (timeInputStart?.value && duration > 0) {
-                                startBar.value = Math.min(100, (parseTime(timeInputStart.value) / duration) * 100);
+                                startBar.value = Math.min(100, (parseTimeHms(timeInputStart.value) / duration) * 100);
                             }
                         }
 
@@ -5704,7 +5704,7 @@
                         } else {
                             const timeInputEnd = container.closest('.modal-content, .yt-video-item')?.querySelector('.yt-search-end-time, #addEndTime, #sourceEndTime');
                             if (timeInputEnd?.value && duration > 0) {
-                                endBar.value = (parseTime(timeInputEnd.value) / duration) * 100;
+                                endBar.value = (parseTimeHms(timeInputEnd.value) / duration) * 100;
                             }
                         }
                         selectionDiv.style.left = `${startBar.value}%`;
@@ -5870,7 +5870,7 @@
                         if (timeInputStart) {
                             timeInputStart.addEventListener('input', () => {
                                 const duration = player.duration || (player.getDuration ? player.getDuration() : 0);
-                                const newStartTime = parseTime(timeInputStart.value);
+                                const newStartTime = parseTimeHms(timeInputStart.value);
                                 if (duration > 0 && newStartTime !== null) {
                                     startBar.value = (newStartTime / duration) * 100;
                                     updateRangeSelection();
@@ -5880,7 +5880,7 @@
                         if (timeInputEnd) {
                             timeInputEnd.addEventListener('input', () => {
                                 const duration = player.duration || (player.getDuration ? player.getDuration() : 0);
-                                const newEndTime = parseTime(timeInputEnd.value);
+                                const newEndTime = parseTimeHms(timeInputEnd.value);
                                 if (duration > 0 && newEndTime !== null) {
                                     endBar.value = (newEndTime / duration) * 100;
                                     updateRangeSelection();
@@ -6260,23 +6260,6 @@
                                 }
                             });
                         });
-                    }
-
-                    // --- Time Parsing ---
-                    function parseTime(timeString) {
-                        if (!timeString || typeof timeString !== 'string') return null;
-                        timeString = timeString.trim();
-                        if (/^\d+(\.\d+)?$/.test(timeString)) { // Matches "15" or "15.5"
-                            return parseFloat(timeString);
-                        } else if (/^\d{1,2}:\d{1,2}(\.\d+)?$/.test(timeString)) { // Matches "0:15" or "0:15.5"
-                            const parts = timeString.split(':');
-                            const minutes = parseInt(parts[0], 10);
-                            const seconds = parseFloat(parts[1]);
-                            if (!isNaN(minutes) && !isNaN(seconds) && seconds >= 0 && seconds < 60 && minutes >= 0) {
-                                return minutes * 60 + seconds;
-                            }
-                        }
-                        return null;
                     }
 
                     // --- YouTube Fade Out ---
@@ -7728,6 +7711,7 @@
 
                         if (tempPageForAddModal.sources.length === 0) {
                             let newSourceDetail = null;
+                            const addPageFileInput = document.getElementById('addPageFile');
                             if (sourceType === 'file' && addPageFileInput && addPageFileInput.files.length > 0) {
                                 const file = addPageFileInput.files[0];
                                 newSourceDetail = {
@@ -12507,8 +12491,8 @@
                                 newSourceDetail.fileName = url;
                                 const startTimeRaw = sourceStartTimeInput.value.trim();
                                 const endTimeRaw = sourceEndTimeInput.value.trim();
-                                newSourceDetail.startTime = startTimeRaw ? parseTime(startTimeRaw) : null;
-                                newSourceDetail.endTime = endTimeRaw ? parseTime(endTimeRaw) : null;
+                                newSourceDetail.startTime = startTimeRaw ? parseTimeHms(startTimeRaw) : null;
+                                newSourceDetail.endTime = endTimeRaw ? parseTimeHms(endTimeRaw) : null;
                                 if (startTimeRaw && newSourceDetail.startTime === null) throw new Error('Invalid Start Time.');
                                 if (endTimeRaw && newSourceDetail.endTime === null) throw new Error('Invalid End Time.');
                                 if (newSourceDetail.startTime !== null && newSourceDetail.endTime !== null && newSourceDetail.endTime <= newSourceDetail.startTime) {
@@ -15736,7 +15720,7 @@
                                 const startTime = item.querySelector('.yt-search-start-time').value;
                                 const endTime = item.querySelector('.yt-search-end-time').value;
 
-                                const newVariation = { id: `var_${generateUUID()}`, name: videoTitle, isDefault: tempPageForAddModal.sources.length === 0, sources: [{ type: 'youtube', source: videoId, fileName: videoUrl, videoTitle: videoTitle, needsFile: false, startTime: parseTime(startTime), endTime: parseTime(endTime) }] };
+                                const newVariation = { id: `var_${generateUUID()}`, name: videoTitle, isDefault: tempPageForAddModal.sources.length === 0, sources: [{ type: 'youtube', source: videoId, fileName: videoUrl, videoTitle: videoTitle, needsFile: false, startTime: parseTimeHms(startTime), endTime: parseTimeHms(endTime) }] };
                                 tempPageForAddModal.sources.push(newVariation);
                             }
                             renderVariationList(tempPageForAddModal, true);
@@ -15756,11 +15740,9 @@
                                 const startTime = item.querySelector('.yt-search-start-time')?.value;
                                 const endTime = item.querySelector('.yt-search-end-time')?.value;
 
-                                variation.sources.push({ type: 'youtube', source: videoId, fileName: videoUrl, videoTitle: videoTitle, needsFile: false, startTime: parseTime(startTime), endTime: parseTime(endTime) });
+                                variation.sources.push({ type: 'youtube', source: videoId, fileName: videoUrl, videoTitle: videoTitle, needsFile: false, startTime: parseTimeHms(startTime), endTime: parseTimeHms(endTime) });
                             }
-                            // Re-render the list in the 'Manage Sources' modal
                             renderSubVariationList(variation);
-                            // Close the search modal and the 'Add/Edit Source' modal, leaving 'Manage Sources' open
                             closeYoutubeSearchModal();
                             closeAddEditSourceModal();
                             showTemporaryMessage(`${selectedItems.length} video(s) added.`, 'success');
@@ -15778,7 +15760,7 @@
                                 const startTime = item.querySelector('.yt-search-start-time')?.value;
                                 const endTime = item.querySelector('.yt-search-end-time')?.value;
 
-                                variation.sources.push({ type: 'youtube', source: videoId, fileName: videoUrl, videoTitle: videoTitle, needsFile: false, startTime: parseTime(startTime), endTime: parseTime(endTime) });
+                                variation.sources.push({ type: 'youtube', source: videoId, fileName: videoUrl, videoTitle: videoTitle, needsFile: false, startTime: parseTimeHms(startTime), endTime: parseTimeHms(endTime) });
                             }
                             renderSubVariationList(variation);
                             closeYoutubeSearchModal();
@@ -16367,6 +16349,8 @@
                             }
                         });
                     }
+                    let stPlayRequestCount = 0; // Global counter to prevent race conditions during skips
+
                     function playStSong(st, songIndex, overrideSong = null) {
                         if (typeof audioContext !== 'undefined' && audioContext && audioContext.state === 'suspended') audioContext.resume();
                         if (!st || !st.songs || st.songs.length === 0) return;
@@ -16374,12 +16358,17 @@
                         const song = overrideSong || st.songs[songIndex];
                         if (!song) return;
 
+                        const currentRequestId = ++stPlayRequestCount;
+
                         // Stop current with 3s fade
                         if (stPlayerNode) {
+                            if (stPlayerNode.endTimeout) clearTimeout(stPlayerNode.endTimeout);
+                            if (stPlayerNode.endTimeTimeout) clearTimeout(stPlayerNode.endTimeTimeout);
+
                             if (stPlayerNode.gainNode && audioContext) {
                                 const prevNode = stPlayerNode;
                                 prevNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 3.0);
-                                setTimeout(() => { if (prevNode && prevNode.stop) prevNode.stop(); }, 3000);
+                                setTimeout(() => { try { if (prevNode && prevNode.stop) prevNode.stop(); } catch(e) {} }, 3000);
                             } else if (stPlayerNode.setVolume && stPlayerNode.getVolume) {
                                 const prevNode = stPlayerNode;
                                 const startVol = prevNode.getVolume();
@@ -16395,7 +16384,7 @@
                                     }
                                 }, 100);
                             } else if (stPlayerNode.destroy) {
-                                stPlayerNode.destroy(); // Fallback YT player
+                                try { stPlayerNode.destroy(); } catch(e) {}
                             }
                         }
 
@@ -16407,7 +16396,11 @@
                             initAudioContext();
                             const reader = new FileReader();
                             reader.onload = function (e) {
+                                if (currentRequestId !== stPlayRequestCount) return; // Stale request
+
                                 audioContext.decodeAudioData(e.target.result, function (buffer) {
+                                    if (currentRequestId !== stPlayRequestCount) return; // Stale request
+
                                     const source = audioContext.createBufferSource();
                                     source.buffer = buffer;
                                     const gainNode = audioContext.createGain();
@@ -16416,7 +16409,7 @@
                                     gainNode.connect(masterGainNode);
 
                                     const sTime = song.startTime || 0;
-                                    const eTime = song.endTime && song.endTime > sTime ? song.endTime : buffer.duration;
+                                    const eTime = (song.endTime && song.endTime > sTime) ? song.endTime : buffer.duration;
 
                                     source.onended = () => {
                                         if (stPlayerNode === source && isStPlaying) {
@@ -16438,16 +16431,16 @@
                                     updateSoundtrackBarUI();
 
                                     // Handle end time for file tracks
-                                    if (song.endTime) {
-                                        const duration = eTime - sTime;
-                                        stPlayerNode.endTimeTimeout = setTimeout(() => {
-                                            if (stPlayerNode === source && isStPlaying) nextStSong();
-                                        }, duration * 1000);
-                                    }
+                                    const duration = eTime - sTime;
+                                    stPlayerNode.endTimeTimeout = setTimeout(() => {
+                                        if (stPlayerNode === source && isStPlaying) nextStSong();
+                                    }, duration * 1000);
                                 });
                             };
                             reader.readAsArrayBuffer(song.fileData);
                         } else if (song.type === 'youtube' && song.videoId) {
+                            if (currentRequestId !== stPlayRequestCount) return; // Stale request
+
                             const dummyDiv = document.createElement('div');
                             dummyDiv.style.display = 'none';
                             document.body.appendChild(dummyDiv);
@@ -16457,7 +16450,7 @@
                                 return;
                             }
 
-                            stPlayerNode = new YT.Player(dummyDiv, {
+                            const ytPlayer = new YT.Player(dummyDiv, {
                                 height: '0',
                                 width: '0',
                                 videoId: song.videoId,
@@ -16465,10 +16458,15 @@
                                     'autoplay': 1,
                                     'controls': 0,
                                     'start': Math.floor(song.startTime || 0),
-                                    'end': song.endTime ? Math.floor(song.endTime) : undefined
+                                    'end': (song.endTime && song.endTime > (song.startTime || 0)) ? Math.floor(song.endTime) : undefined
                                 },
                                 events: {
                                     'onReady': (event) => {
+                                        if (currentRequestId !== stPlayRequestCount) {
+                                            try { event.target.destroy(); } catch(e) {}
+                                            return;
+                                        }
+
                                         const targetVol = finalVol * 100;
                                         event.target.setVolume(0);
                                         event.target.playVideo();
@@ -16489,18 +16487,22 @@
                                     },
                                     'onStateChange': (event) => {
                                         if (event.data == YT.PlayerState.ENDED) {
-                                            nextStSong();
+                                            if (stPlayerNode === ytPlayer) nextStSong();
                                         }
+                                    },
+                                    'onError': (event) => {
+                                        console.error("YouTube Player Error in Soundtrack:", event.data);
+                                        if (stPlayerNode === ytPlayer) nextStSong(); // Try to skip on error
                                     }
                                 }
                             });
+                            stPlayerNode = ytPlayer;
                             
                             // 3. Robust "end time" handler for YouTube
                             if (song.endTime && song.endTime > (song.startTime || 0)) {
                                 const duration = song.endTime - (song.startTime || 0);
-                                if (stPlayerNode.endTimeout) clearTimeout(stPlayerNode.endTimeout);
                                 stPlayerNode.endTimeout = setTimeout(() => {
-                                    if (stPlayerNode && isStPlaying) {
+                                    if (stPlayerNode === ytPlayer && isStPlaying) {
                                         console.log("YouTube track end time reached (timer). Moving to next.");
                                         nextStSong();
                                     }
@@ -17490,6 +17492,9 @@
                                     soundtrack.icon = iconClass;
                                     saveToLocalStorage();
                                     if (typeof renderSoundtrackMenu === 'function') renderSoundtrackMenu();
+                                    if (typeof renderSoundtrackIcons === 'function') renderSoundtrackIcons();
+                                    if (document.getElementById('editStIcon')) document.getElementById('editStIcon').value = iconClass;
+                                    if (typeof renderManifestList === 'function') renderManifestList();
                                 }
                                 closeIconPicker();
                             };
