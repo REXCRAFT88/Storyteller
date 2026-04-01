@@ -311,15 +311,100 @@
         /* Base styles */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-primary);
-            background-image: url(BrickwallTexture_torch3.png);
-            background-size: 1500px;
-            /* Adjust this value to make the texture smaller or larger */
+            background-color: #0d0b09; /* Darker base color */
             color: var(--text-primary);
+        }
+
+        .background-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(brick_wall.png);
+            background-size: 1000px;
+            background-attachment: fixed;
+            z-index: -20;
+            transition: filter 0.4s ease;
+        }
+
+        /* Blur background and torches when modal is open */
+        body.modal-open .background-layer,
+        body.modal-open .torch-container {
+            filter: blur(12px) brightness(0.8);
+        }
+
+        /* Torch Lighting Animations */
+        @keyframes flicker {
+            0%, 100% { opacity: 0.85; transform: scale(1); filter: blur(5px) }
+            20% { opacity: 1; transform: scale(1.02); filter: blur(6px) }
+            40% { opacity: 0.9; transform: scale(0.98); filter: blur(4px) }
+            60% { opacity: 1.1; transform: scale(1.04); filter: blur(7px) }
+            80% { opacity: 0.95; transform: scale(1.01); filter: blur(5px) }
+        }
+
+        @keyframes torchSway {
+            0%, 100% { transform: rotate(-1deg); }
+            50% { transform: rotate(1deg); }
+        }
+        /* Movement removed as per request */
+
+        .torch-container {
+            position: fixed;
+            top: 15vh;
+            width: 150px;
+            height: 300px;
+            pointer-events: none;
+            z-index: -10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: filter 0.4s ease;
+        }
+
+        .torch-left {
+            left: calc(50% - 780px);
+        }
+
+        .torch-right {
+            right: calc(50% - 780px);
+        }
+
+        /* Hide torches on small screens so they don't overlap content */
+        @media (max-width: 1560px) {
+            .torch-container { display: none; }
+        }
+
+        .torch-glow {
+            position: absolute;
+            top: 20px;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(255, 136, 0, 0.4) 0%, rgba(255, 68, 0, 0.2) 40%, transparent 70%);
+            border-radius: 50%;
+            animation: flicker 3s infinite alternate;
+            z-index: -1;
+        }
+
+        .torch-img {
+            width: 120px;
+            /* animation removed */
+        }
+
+        .torch-left .torch-img {
+            transform: scaleX(-1); /* Mirror the left torch */
+            /* animation removed */
+        }
+
+        @keyframes mirrorSway {
+            0%, 100% { transform: scaleX(-1) rotate(-1deg); }
+            50% { transform: scaleX(-1) rotate(1deg); }
         }
 
         /* Main container */
         .main-container {
+            position: relative;
+            z-index: 10;
             background-color: rgba(58, 53, 48, 0.8);
             /* 80% opaque version of --bg-secondary */
             border: 10px solid;
@@ -1771,7 +1856,7 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(3px);
-            z-index: 1000;
+            z-index: 1500;
             display: none;
         }
 
@@ -1794,7 +1879,7 @@
             border-image-source: var(--border-gold-gradient);
             box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
             border-radius: 8px;
-            z-index: 1010;
+            z-index: 1510;
         }
 
         .modal-header {
@@ -2872,7 +2957,7 @@
             background-color: var(--bg-secondary);
             border-top: 2px solid var(--accent-gold-dark);
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
-            z-index: 1040;
+            z-index: 900;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -2969,7 +3054,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
-            z-index: 1030;
+            z-index: 910;
             padding-right: 0.5rem;
         }
 
@@ -3069,6 +3154,7 @@
 </head>
 
 <body class="p-4 md:p-8">
+    <div class="background-layer"></div>
 
 
 
@@ -3078,6 +3164,16 @@
     <div class="text-center">
         <h1 class="text-4xl md:text-5xl font-bold mb-6 mt-8">Storyteller</h1>
     </div>
+    <!-- Background Torches -->
+    <div class="torch-container torch-left">
+        <div class="torch-glow"></div>
+        <img src="torch.apng" class="torch-img" alt="Torch">
+    </div>
+    <div class="torch-container torch-right">
+        <div class="torch-glow"></div>
+        <img src="torch.apng" class="torch-img" alt="Torch">
+    </div>
+
     <div class="main-container relative max-w-7xl mx-auto p-6 md:p-8 rounded-lg shadow-md">
         <div id="soundtrackIconsContainer" class="soundtrack-icons-container"></div>
         <div class="space-y-4">
@@ -3105,7 +3201,7 @@
                                         class="fas fa-save fa-fw"></i> <span>Save File</span> </button>
                                 <label class="cursor-pointer" title="Load from a file (Ctrl+O)"> <i
                                         class="fas fa-folder-open fa-fw"></i> <span>Load File</span> <input type="file"
-                                        id="loadFileInput" accept=".json" class="hidden-input"> </label>
+                                        id="loadFileInput" accept=".story" class="hidden-input"> </label>
                                 <hr class="border-t border-stone-600 my-1 mx-2">
                                 <button id="relinkFromDropdownButton" class="hidden" title="Relink missing audio files">
                                     <i class="fas fa-link fa-fw"></i> <span>Relink Missing Files</span> </button>
@@ -4940,11 +5036,11 @@
                                             checked><span class="slider"></span></div>
                                 </label>
                                 <label class="flex items-center justify-between cursor-pointer">
-                                    <label class="flex items-center justify-between cursor-pointer">
-                                        <span class="text-sm">Soundtracks</span>
-                                        <div class="rpg-toggle-switch"><input type="checkbox" id="saveSwitchSoundtracks"
-                                                checked><span class="slider"></span></div>
-                                    </label>
+                                    <span class="text-sm">Soundtracks</span>
+                                    <div class="rpg-toggle-switch"><input type="checkbox" id="saveSwitchSoundtracks"
+                                            checked><span class="slider"></span></div>
+                                </label>
+                                <label class="flex items-center justify-between cursor-pointer">
                                     <span class="text-sm">Settings</span>
                                     <div class="rpg-toggle-switch"><input type="checkbox" id="saveSwitchSettings"
                                             checked><span class="slider"></span></div>
@@ -5136,6 +5232,13 @@
 
                     // Modal Overlay
                     const modalOverlay = document.getElementById('modalOverlay');
+
+                    // --- Observer for Background Blurring when Modals are open ---
+                    const modalObserver = new MutationObserver(() => {
+                        const isVisible = (modalOverlay.style.display !== 'none' && modalOverlay.style.display !== '') || !modalOverlay.classList.contains('hidden');
+                        document.body.classList.toggle('modal-open', isVisible);
+                    });
+                    modalObserver.observe(modalOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
 
                     // Settings Modal
                     const settingsModal = document.getElementById('settingsModal');
@@ -8570,6 +8673,11 @@
                                 keepSearching = false; // No more matches found, exit the loop.
                             }
                         }
+                        
+                        // 10. Soundtrack Keywords Check
+                        if (typeof evaluateSoundtrackTriggers === 'function') {
+                            evaluateSoundtrackTriggers(text, 'keyword');
+                        }
                     }
 
 
@@ -9422,7 +9530,7 @@
                             const starIcon = collection.isStarred ? 'fas fa-star' : 'far fa-star';
 
                             const isCollectionInChapter = !activeChapter.isIndex && collection.pageIds.every(pid => activeChapterPageIds.has(pid));
-                            const removeCollectionButtonHtml = isCollectionInChapter ? `<button class="btn-rpg-sm btn-rpg-sm-icon" data-action="remove-collection-from-chapter" title="Remove Collection from Chapter"><i class="fas fa-book-open fa-fw"></i></button>` : '';
+                            const removeCollectionButtonHtml = isCollectionInChapter ? `<button class="btn-collection-action" data-action="remove-collection-from-chapter" title="Remove Collection from Chapter"><i class="fas fa-book-open fa-fw"></i></button>` : '';
 
                             let tagsHtml = '';
                             if (Array.isArray(collection.tagIds) && collection.tagIds.length > 0) {
@@ -9836,7 +9944,7 @@
                                 switch (eff.type) {
 
                                     case 'play_soundtrack': reversedType = 'stop_soundtrack'; break;
-                                    case 'stop_soundtrack': return null;
+                                    case 'stop_soundtrack': reversedType = 'play_soundtrack'; break;
                                     case 'start_pages': reversedType = 'end_pages'; break;
                                     case 'end_pages': reversedType = 'start_pages'; break;
                                     case 'increase_volume': reversedType = 'decrease_volume'; break;
@@ -10018,6 +10126,16 @@
                                     if (effect.params.pageId && effect.params.toVariationId) {
                                         transitionVariation(effect.params.pageId, effect.params.fromVariationId, effect.params.toVariationId);
                                     }
+                                    break;
+                                    
+                                case 'play_soundtrack':
+                                    if (effect.params.soundtrackId) {
+                                        toggleSoundtrack(effect.params.soundtrackId);
+                                    }
+                                    break;
+                                    
+                                case 'stop_soundtrack':
+                                    stopSoundtrack();
                                     break;
 
                             }
@@ -10304,7 +10422,7 @@
 
                     // --- Save Book To File ---
                     function saveFileFromModal() {
-                        const fileName = saveFileNameInput.value.trim() || 'storyteller-book.json';
+                        const fileName = saveFileNameInput.value.trim() || 'storyteller-book.story';
                         const includeChapters = saveSwitchChapters.checked;
                         const includeCollections = saveSwitchCollections.checked;
                         const includePages = saveSwitchPages.checked;
@@ -10377,7 +10495,7 @@
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
+                            a.download = fileName.endsWith('.story') ? fileName : `${fileName}.story`;
                             document.body.appendChild(a);
                             a.click();
                             document.body.removeChild(a);
@@ -10720,11 +10838,20 @@
                                     book.soundtracks = [];
                                 }
                                 (loadedData.soundtracks || []).forEach(loadedSt => {
-                                    const existingIndex = book.soundtracks.findIndex(s => s.id === loadedSt.id);
+                                    // Ensure structure is correct
+                                    const sanitizedSt = {
+                                        ...loadedSt,
+                                        chapters: loadedSt.chapters || (loadedSt.chapter && loadedSt.chapter !== 'none' ? [loadedSt.chapter] : []),
+                                        songs: (loadedSt.songs || []).map(song => ({
+                                            ...song,
+                                            needsFile: song.type === 'file'
+                                        }))
+                                    };
+                                    const existingIndex = book.soundtracks.findIndex(s => s.id === sanitizedSt.id || s.name.toLowerCase() === sanitizedSt.name.toLowerCase());
                                     if (existingIndex > -1 && importChoices.soundtracks === 'merge') {
-                                        book.soundtracks[existingIndex] = loadedSt;
-                                    } else if (existingIndex === -1) {
-                                        book.soundtracks.push(loadedSt);
+                                        book.soundtracks[existingIndex] = sanitizedSt;
+                                    } else {
+                                        book.soundtracks.push(sanitizedSt);
                                     }
                                 });
                             }
@@ -11076,6 +11203,7 @@
                             });
                         }
                         book.activeChapterId = newChapterId; saveToLocalStorage();
+                        if (typeof evaluateSoundtrackTriggers === 'function') evaluateSoundtrackTriggers(newChapterId, 'chapter');
                         // reEvaluateActiveSounds(); // This is now handled by the logic below, making it redundant.
                         console.log(`LOG (setActiveChapter): Active chapter set to: ${newChapterId} ("${newActiveChapter.name}"), Triggered by voice/plotter/tab: ${triggeredByVoiceOrPlotterOrTab}, Context: ${transitionContext}`);
                         renderChapterTabs(); renderPageList(); // Update UI for new chapter
@@ -13056,7 +13184,7 @@
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = 'storyteller-collections.json';
+                            a.download = 'storyteller-collections.story';
                             document.body.appendChild(a);
                             a.click();
                             document.body.removeChild(a);
@@ -13512,6 +13640,7 @@
                         book.currentTimeOfDay = currentTimeOfDay;
                         console.log(`Time of day changed from ${oldTime} to ${currentTimeOfDay}.`);
                         showTemporaryMessage(`Time changed to ${currentTimeOfDay}.`, 'info');
+                        if (typeof evaluateSoundtrackTriggers === 'function') evaluateSoundtrackTriggers(currentTimeOfDay, 'time');
 
                         // Re-evaluate all active sounds based on the new time of day context
                         reEvaluateActiveSounds();
@@ -14313,7 +14442,26 @@
                                     nextPlotThreadId: book.storyPlot.nextPlotThreadId ?? 0,
                                     viewTransform: book.storyPlot.viewTransform ? { ...book.storyPlot.viewTransform } : { x: 0, y: 0, scale: 1.0 }
                                 } : getDefaultBook().storyPlot,
-                                soundtracks: Array.isArray(book.soundtracks) ? book.soundtracks : [],
+                                soundtracks: Array.isArray(book.soundtracks) ? book.soundtracks.map(st => ({
+                                    id: st.id,
+                                    name: st.name,
+                                    icon: st.icon || 'fas fa-music',
+                                    keywords: st.keywords || [],
+                                    timeOfDay: st.timeOfDay || 'none',
+                                    chapters: st.chapters || [],
+                                    shuffle: st.shuffle || false,
+                                    volume: st.volume ?? 100,
+                                    songs: (st.songs || []).map(song => ({
+                                        name: song.name,
+                                        type: song.type,
+                                        url: song.url || null,
+                                        videoId: song.videoId || null,
+                                        volume: song.volume ?? 100,
+                                        startTime: song.startTime ?? 0,
+                                        endTime: song.endTime ?? null,
+                                        needsFile: song.type === 'file'
+                                    }))
+                                })) : [],
                                 // Ensure name is saved for appendix entries
                                 appendix: Array.isArray(book.appendix) ? book.appendix.map(entry => ({ ...entry, name: entry.name || null })) : []
                             };
@@ -14529,14 +14677,27 @@
                             // Load Appendix
                             if (Array.isArray(loadedData.appendix)) {
                                 book.appendix = loadedData.appendix.map(entry => ({ ...entry, name: entry.name || null }));
-                            } else {
-                                // Migrate old chapter_has_tag conditions to new tag_is format
                                 book.appendix.forEach(entry => {
                                     if (entry.trigger?.type === 'chapter_has_tag' && entry.trigger.tagId) {
                                         entry.trigger.conditions = [{ type: 'tag_is', params: { tagId: entry.trigger.tagId } }];
                                     }
                                 });
+                            } else {
                                 book.appendix = [];
+                            }
+
+                            // Load Soundtracks
+                            if (Array.isArray(loadedData.soundtracks)) {
+                                book.soundtracks = loadedData.soundtracks.map(st => ({
+                                    ...st,
+                                    chapters: st.chapters || (st.chapter && st.chapter !== 'none' ? [st.chapter] : []),
+                                    songs: (st.songs || []).map(song => ({
+                                        ...song,
+                                        needsFile: song.type === 'file'
+                                    }))
+                                }));
+                            } else {
+                                book.soundtracks = [];
                             }
 
                             console.log("Book data successfully parsed and applied from local storage.");
@@ -16095,6 +16256,41 @@
                         }
                         return finalVol;
                     }
+
+                    function evaluateSoundtrackTriggers(input, triggerType) {
+                        if (typeof book === 'undefined' || !book || !book.soundtracks) return;
+                        
+                        book.soundtracks.forEach(st => {
+                            let shouldTrigger = false;
+                            
+                            if (triggerType === 'keyword' && st.keywords && st.keywords.length > 0) {
+                                const foundKeyword = st.keywords.find(kw => new RegExp(`\\b${kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(input));
+                                if (foundKeyword) {
+                                    console.log(`Soundtrack Keyword Triggered: "${foundKeyword}" for playlist "${st.name}"`);
+                                    shouldTrigger = true;
+                                }
+                            }
+                            
+                            if (triggerType === 'chapter') {
+                                const selectedChapters = st.chapters || (st.chapter && st.chapter !== 'none' ? [st.chapter] : []);
+                                if (selectedChapters.includes(String(input))) {
+                                    console.log(`Soundtrack Chapter Triggered: Chapter ID "${input}" for playlist "${st.name}"`);
+                                    shouldTrigger = true;
+                                }
+                            }
+                            
+                            if (triggerType === 'time' && st.timeOfDay && st.timeOfDay !== 'none') {
+                                if (st.timeOfDay === input) {
+                                    console.log(`Soundtrack Time Triggered: "${input}" for playlist "${st.name}"`);
+                                    shouldTrigger = true;
+                                }
+                            }
+                            
+                            if (shouldTrigger && activeSoundtrackId !== st.id) {
+                                toggleSoundtrack(st.id);
+                            }
+                        });
+                    }
                     function playStSong(st, songIndex, overrideSong = null) {
                         if (typeof audioContext !== 'undefined' && audioContext && audioContext.state === 'suspended') audioContext.resume();
                         if (!st || !st.songs || st.songs.length === 0) return;
@@ -16399,7 +16595,14 @@
                         book.chapters.forEach(ch => {
                             chSelect.innerHTML += `<option value="${ch.id}">${ch.name}</option>`;
                         });
-                        chSelect.value = st.chapter || 'none';
+                        
+                        // Set multi-select values
+                        const selectedChapters = st.chapters || (st.chapter && st.chapter !== 'none' ? [st.chapter] : []);
+                        Array.from(chSelect.options).forEach(opt => {
+                            opt.selected = selectedChapters.includes(opt.value);
+                        });
+                        
+                        document.getElementById('editStVolume').value = st.volume !== undefined ? st.volume : 100;
                         document.getElementById('editStShuffle').checked = st.shuffle === true;
 
                         renderStSongs(st);
@@ -16437,8 +16640,8 @@
 
                         const radioBtn = document.querySelector(`input[name="stSongType"][value="${song.type}"]`);
                         if (radioBtn) radioBtn.checked = true;
-                        document.getElementById('stSongStartTime').value = song.startTime || 0;
-                        document.getElementById('stSongEndTime').value = song.endTime || '';
+                        document.getElementById('stSongStartTime').value = formatTimeHms(song.startTime || 0);
+                        document.getElementById('stSongEndTime').value = song.endTime !== null && song.endTime !== undefined ? formatTimeHms(song.endTime) : '';
 
                         document.getElementById('stSongYoutubeUrl').value = song.type === 'youtube' ? song.url : '';
 
@@ -16761,7 +16964,8 @@
                                     st.icon = document.getElementById('editStIcon').value.trim() || 'fas fa-music';
                                     st.keywords = document.getElementById('editStKeywords').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
                                     st.timeOfDay = document.getElementById('editStTimeOfDay').value;
-                                    st.chapter = document.getElementById('editStChapter').value;
+                                    st.chapters = Array.from(document.getElementById('editStChapter').selectedOptions).map(o => o.value).filter(v => v !== 'none');
+                                    // st.chapter = st.chapters[0] || 'none'; // Keep legacy for compatibility
                                     st.volume = parseInt(document.getElementById('editStVolume').value, 10) || 100;
                                     st.shuffle = document.getElementById('editStShuffle').checked;
                                     if (typeof showTemporaryMessage === 'function') showTemporaryMessage('Saved playlist settings.', 'success');
@@ -16855,7 +17059,9 @@
                         const statusDiv = document.getElementById('spotifyImportStatus');
                         const token = localStorage.getItem('spotify_access_token');
                         if (!token) {
-                            statusDiv.innerText = "Error: Please log in to Spotify via Settings first.";
+                            const msg = "Error: Please log in to Spotify via Settings first.";
+                            statusDiv.innerText = msg;
+                            if (typeof showTemporaryMessage === 'function') showTemporaryMessage(msg, 'error');
                             return;
                         }
                         const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
@@ -16953,8 +17159,8 @@
                             name: document.getElementById('stSongName').value.trim() || 'New Song',
                             type: type,
                             volume: parseInt(document.getElementById('stSongVolume').value) || 100,
-                            startTime: parseFloat(document.getElementById('stSongStartTime').value) || 0,
-                            endTime: parseFloat(document.getElementById('stSongEndTime').value) || null
+                            startTime: parseTimeHms(document.getElementById('stSongStartTime').value),
+                            endTime: document.getElementById('stSongEndTime').value.trim() !== '' ? parseTimeHms(document.getElementById('stSongEndTime').value) : null
                         };
 
                         if (type === 'youtube') {
@@ -16988,6 +17194,11 @@
                         document.getElementById('spotifyImportModal').style.display = 'flex';
                     };
 
+                    const __cancelSpotifyImportBtn = document.getElementById('cancelSpotifyImportBtn');
+                    if (__cancelSpotifyImportBtn) __cancelSpotifyImportBtn.onclick = () => {
+                        document.getElementById('spotifyImportModal').style.display = 'none';
+                    };
+
 
 
                     const __openIconPickerBtn = document.getElementById('openIconPickerBtn');
@@ -17001,31 +17212,190 @@
                         document.getElementById('iconPickerModal').style.display = 'none';
                     };
 
-
-                    function renderIconPicker() {
+                    function renderIconPicker(searchQuery = '') {
                         const grid = document.getElementById('iconPickerGrid');
                         if (!grid) return;
-                        const icons = [
+                        
+                        const defaultIcons = [
                             'fas fa-music', 'fas fa-drum', 'fas fa-guitar', 'fas fa-play', 'fas fa-headphones',
                             'fas fa-volume-up', 'fas fa-wind', 'fas fa-fire', 'fas fa-tint', 'fas fa-bolt',
                             'fas fa-leaf', 'fas fa-skull', 'fas fa-dragon', 'fas fa-ghost', 'fas fa-khanda',
                             'fas fa-shield-alt', 'fas fa-meteor', 'fas fa-magic', 'fas fa-moon', 'fas fa-sun',
-                            'fas fa-campground', 'fas fa-dungeon', 'fas fa-horse', 'fas fa-spider'
+                            'fas fa-campground', 'fas fa-dungeon', 'fas fa-horse', 'fas fa-spider',
+                            'fas fa-swords', 'fas fa-axe', 'fas fa-mace', 'fas fa-bow-arrow', 'fas fa-shield',
+                            'fas fa-book', 'fas fa-book-dead', 'fas fa-scroll', 'fas fa-vial', 'fas fa-vials',
+                            'fas fa-flask', 'fas fa-user-ninja', 'fas fa-user-secret', 'fas fa-user-tie',
+                            'fas fa-user-astronaut', 'fas fa-mountain', 'fas fa-cloud', 'fas fa-snowflake',
+                            'fas fa-anchor', 'fas fa-ship', 'fas fa-compass', 'fas fa-map', 'fas fa-map-marked-alt',
+                            'fas fa-hammer', 'fas fa-tools', 'fas fa-wrench', 'fas fa-cog', 'fas fa-cogs',
+                            'fas fa-atom', 'fas fa-biohazard', 'fas fa-radiation', 'fas fa-tree', 'fas fa-feather',
+                            'fas fa-crow', 'fas fa-dove', 'fas fa-frog', 'fas fa-hippo', 'fas fa-otter',
+                            'fas fa-cat', 'fas fa-dog', 'fas fa-paw', 'fas fa-heart', 'fas fa-star',
+                            'fas fa-gem', 'fas fa-coins', 'fas fa-money-bill-wave', 'fas fa-crown',
+                            'fas fa-key', 'fas fa-lock', 'fas fa-lock-open', 'fas fa-eye', 'fas fa-eye-slash',
+                            'fas fa-bug', 'fas fa-virus', 'fas fa-microscope', 'fas fa-telescope', 'fas fa-rocket',
+                            'fas fa-chess-knight', 'fas fa-chess-rook', 'fas fa-chess-king', 'fas fa-chess-queen',
+                            'fas fa-dice', 'fas fa-dice-d20', 'fas fa-trophy', 'fas fa-medal', 'fas fa-first-aid',
+                            'fas fa-hospital', 'fas fa-plus-circle', 'fas fa-minus-circle', 'fas fa-info-circle',
+                            'fas fa-question-circle', 'fas fa-exclamation-circle'
                         ];
+
+                        const allIcons = [
+                            ...new Set([
+                                ...defaultIcons,
+                                // Solid
+                                'fas fa-shuttle-space', 'fas fa-viking', 'fas fa-wand-sparkles', 'fas fa-hat-wizard', 'fas fa-biohazard', 
+                                'fas fa-radiation', 'fas fa-ankh', 'fas fa-camera', 'fas fa-camera-retro', 'fas fa-video', 
+                                'fas fa-film', 'fas fa-clapperboard', 'fas fa-ticket', 'fas fa-gift', 'fas fa-cake-candles', 
+                                'fas fa-glass-water', 'fas fa-beer-mug-empty', 'fas fa-wine-glass', 'fas fa-cocktail', 'fas fa-utensils',
+                                'fas fa-burger', 'fas fa-pizza-slice', 'fas fa-ice-cream', 'fas fa-cookie', 'fas fa-coffee',
+                                'fas fa-mug-hot', 'fas fa-apple-whole', 'fas fa-carrot', 'fas fa-lemon', 'fas fa-pepper-hot',
+                                'fas fa-fish', 'fas fa-shrimp', 'fas fa-egg', 'fas fa-bone', 'fas fa-briefcase',
+                                'fas fa-folder', 'fas fa-folder-open', 'fas fa-file', 'fas fa-file-lines', 'fas fa-clipboard',
+                                'fas fa-pen-nib', 'fas fa-marker', 'fas fa-eraser', 'fas fa-brush', 'fas fa-paint-roller',
+                                'fas fa-paint-brush', 'fas fa-palette', 'fas fa-compass-drafting', 'fas fa-cross', 'fas fa-church',
+                                'fas fa-mosque', 'fas fa-synagogue', 'fas fa-vihara', 'fas fa-torii-gate', 'fas fa-dharmachakra',
+                                'fas fa-om', 'fas fa-star-and-crescent', 'fas fa-yin-yang', 'fas fa-hamsa', 'fas fa-peace',
+                                'fas fa-hand-holding-heart', 'fas fa-hands-holding-child', 'fas fa-baby', 'fas fa-child', 'fas fa-user-group',
+                                'fas fa-users-viewfinder', 'fas fa-address-book', 'fas fa-address-card', 'fas fa-id-card', 'fas fa-landmark',
+                                'fas fa-fort-awesome', 'fas fa-monument', 'fas fa-archway', 'fas fa-building', 'fas fa-city',
+                                'fas fa-hotel', 'fas fa-house', 'fas fa-igloo', 'fas fa-tent', 'fas fa-warehouse',
+                                'fas fa-car', 'fas fa-bus', 'fas fa-train', 'fas fa-plane', 'fas fa-helicopter',
+                                'fas fa-motorcycle', 'fas fa-bicycle', 'fas fa-truck', 'fas fa-tractor', 'fas fa-rocket',
+                                'fas fa-space-shuttle', 'fas fa-earth-americas', 'fas fa-earth-europe', 'fas fa-earth-asia', 'fas fa-earth-africa',
+                                'fas fa-earth-oceania', 'fas fa-globe', 'fas fa-satellite', 'fas fa-satellite-dish', 'fas fa-robot',
+                                'fas fa-microchip', 'fas fa-vr-cardboard', 'fas fa-gamepad', 'fas fa-keyboard', 'fas fa-mouse',
+                                'fas fa-desktop', 'fas fa-laptop', 'fas fa-mobile-screen-button', 'fas fa-tablet-screen-button', 'fas fa-tv',
+                                'fas fa-wifi', 'fas fa-power-off', 'fas fa-battery-full', 'fas fa-plug', 'fas fa-charging-station',
+                                'fas fa-lightbulb', 'fas fa-fan', 'fas fa-bath', 'fas fa-shower', 'fas fa-bed',
+                                'fas fa-chair', 'fas fa-couch', 'fas fa-toilet', 'fas fa-sink', 'fas fa-soap',
+                                'fas fa-broom', 'fas fa-bucket', 'fas fa-glasses', 'fas fa-shirt', 'fas fa-socks',
+                                'fas fa-mitten', 'fas fa-hat-cowboy', 'fas fa-graduation-cap', 'fas fa-scissors', 'fas fa-screwdriver',
+                                'fas fa-toolbox', 'fas fa-gear', 'fas fa-wrench', 'fas fa-hammer', 'fas fa-trowel',
+                                'fas fa-magnet', 'fas fa-link', 'fas fa-paperclip', 'fas fa-thumbtack', 'fas fa-anchor',
+                                'fas fa-truck-monster', 'fas fa-trash-can', 'fas fa-recycle', 'fas fa-leaf', 'fas fa-seedling',
+                                'fas fa-bug', 'fas fa-sprout', 'fas fa-bacteria', 'fas fa-microscope', 'fas fa-dna',
+                                'fas fa-brain', 'fas fa-heart-pulse', 'fas fa-pills', 'fas fa-syringe', 'fas fa-bandage',
+                                'fas fa-briefcase-medical', 'fas fa-stethoscope', 'fas fa-wheelchair', 'fas fa-lungs', 'fas fa-kidneys',
+                                'fas fa-ribbon', 'fas fa-trophy', 'fas fa-medal', 'fas fa-award', 'fas fa-football',
+                                'fas fa-basketball', 'fas fa-volleyball', 'fas fa-baseball', 'fas fa-golf-ball-tee', 'fas fa-bowling-ball',
+                                'fas fa-table-tennis-paddle-ball', 'fas fa-dumbbell', 'fas fa-person-running', 'fas fa-person-swimming', 'fas fa-person-hiking',
+                                'fas fa-bicycle', 'fas fa-snowboarding', 'fas fa-skating', 'fas fa-skiing', 'fas fa-mountain-sun',
+                                'fas fa-tent', 'fas fa-campground', 'fas fa-binoculars', 'fas fa-map-location-dot', 'fas fa-magnifying-glass-location',
+                                'fas fa-location-arrow', 'fas fa-compass', 'fas fa-flag', 'fas fa-bullhorn', 'fas fa-bell',
+                                'fas fa-bell-slash', 'fas fa-comment', 'fas fa-comments', 'fas fa-quote-left', 'fas fa-quote-right',
+                                'fas fa-share-nodes', 'fas fa-share', 'fas fa-reply', 'fas fa-forward', 'fas fa-backward',
+                                'fas fa-play', 'fas fa-pause', 'fas fa-stop', 'fas fa-volume-high', 'fas fa-volume-low',
+                                'fas fa-volume-off', 'fas fa-volume-xmark', 'fas fa-music', 'fas fa-microphone', 'fas fa-camera',
+                                'fas fa-calculator', 'fas fa-coins', 'fas fa-money-bill', 'fas fa-credit-card', 'fas fa-wallet',
+                                'fas fa-shop', 'fas fa-cart-shopping', 'fas fa-barcode', 'fas fa-qrcode', 'fas fa-tags',
+                                'fas fa-ticket', 'fas fa-key', 'fas fa-lock', 'fas fa-unlock', 'fas fa-shield',
+                                'fas fa-eye', 'fas fa-eye-slash', 'fas fa-house', 'fas fa-user', 'fas fa-user-plus',
+                                'fas fa-user-minus', 'fas fa-user-check', 'fas fa-user-xmark', 'fas fa-users', 'fas fa-user-group',
+                                'fas fa-magnifying-glass', 'fas fa-magnifying-glass-plus', 'fas fa-magnifying-glass-minus', 'fas fa-gear', 'fas fa-gears',
+                                'fas fa-wrench', 'fas fa-screwdriver-wrench', 'fas fa-hammer', 'fas fa-trowel', 'fas fa-paint-roller',
+                                'fas fa-brush', 'fas fa-pen', 'fas fa-pen-nib', 'fas fa-pencil', 'fas fa-highlighter',
+                                'fas fa-eraser', 'fas fa-trash', 'fas fa-trash-can', 'fas fa-folder', 'fas fa-file',
+                                'fas fa-floppy-disk', 'fas fa-print', 'fas fa-envelope', 'fas fa-inbox', 'fas fa-paper-plane',
+                                'fas fa-paperclip', 'fas fa-link', 'fas fa-at', 'fas fa-hashtag', 'fas fa-check',
+                                'fas fa-xmark', 'fas fa-plus', 'fas fa-minus', 'fas fa-equals', 'fas fa-divide',
+                                'fas fa-percent', 'fas fa-arrow-up', 'fas fa-arrow-down', 'fas fa-arrow-left', 'fas fa-arrow-right',
+                                'fas fa-arrows-up-down', 'fas fa-arrows-left-right', 'fas fa-chevron-up', 'fas fa-chevron-down', 'fas fa-chevron-left',
+                                'fas fa-chevron-right', 'fas fa-angle-up', 'fas fa-angle-down', 'fas fa-angle-left', 'fas fa-angle-right',
+                                'fas fa-caret-up', 'fas fa-caret-down', 'fas fa-caret-left', 'fas fa-caret-right', 'fas fa-circle-play',
+                                // Regular
+                                'far fa-bell', 'far fa-bookmark', 'far fa-calendar', 'far fa-chart-bar', 'far fa-clock', 
+                                'far fa-comment', 'far fa-envelope', 'far fa-eye', 'far fa-file', 'far fa-file-alt', 
+                                'far fa-folder', 'far fa-heart', 'far fa-image', 'far fa-lightbulb', 'far fa-map', 
+                                'far fa-moon', 'far fa-newspaper', 'far fa-paper-plane', 'far fa-question-circle', 'far fa-smile', 
+                                'far fa-star', 'far fa-sun', 'far fa-user', 'far fa-user-circle',
+                                // Brands
+                                'fab fa-spotify', 'fab fa-youtube', 'fab fa-twitch', 'fab fa-discord', 'fab fa-github', 
+                                'fab fa-facebook', 'fab fa-twitter', 'fab fa-instagram', 'fab fa-linkedin', 'fab fa-google', 
+                                'fab fa-amazon', 'fab fa-apple', 'fab fa-windows', 'fab fa-android', 'fab fa-linux', 
+                                'fab fa-steam', 'fab fa-xbox', 'fab fa-playstation', 'fab fa-reddit', 'fab fa-stack-overflow'
+                            ])
+                        ];
+
+                        const iconsToUse = searchQuery.trim() === '' ? defaultIcons : allIcons;
+
+                        const filteredIcons = iconsToUse.filter(icon => {
+                            const name = icon.replace(/fa(s|r|b) fa-/, '').toLowerCase();
+                            return name.includes(searchQuery.toLowerCase());
+                        });
+
                         grid.innerHTML = '';
-                        icons.forEach(ic => {
+                        filteredIcons.forEach(iconClass => {
                             const btn = document.createElement('button');
-                            btn.className = 'w-10 h-10 flex items-center justify-center bg-stone-800 border border-stone-600 rounded hover:border-accent-gold-light hover:text-accent-gold-light transition-colors';
-                            btn.innerHTML = '<i class="' + ic + '"></i>';
+                            btn.className = 'w-10 h-10 flex items-center justify-center text-xl text-stone-400 hover:text-[var(--accent-gold-light)] hover:bg-white/10 rounded transition-all';
+                            btn.innerHTML = `<i class="${iconClass}"></i>`;
+                            btn.title = iconClass.replace('fas fa-', '');
                             btn.onclick = () => {
-                                document.getElementById('editStIcon').value = ic;
-                                document.getElementById('iconPickerModal').style.display = 'none';
+                                const stId = document.getElementById('iconPickerModal').dataset.stId;
+                                const soundtrack = book.soundtracks.find(st => st.id === stId);
+                                if (soundtrack) {
+                                    soundtrack.icon = iconClass;
+                                    saveToLocalStorage();
+                                    if (typeof renderSoundtrackMenu === 'function') renderSoundtrackMenu();
+                                }
+                                closeIconPicker();
                             };
                             grid.appendChild(btn);
                         });
+
+                        if (filteredIcons.length === 0) {
+                            grid.innerHTML = '<div class="col-span-6 text-center text-stone-500 py-4">No icons found</div>';
+                        }
                     }
 
-                    // =================================================== //
+                    function openIconPicker(stId) {
+                        const modal = document.getElementById('iconPickerModal');
+                        const overlay = document.getElementById('modalOverlay');
+                        const searchInput = document.getElementById('iconPickerSearch');
+                        
+                        modal.dataset.stId = stId;
+                        if (searchInput) searchInput.value = '';
+                        
+                        renderIconPicker();
+                        
+                        modal.style.display = 'flex';
+                        if (overlay) overlay.style.display = 'block';
+                        
+                        if (searchInput) {
+                            searchInput.focus();
+                            searchInput.oninput = (e) => renderIconPicker(e.target.value);
+                        }
+                    }
+
+                    function closeIconPicker() {
+                        const modal = document.getElementById('iconPickerModal');
+                        const overlay = document.getElementById('modalOverlay');
+                        modal.style.display = 'none';
+                        if (overlay) overlay.style.display = 'none';
+                    }
+
+                    const cancelIconPickerBtn = document.getElementById('cancelIconPickerBtn');
+                    if (cancelIconPickerBtn) {
+                        cancelIconPickerBtn.onclick = closeIconPicker;
+                    }
+
+                    // --- Time Utilities ---
+                    function formatTimeHms(seconds) {
+                        if (seconds === null || seconds === undefined || isNaN(seconds)) return '';
+                        const hrs = Math.floor(seconds / 3600);
+                        const mins = Math.floor((seconds % 3600) / 60);
+                        const secs = Math.floor(seconds % 60);
+                        return [hrs, mins, secs].map(v => v < 10 ? "0" + v : v).join(":");
+                    }
+
+                    function parseTimeHms(str) {
+                        if (!str || typeof str !== 'string') return 0;
+                        const parts = str.split(':').map(Number);
+                        if (parts.length === 3) return (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+                        if (parts.length === 2) return (parts[0] * 60) + parts[1];
+                        if (parts.length === 1) return parts[0];
+                        return 0;
+                    }
 
                     // --- Start the application ---
 
@@ -17106,13 +17476,12 @@
                                         <option value="night">Night</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Chapter Auto-Play (if possible check
-                                        code):</label>
-                                    <select id="editStChapter">
+                                <div> <label class="block text-sm font-medium mb-1">Trigger Chapter(s) (Hold Ctrl to select multiple):</label>
+                                    <select id="editStChapter" multiple class="h-24">
                                         <option value="none">None</option>
                                     </select>
                                 </div>
+
                                 <div>
                                     <label class="block text-sm font-medium mb-1">Playlist Master Volume:</label>
                                     <input type="number" id="editStVolume" min="0" max="100" value="100"
@@ -17144,7 +17513,7 @@
             </div>
 
             <!-- Add Song Modal -->
-            <div id="stAddSongModal" class="modal" style="max-width: 500px; z-index: 1060;">
+            <div id="stAddSongModal" class="modal" style="max-width: 500px; z-index: 1530;">
                 <div class="modal-body">
                     <h3 class="modal-title text-sm"><i class="fas fa-plus mr-2"></i>Add/Edit Song</h3>
                     <div class="modal-content space-y-3">
@@ -17169,11 +17538,11 @@
                                     max="100" placeholder="100"> </div>
                         </div>
                         <div class="flex gap-4">
-                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">Start Time
-                                    (sec):</label> <input type="number" id="stSongStartTime" min="0" placeholder="0">
+                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">Start Time (hrs:min:sec):</label> 
+                                <input type="text" id="stSongStartTime" placeholder="0:00:00">
                             </div>
-                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">End Time
-                                    (sec):</label> <input type="number" id="stSongEndTime" min="0" placeholder="End">
+                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">End Time (hrs:min:sec):</label> 
+                                <input type="text" id="stSongEndTime" placeholder="0:00:00">
                             </div>
                         </div>
                     </div>
@@ -17213,12 +17582,16 @@
 
 
             <!-- Icon Picker Modal -->
-            <div id="iconPickerModal" class="modal" style="max-width: 500px; z-index: 1080;">
+            <div id="iconPickerModal" class="modal" style="max-width: 500px; z-index: 1520;">
                 <div class="modal-body">
                     <h3 class="modal-title text-sm"><i class="fas fa-icons mr-2"></i>Choose Playlist Icon</h3>
                     <div class="modal-content">
+                        <div class="mb-3">
+                            <input type="text" id="iconPickerSearch" placeholder="Search icons (e.g. dragon, sword)..." 
+                                   class="w-full bg-black/40 border border-stone-600 rounded px-2 py-1.5 text-sm focus:border-[var(--accent-gold-light)] outline-none">
+                        </div>
                         <div class="grid grid-cols-6 gap-2 max-h-64 overflow-y-auto p-2 bg-black/20 border border-stone-700 rounded"
-                            id="iconPickerGrid">
+                             id="iconPickerGrid">
                         </div>
                     </div>
                 </div>
