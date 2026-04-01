@@ -352,7 +352,7 @@
 
         .torch-container {
             position: fixed;
-            top: 15vh;
+            top: 25vh; /* Moved down from 15vh */
             width: 300px;
             height: 600px;
             pointer-events: none;
@@ -378,13 +378,13 @@
 
         .torch-glow {
             position: absolute;
-            top: -250px;
-            width: 800px;
-            height: 800px;
-            background: radial-gradient(circle, rgba(255, 136, 0, 0.5) 0%, rgba(255, 68, 0, 0.25) 50%, transparent 80%);
+            top: -450px; /* Adjusted to center larger radius */
+            width: 1200px; /* Increased radius */
+            height: 1200px;
+            background: radial-gradient(circle, rgba(255, 136, 0, 0.2) 0%, rgba(255, 100, 0, 0.1) 40%, rgba(255, 60, 0, 0.05) 70%, transparent 100%); /* 20% opacity at most */
             border-radius: 50%;
             animation: flicker 3s infinite alternate;
-            z-index: -1;
+            z-index: 5; /* Put above the torch images within the container */
         }
 
         .torch-img {
