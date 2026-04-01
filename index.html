@@ -311,7 +311,8 @@
         /* Base styles */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #0d0b09; /* Darker base color */
+            background-color: #0d0b09;
+            /* Darker base color */
             color: var(--text-primary);
         }
 
@@ -337,22 +338,57 @@
 
         /* Torch Lighting Animations */
         @keyframes flicker {
-            0%, 100% { opacity: 0.85; transform: scale(1); filter: blur(5px) }
-            20% { opacity: 1; transform: scale(1.02); filter: blur(6px) }
-            40% { opacity: 0.9; transform: scale(0.98); filter: blur(4px) }
-            60% { opacity: 1.1; transform: scale(1.04); filter: blur(7px) }
-            80% { opacity: 0.95; transform: scale(1.01); filter: blur(5px) }
+
+            0%,
+            100% {
+                opacity: 0.85;
+                transform: scale(1);
+                filter: blur(5px)
+            }
+
+            20% {
+                opacity: 1;
+                transform: scale(1.02);
+                filter: blur(6px)
+            }
+
+            40% {
+                opacity: 0.9;
+                transform: scale(0.98);
+                filter: blur(4px)
+            }
+
+            60% {
+                opacity: 1.1;
+                transform: scale(1.04);
+                filter: blur(7px)
+            }
+
+            80% {
+                opacity: 0.95;
+                transform: scale(1.01);
+                filter: blur(5px)
+            }
         }
 
         @keyframes torchSway {
-            0%, 100% { transform: rotate(-1deg); }
-            50% { transform: rotate(1deg); }
+
+            0%,
+            100% {
+                transform: rotate(-1deg);
+            }
+
+            50% {
+                transform: rotate(1deg);
+            }
         }
+
         /* Movement removed as per request */
 
         .torch-container {
             position: fixed;
-            top: 25vh; /* Moved down from 15vh */
+            top: 25vh;
+            /* Moved down from 15vh */
             width: 300px;
             height: 600px;
             pointer-events: none;
@@ -373,18 +409,23 @@
 
         /* Hide torches on small screens so they don't overlap content */
         @media (max-width: 1560px) {
-            .torch-container { display: none; }
+            .torch-container {
+                display: none;
+            }
         }
 
         .torch-glow {
             position: absolute;
-            top: -450px; /* Adjusted to center larger radius */
-            width: 1200px; /* Increased radius */
+            top: -450px;
+            /* Adjusted to center larger radius */
+            width: 1200px;
+            /* Increased radius */
             height: 1200px;
-            background: radial-gradient(circle, rgba(255, 136, 0, 0.2) 0%, rgba(255, 100, 0, 0.1) 40%, rgba(255, 60, 0, 0.05) 70%, transparent 100%); /* 20% opacity at most */
+                        background: radial-gradient(circle, rgba(255, 136, 0, 0.2) 0%, rgba(255, 110, 0, 0.12) 40%, rgba(255, 80, 0, 0.04) 70%, rgba(255, 40, 0, 0.01) 90%, transparent 100%); /* Smoother, more gradual fade */
             border-radius: 50%;
             animation: flicker 3s infinite alternate;
-            z-index: 5; /* Put above the torch images within the container */
+            z-index: 5;
+            /* Put above the torch images within the container */
         }
 
         .torch-img {
@@ -393,13 +434,21 @@
         }
 
         .torch-left .torch-img {
-            transform: scaleX(-1); /* Mirror the left torch */
+            transform: scaleX(-1);
+            /* Mirror the left torch */
             /* animation removed */
         }
 
         @keyframes mirrorSway {
-            0%, 100% { transform: scaleX(-1) rotate(-1deg); }
-            50% { transform: scaleX(-1) rotate(1deg); }
+
+            0%,
+            100% {
+                transform: scaleX(-1) rotate(-1deg);
+            }
+
+            50% {
+                transform: scaleX(-1) rotate(1deg);
+            }
         }
 
         /* Main container */
@@ -1857,7 +1906,7 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(3px);
-            z-index: 1500;
+            z-index: 800; /* Lower than modals (previously 1500) */
             display: none;
         }
 
@@ -1880,7 +1929,7 @@
             border-image-source: var(--border-gold-gradient);
             box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
             border-radius: 8px;
-            z-index: 1510;
+            z-index: 1000; /* Base modal z-index (now above overlay at 800) */
         }
 
         .modal-header {
@@ -8674,7 +8723,7 @@
                                 keepSearching = false; // No more matches found, exit the loop.
                             }
                         }
-                        
+
                         // 10. Soundtrack Keywords Check
                         if (typeof evaluateSoundtrackTriggers === 'function') {
                             evaluateSoundtrackTriggers(text, 'keyword');
@@ -10128,13 +10177,13 @@
                                         transitionVariation(effect.params.pageId, effect.params.fromVariationId, effect.params.toVariationId);
                                     }
                                     break;
-                                    
+
                                 case 'play_soundtrack':
                                     if (effect.params.soundtrackId) {
                                         toggleSoundtrack(effect.params.soundtrackId);
                                     }
                                     break;
-                                    
+
                                 case 'stop_soundtrack':
                                     stopSoundtrack();
                                     break;
@@ -10910,6 +10959,7 @@
                             saveToLocalStorage();
                             renderChapterTabs();
                             renderPageList();
+                            renderSoundtrackIcons();
                             updateUIState();
 
                             let summary = `Import complete. Pages: +${pagesAdded}, ~${pagesOverwritten}. Chapters: +${chaptersAdded}, ~${chaptersOverwritten}. Collections: +${collectionsAdded}, ~${collectionsOverwritten}. Appendix: +${appendixAdded}, ~${appendixOverwritten}.`;
@@ -16260,10 +16310,10 @@
 
                     function evaluateSoundtrackTriggers(input, triggerType) {
                         if (typeof book === 'undefined' || !book || !book.soundtracks) return;
-                        
+
                         book.soundtracks.forEach(st => {
                             let shouldTrigger = false;
-                            
+
                             if (triggerType === 'keyword' && st.keywords && st.keywords.length > 0) {
                                 const foundKeyword = st.keywords.find(kw => new RegExp(`\\b${kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(input));
                                 if (foundKeyword) {
@@ -16271,7 +16321,7 @@
                                     shouldTrigger = true;
                                 }
                             }
-                            
+
                             if (triggerType === 'chapter') {
                                 const selectedChapters = st.chapters || (st.chapter && st.chapter !== 'none' ? [st.chapter] : []);
                                 if (selectedChapters.includes(String(input))) {
@@ -16279,14 +16329,14 @@
                                     shouldTrigger = true;
                                 }
                             }
-                            
+
                             if (triggerType === 'time' && st.timeOfDay && st.timeOfDay !== 'none') {
                                 if (st.timeOfDay === input) {
                                     console.log(`Soundtrack Time Triggered: "${input}" for playlist "${st.name}"`);
                                     shouldTrigger = true;
                                 }
                             }
-                            
+
                             if (shouldTrigger && activeSoundtrackId !== st.id) {
                                 toggleSoundtrack(st.id);
                             }
@@ -16596,13 +16646,13 @@
                         book.chapters.forEach(ch => {
                             chSelect.innerHTML += `<option value="${ch.id}">${ch.name}</option>`;
                         });
-                        
+
                         // Set multi-select values
                         const selectedChapters = st.chapters || (st.chapter && st.chapter !== 'none' ? [st.chapter] : []);
                         Array.from(chSelect.options).forEach(opt => {
                             opt.selected = selectedChapters.includes(opt.value);
                         });
-                        
+
                         document.getElementById('editStVolume').value = st.volume !== undefined ? st.volume : 100;
                         document.getElementById('editStShuffle').checked = st.shuffle === true;
 
@@ -16748,6 +16798,7 @@
                         updateChapterKeywordList();
                         renderChapterTabs();
                         renderPageList(); // This line is correct
+                        renderSoundtrackIcons();
                         updateUIState();
 
                         if (initializeSyrinscapeButton) {
@@ -17126,6 +17177,7 @@
                             book.soundtracks.push(newSt);
                             if (typeof openEditSoundtrack === 'function') openEditSoundtrack(newSt);
                             if (typeof renderManifestList === 'function') renderManifestList();
+                            if (typeof renderSoundtrackIcons === 'function') renderSoundtrackIcons(); // Refresh main UI icons
                             saveToLocalStorage();
                             setTimeout(() => { document.getElementById('spotifyImportModal').style.display = 'none'; statusDiv.innerText = ''; }, 3000);
                         } catch (err) { statusDiv.innerText = "Error: " + err.message; }
@@ -17204,8 +17256,12 @@
 
                     const __openIconPickerBtn = document.getElementById('openIconPickerBtn');
                     if (__openIconPickerBtn) __openIconPickerBtn.onclick = () => {
-                        document.getElementById('iconPickerModal').style.display = 'flex';
-                        if (typeof renderIconPicker === 'function') renderIconPicker();
+                        if (typeof openIconPicker === 'function' && typeof editStCurrentId !== 'undefined' && editStCurrentId) {
+                            openIconPicker(editStCurrentId);
+                        } else {
+                            document.getElementById('iconPickerModal').style.display = 'flex';
+                            if (typeof renderIconPicker === 'function') renderIconPicker();
+                        }
                     };
 
                     const __cancelIconPickerBtn = document.getElementById('cancelIconPickerBtn');
@@ -17216,7 +17272,7 @@
                     function renderIconPicker(searchQuery = '') {
                         const grid = document.getElementById('iconPickerGrid');
                         if (!grid) return;
-                        
+
                         const defaultIcons = [
                             'fas fa-music', 'fas fa-drum', 'fas fa-guitar', 'fas fa-play', 'fas fa-headphones',
                             'fas fa-volume-up', 'fas fa-wind', 'fas fa-fire', 'fas fa-tint', 'fas fa-bolt',
@@ -17245,9 +17301,9 @@
                             ...new Set([
                                 ...defaultIcons,
                                 // Solid
-                                'fas fa-shuttle-space', 'fas fa-viking', 'fas fa-wand-sparkles', 'fas fa-hat-wizard', 'fas fa-biohazard', 
-                                'fas fa-radiation', 'fas fa-ankh', 'fas fa-camera', 'fas fa-camera-retro', 'fas fa-video', 
-                                'fas fa-film', 'fas fa-clapperboard', 'fas fa-ticket', 'fas fa-gift', 'fas fa-cake-candles', 
+                                'fas fa-shuttle-space', 'fas fa-viking', 'fas fa-wand-sparkles', 'fas fa-hat-wizard', 'fas fa-biohazard',
+                                'fas fa-radiation', 'fas fa-ankh', 'fas fa-camera', 'fas fa-camera-retro', 'fas fa-video',
+                                'fas fa-film', 'fas fa-clapperboard', 'fas fa-ticket', 'fas fa-gift', 'fas fa-cake-candles',
                                 'fas fa-glass-water', 'fas fa-beer-mug-empty', 'fas fa-wine-glass', 'fas fa-cocktail', 'fas fa-utensils',
                                 'fas fa-burger', 'fas fa-pizza-slice', 'fas fa-ice-cream', 'fas fa-cookie', 'fas fa-coffee',
                                 'fas fa-mug-hot', 'fas fa-apple-whole', 'fas fa-carrot', 'fas fa-lemon', 'fas fa-pepper-hot',
@@ -17305,15 +17361,15 @@
                                 'fas fa-chevron-right', 'fas fa-angle-up', 'fas fa-angle-down', 'fas fa-angle-left', 'fas fa-angle-right',
                                 'fas fa-caret-up', 'fas fa-caret-down', 'fas fa-caret-left', 'fas fa-caret-right', 'fas fa-circle-play',
                                 // Regular
-                                'far fa-bell', 'far fa-bookmark', 'far fa-calendar', 'far fa-chart-bar', 'far fa-clock', 
-                                'far fa-comment', 'far fa-envelope', 'far fa-eye', 'far fa-file', 'far fa-file-alt', 
-                                'far fa-folder', 'far fa-heart', 'far fa-image', 'far fa-lightbulb', 'far fa-map', 
-                                'far fa-moon', 'far fa-newspaper', 'far fa-paper-plane', 'far fa-question-circle', 'far fa-smile', 
+                                'far fa-bell', 'far fa-bookmark', 'far fa-calendar', 'far fa-chart-bar', 'far fa-clock',
+                                'far fa-comment', 'far fa-envelope', 'far fa-eye', 'far fa-file', 'far fa-file-alt',
+                                'far fa-folder', 'far fa-heart', 'far fa-image', 'far fa-lightbulb', 'far fa-map',
+                                'far fa-moon', 'far fa-newspaper', 'far fa-paper-plane', 'far fa-question-circle', 'far fa-smile',
                                 'far fa-star', 'far fa-sun', 'far fa-user', 'far fa-user-circle',
                                 // Brands
-                                'fab fa-spotify', 'fab fa-youtube', 'fab fa-twitch', 'fab fa-discord', 'fab fa-github', 
-                                'fab fa-facebook', 'fab fa-twitter', 'fab fa-instagram', 'fab fa-linkedin', 'fab fa-google', 
-                                'fab fa-amazon', 'fab fa-apple', 'fab fa-windows', 'fab fa-android', 'fab fa-linux', 
+                                'fab fa-spotify', 'fab fa-youtube', 'fab fa-twitch', 'fab fa-discord', 'fab fa-github',
+                                'fab fa-facebook', 'fab fa-twitter', 'fab fa-instagram', 'fab fa-linkedin', 'fab fa-google',
+                                'fab fa-amazon', 'fab fa-apple', 'fab fa-windows', 'fab fa-android', 'fab fa-linux',
                                 'fab fa-steam', 'fab fa-xbox', 'fab fa-playstation', 'fab fa-reddit', 'fab fa-stack-overflow'
                             ])
                         ];
@@ -17353,15 +17409,15 @@
                         const modal = document.getElementById('iconPickerModal');
                         const overlay = document.getElementById('modalOverlay');
                         const searchInput = document.getElementById('iconPickerSearch');
-                        
+
                         modal.dataset.stId = stId;
                         if (searchInput) searchInput.value = '';
-                        
+
                         renderIconPicker();
-                        
+
                         modal.style.display = 'flex';
                         if (overlay) overlay.style.display = 'block';
-                        
+
                         if (searchInput) {
                             searchInput.focus();
                             searchInput.oninput = (e) => renderIconPicker(e.target.value);
@@ -17477,7 +17533,8 @@
                                         <option value="night">Night</option>
                                     </select>
                                 </div>
-                                <div> <label class="block text-sm font-medium mb-1">Trigger Chapter(s) (Hold Ctrl to select multiple):</label>
+                                <div> <label class="block text-sm font-medium mb-1">Trigger Chapter(s) (Hold Ctrl to
+                                        select multiple):</label>
                                     <select id="editStChapter" multiple class="h-24">
                                         <option value="none">None</option>
                                     </select>
@@ -17539,10 +17596,12 @@
                                     max="100" placeholder="100"> </div>
                         </div>
                         <div class="flex gap-4">
-                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">Start Time (hrs:min:sec):</label> 
+                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">Start Time
+                                    (hrs:min:sec):</label>
                                 <input type="text" id="stSongStartTime" placeholder="0:00:00">
                             </div>
-                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">End Time (hrs:min:sec):</label> 
+                            <div class="flex-grow"> <label class="block text-sm font-medium mb-1">End Time
+                                    (hrs:min:sec):</label>
                                 <input type="text" id="stSongEndTime" placeholder="0:00:00">
                             </div>
                         </div>
@@ -17588,11 +17647,11 @@
                     <h3 class="modal-title text-sm"><i class="fas fa-icons mr-2"></i>Choose Playlist Icon</h3>
                     <div class="modal-content">
                         <div class="mb-3">
-                            <input type="text" id="iconPickerSearch" placeholder="Search icons (e.g. dragon, sword)..." 
-                                   class="w-full bg-black/40 border border-stone-600 rounded px-2 py-1.5 text-sm focus:border-[var(--accent-gold-light)] outline-none">
+                            <input type="text" id="iconPickerSearch" placeholder="Search icons (e.g. dragon, sword)..."
+                                class="w-full bg-black/40 border border-stone-600 rounded px-2 py-1.5 text-sm focus:border-[var(--accent-gold-light)] outline-none">
                         </div>
                         <div class="grid grid-cols-6 gap-2 max-h-64 overflow-y-auto p-2 bg-black/20 border border-stone-700 rounded"
-                             id="iconPickerGrid">
+                            id="iconPickerGrid">
                         </div>
                     </div>
                 </div>
