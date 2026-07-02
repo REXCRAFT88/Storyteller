@@ -2,6 +2,21 @@
 
 *Companion to `ANALYSIS.md` (issue IDs B1–B8, S1–S8 refer to it). Written to be executed phase-by-phase; each phase leaves the app shippable.*
 
+## Progress (updated 2026-07-02)
+
+**Phase 0 and all of Phase 1 are complete** and on branch `claude/website-analysis-vosk-plan-l5gxkh`, each verified in headless Chromium:
+
+- ✅ **0.2** Monolith split into `index.html` + `css/main.css` + `js/app.js` (behavior-identical).
+- ✅ **0.3/0.4** Toolchain added: `package.json`, ESLint (`no-undef` gate), Prettier, `scripts/check-dom-ids.mjs` (zero-dep guard, now green), `scripts/smoke-test.mjs`, `docs/TESTING.md`.
+- ✅ **1.1 (B1)** Speech-recognition restart loop bounded (exponential backoff, cap 8, persistent banner).
+- ✅ **1.2 (B2)** Version-key data loss fixed (fixed key + in-JSON `schemaVersion` + legacy-key migration).
+- ✅ **1.3 (B3)** Local audio persisted in IndexedDB; auto-rehydrates on load, no per-session relink.
+- ✅ **1.4 (B4)** Null-element crashes and 24 dead references fixed (incl. YouTube pagination TypeError, undefined `masterGainNode`, and the `playSound`-out-of-scope queue-drain bug).
+- ✅ **1.5 (B6)** XSS closed: `escapeHtml()` applied at all book-string `innerHTML` sinks; verified with payloads in every field.
+- ✅ **1.7 (B8)** `file://` Spotify redirect handled gracefully. **B7** was already fixed in current code (soundtrack list uses `data-id`).
+
+**Remaining (not yet done): Phase 2 (vendor CDNs / offline shell), Phase 3 (modularize `app.js`, render hot-path, dead-code sweep), Phase 4 (distribution).** Note Phase 2 vendoring needs network access to the CDNs to fetch the libraries, which was blocked in the analysis/execution sandbox. The ~15 remaining ESLint `no-undef` findings (implicit globals, `typeof`-guarded optional functions) are catalogued for the Phase 3 cleanup.
+
 ## Ground rules for the executing agent
 
 1. **Never do a big-bang rewrite.** The app has no tests; every phase must end with the manual smoke checklist (§Verification) passing.
