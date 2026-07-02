@@ -2522,24 +2522,27 @@
                             }
                         }
 
-                        // Adjust volume of currently playing sounds
-                        Object.values(activeSounds).forEach(soundData => {
+                        // Adjust volume of currently playing sounds. Iterate entries so we get
+                        // each sound's page id directly instead of re-scanning all keys per sound
+                        // (was O(n^2); this runs on every master-volume slider tick). (3.3)
+                        Object.entries(activeSounds).forEach(([pageIdStr, soundData]) => {
+                            const activePage = book.pages.find(p => p.id === parseInt(pageIdStr, 10));
                             if (soundData.gainNode && soundData.sourceDetail.type === 'file') { // File-based sound
-                                const page = book.pages.find(p => p.id === parseInt(Object.keys(activeSounds).find(key => activeSounds[key] === soundData), 10));
+                                const page = activePage;
                                 if (page) {
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
                                     const finalGain = (pageOrVariationVolume / 100) * (currentMasterVolume / 100);
                                     soundData.gainNode.gain.setTargetAtTime(finalGain, audioContext.currentTime, 0.01); // Smooth transition
                                 }
                             } else if (soundData.node && soundData.sourceDetail.type === 'youtube') { // YouTube sound
-                                const page = book.pages.find(p => p.id === parseInt(Object.keys(activeSounds).find(key => activeSounds[key] === soundData), 10));
+                                const page = activePage;
                                 if (page) {
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
                                     const finalYTVolume = Math.round(pageOrVariationVolume * (currentMasterVolume / 100));
                                     soundData.node.setVolume(finalYTVolume);
                                 }
                             } else if (soundData.sourceDetail.type === 'syrinscape' && syrinscapePlayerReady && syrinscape.player && syrinscape.player.audioSystem) { // Syrinscape sound
-                                const page = book.pages.find(p => p.id === parseInt(Object.keys(activeSounds).find(key => activeSounds[key] === soundData), 10));
+                                const page = activePage;
                                 if (page) {
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
                                     const scaledVolume = (pageOrVariationVolume / 100) * (currentMasterVolume / 100); // Scale 0-1
@@ -3927,7 +3930,7 @@
                             if (currentSourceDetail.type === 'file') {
                                 if (!audioContext || !currentSourceDetail.source || !(currentSourceDetail.source instanceof AudioBuffer)) {
                                     console.error("AudioContext or source buffer missing for file playback.");
-                                    const callback = activeSounds[page.id]?.onEndedCallback; delete activeSounds[page.id]; renderPageList();
+                                    const callback = activeSounds[page.id]?.onEndedCallback; delete activeSounds[page.id]; updatePageItem(page.id);
                                     if (callback && typeof callback === 'function') { console.warn(`Executing onEndedCallback immediately for Page ID ${page?.id} due to playback start error.`); try { callback(); } catch (e) { console.error("Error in immediate callback (start error):", e); } }
                                     return;
                                 }
@@ -3988,14 +3991,14 @@
                                         // Before deleting, capture the ID to pass to re-evaluation
                                         const stoppedPageId = page.id; // This is correct
 
-                                        delete activeSounds[page.id]; renderPageList();
+                                        delete activeSounds[page.id]; updatePageItem(page.id);
                                         // reEvaluateActiveSounds(stoppedPageId); // Re-evaluate other sounds now that this one has stopped
                                         if (callbackToExecute && typeof callbackToExecute === 'function') { console.log(`Executing onEndedCallback for Page ID ${page.id}`); try { callbackToExecute(); } catch (e) { console.error(`Callback error Page ID ${page.id}:`, e); } }
                                         else if (!isCompound && nextPageToTriggerId !== null) { console.log(`Triggering page's own nextPageId: ${nextPageToTriggerId}`); triggerNextPage(nextPageToTriggerId); }
                                     }
                                 };
                                 if (activeSounds[page.id]) {
-                                    activeSounds[page.id].node = sourceNode; activeSounds[page.id].gainNode = gainNode; renderPageList(); sourceNode.start(0);
+                                    activeSounds[page.id].node = sourceNode; activeSounds[page.id].gainNode = gainNode; updatePageItem(page.id); sourceNode.start(0);
                                 }
                                 else { console.warn(`playSound: Active sound for Page ${page.id} removed before node assignment.`); }
                             } else if (currentSourceDetail.type === 'youtube') {
@@ -4026,7 +4029,7 @@
                                         syrinscape.player.controlSystem.startElements([elementId.toString()]);
                                     }
                                     activeSounds[page.id].node = { type: 'syrinscape', elementId: elementId, kind: kind }; // Store minimal info
-                                    renderPageList();
+                                    updatePageItem(page.id);
 
                                     if (currentSourceDetail.syrinscapePlayDuration && currentSourceDetail.syrinscapePlayDuration > 0) {
                                         const durationMs = currentSourceDetail.syrinscapePlayDuration * 1000;
@@ -4086,7 +4089,7 @@
                                             const isCompound = currentActiveSoundData.isCompoundSequence;
                                             delete activeSounds[page.id];
                                             // reEvaluateActiveSounds(stoppedPageId); // Re-evaluate now that this sound has stopped
-                                            renderPageList();
+                                            updatePageItem(page.id);
                                             if (callbackToExecute && typeof callbackToExecute === 'function') {
                                                 console.log(`Executing onEndedCallback for timed Syrinscape Page ID ${page.id}`);
                                                 try { callbackToExecute(); } catch (e) { console.error(`Callback error for timed Syrinscape Page ID ${page.id}:`, e); }
@@ -4121,7 +4124,7 @@
                                                     } else {
                                                         const callbackToExecute = currentActiveSoundData.onEndedCallback;
                                                         delete activeSounds[page.id];
-                                                        renderPageList();
+                                                        updatePageItem(page.id);
                                                         if (callbackToExecute && typeof callbackToExecute === 'function') { try { callbackToExecute(); } catch (e) { } }
                                                     }
                                                 }
@@ -4143,7 +4146,7 @@
                                                     const nextPageToTriggerId = page.nextPageId;
                                                     const isCompound = currentActiveSoundData.isCompoundSequence;
                                                     delete activeSounds[page.id];
-                                                    renderPageList();
+                                                    updatePageItem(page.id);
                                                     if (callbackToExecute && typeof callbackToExecute === 'function') { try { callbackToExecute(); } catch (e) { } }
                                                     else if (!isCompound && nextPageToTriggerId !== null) { triggerNextPage(nextPageToTriggerId); }
                                                 }
@@ -4152,7 +4155,7 @@
                                     }
                                 } else {
                                     console.error("Syrinscape player not ready or element ID/kind missing for page " + page.id);
-                                    const callback = activeSounds[page.id]?.onEndedCallback; delete activeSounds[page.id]; renderPageList();
+                                    const callback = activeSounds[page.id]?.onEndedCallback; delete activeSounds[page.id]; updatePageItem(page.id);
                                     if (callback && typeof callback === 'function') { console.warn(`Executing onEndedCallback immediately for Syrinscape Page ID ${page?.id} due to playback start error.`); try { callback(); } catch (e) { console.error("Error in immediate callback (Syrinscape start error):", e); } }
                                 }
                             }
@@ -4221,7 +4224,7 @@
                                         console.error(`YT Player Error PageID ${page.id}, PlayerID ${playerId}, Code: ${event.data}`); showTemporaryMessage(`Error YT "${page.title}". Code: ${event.data}`, 'error');
                                         const currentPlayer = youtubePlayers[playerId]; if (currentPlayer) { try { currentPlayer.destroy(); } catch (e) { } } delete youtubePlayers[playerId]; const currentActiveSound = activeSounds[page.id];
                                         if (currentActiveSound && currentActiveSound.node === event.target) { const callback = currentActiveSound.onEndedCallback; delete activeSounds[page.id]; if (callback && typeof callback === 'function') { console.warn(`Executing onEndedCallback for YT Page ID ${page.id} due to player error.`); setTimeout(() => { try { callback(); } catch (e) { console.error(`Callback error after YT error Page ID ${page.id}:`, e); } }, COMPOUND_DELAY_MS); } }
-                                        if (playerDiv) playerDiv.remove(); renderPageList();
+                                        if (playerDiv) playerDiv.remove(); updatePageItem(page.id);
                                     },
                                     'onStateChange': (event) => {
                                         const activeData = activeSounds[page.id];
@@ -4230,11 +4233,11 @@
                                         if (event.data === YT.PlayerState.CUED || (event.data === YT.PlayerState.BUFFERING && event.target.getPlayerState() !== YT.PlayerState.PLAYING)) {
                                             console.log(`YT State Change: Player ${playerId} CUED/BUFFERING. Playing.`);
                                             event.target.playVideo();
-                                            renderPageList();
+                                            updatePageItem(page.id);
                                         } else if (event.data === YT.PlayerState.PLAYING) {
                                             evaluateAppendixStateTriggers(); // Evaluate state as soon as the sound starts
                                             console.log(`YT State Change: Player ${playerId} PLAYING.`);
-                                            renderPageList();
+                                            updatePageItem(page.id);
                                         } else if (event.data === YT.PlayerState.ENDED) {
                                             console.log(`YT State Change: Player ${playerId} ENDED (Variation: ${sourceDetail.name || sourceDetail.fileName})`); let isFinalEnd = false;
                                             if (page.loopCount === -1) {
@@ -4251,7 +4254,7 @@
                                                 console.log(`YT Final End for Page ID ${page.id} ("${page.title}") Variation: ${sourceDetail.name || sourceDetail.fileName}`);
                                                 const stoppedPageId = page.id;
                                                 const callbackToExecute = activeData.onEndedCallback; const nextPageToTriggerId = page.nextPageId; const isCompound = activeData.isCompoundSequence;
-                                                delete activeSounds[page.id]; renderPageList();
+                                                delete activeSounds[page.id]; updatePageItem(page.id);
                                                 // reEvaluateActiveSounds(stoppedPageId); // This line is correct
                                                 if (callbackToExecute && typeof callbackToExecute === 'function') { console.log(`Executing onEndedCallback for YT Page ID ${page.id} (with delay)`); setTimeout(() => { try { callbackToExecute(); } catch (e) { console.error(`Callback error YT Page ID ${page.id}:`, e); } }, COMPOUND_DELAY_MS); }
                                                 else if (!isCompound && nextPageToTriggerId !== null) { console.log(`Triggering page's own nextPageId: ${nextPageToTriggerId}`); triggerNextPage(nextPageToTriggerId); }
@@ -4260,7 +4263,7 @@
                                             if (page.loopCount === 0 || (page.loopCount > 0 && page.currentLoop >= page.loopCount)) {
                                                 console.log(`YT State Change: Player ${playerId} PAUSED and not looping/finished loop. Removing from active sounds.`);
                                                 delete activeSounds[page.id];
-                                                renderPageList();
+                                                updatePageItem(page.id);
                                             }
                                         }
                                     }
@@ -4424,6 +4427,21 @@
                     // --- Update Add Page Dropdown ---
                     function updateAddNextPageDropdown() { // This line is correct
                         populateNextPageDropdown(addNextPageIdSelect);
+                    }
+
+                    // Re-render a single page's list item in place instead of rebuilding the
+                    // whole list (S2/3.3). Sound start/stop fires several times a second while
+                    // audio plays; a full renderPageList() there rebuilt and re-bound every item.
+                    // This swaps only the affected <li>. No-op if the page isn't in the current view.
+                    function updatePageItem(pageId) {
+                        if (!pageListUl) return;
+                        const existing = pageListUl.querySelector(`li[data-page-id="${pageId}"]`);
+                        if (!existing) return;
+                        const activeChapter = book.chapters.find(ch => ch.id == book.activeChapterId);
+                        if (!activeChapter) return;
+                        const page = book.pages.find(p => p.id === pageId);
+                        if (!page) { existing.remove(); return; }
+                        existing.replaceWith(createPageListItem(page, activeChapter));
                     }
 
                     // --- Render Page List ---
