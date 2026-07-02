@@ -61,6 +61,121 @@
                     // If the API became ready before this closure ran, drain now.
                     if (youtubeApiReady) window.__ytApiReadyCallback();
 
+                    // --- Local audio persistence (IndexedDB) — ANALYSIS.md B3 ---------------
+                    // Audio files were previously decoded into memory only; every reload forced
+                    // the user to re-pick their audio folder. We now keep the raw file bytes in
+                    // IndexedDB keyed by a content hash, so sounds survive a reload. Decoding to
+                    // AudioBuffer still happens in memory (lazily, after load).
+                    const audioStore = (() => {
+                        const DB_NAME = 'storytellerAudio';
+                        const STORE = 'files';
+                        let dbPromise = null;
+                        function open() {
+                            if (dbPromise) return dbPromise;
+                            dbPromise = new Promise((resolve, reject) => {
+                                if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+                                const req = indexedDB.open(DB_NAME, 1);
+                                req.onupgradeneeded = () => {
+                                    const db = req.result;
+                                    if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+                                };
+                                req.onsuccess = () => resolve(req.result);
+                                req.onerror = () => reject(req.error);
+                            });
+                            return dbPromise;
+                        }
+                        function tx(mode, fn) {
+                            return open().then(db => new Promise((resolve, reject) => {
+                                const t = db.transaction(STORE, mode);
+                                const store = t.objectStore(STORE);
+                                const req = fn(store);
+                                // Resolve with the request's result (undefined for a missing key,
+                                // an array for getAllKeys, the key for put) — never the request itself.
+                                t.oncomplete = () => resolve(req ? req.result : undefined);
+                                t.onerror = () => reject(t.error);
+                                t.onabort = () => reject(t.error);
+                            }));
+                        }
+                        return {
+                            available: () => !!window.indexedDB,
+                            async put(hash, blob, meta) {
+                                await tx('readwrite', store => store.put({ blob, meta: meta || {}, savedAt: Date.now() }, hash));
+                                return hash;
+                            },
+                            get(hash) { return tx('readonly', store => store.get(hash)).then(r => r || null); },
+                            has(hash) { return tx('readonly', store => store.getKey(hash)).then(k => k !== undefined && k !== null); },
+                            delete(hash) { return tx('readwrite', store => store.delete(hash)); },
+                            keys() { return tx('readonly', store => store.getAllKeys()).then(k => k || []); },
+                        };
+                    })();
+
+                    // SHA-256 hex when crypto.subtle is available (secure contexts); otherwise a
+                    // cheap deterministic fallback from size + name + a byte sample, so file://
+                    // (where subtle may be missing) still gets stable keys.
+                    async function computeAudioHash(arrayBuffer, file) {
+                        try {
+                            if (window.crypto && crypto.subtle && crypto.subtle.digest) {
+                                const digest = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                                return 'sha256-' + [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+                            }
+                        } catch (e) { /* fall through to lightweight hash */ }
+                        const bytes = new Uint8Array(arrayBuffer);
+                        let h = 2166136261 >>> 0; // FNV-1a over a sampling of the bytes
+                        const step = Math.max(1, Math.floor(bytes.length / 4096));
+                        for (let i = 0; i < bytes.length; i += step) { h ^= bytes[i]; h = Math.imul(h, 16777619) >>> 0; }
+                        const name = (file && file.name) || '';
+                        return `fnv-${bytes.length}-${name.length}-${h.toString(16)}`;
+                    }
+
+                    // Store a decoded file's bytes and stamp the source with its hash. Best-effort:
+                    // if persistence fails (quota/private mode) the source still plays this session.
+                    async function persistAudioSource(source, file, arrayBuffer) {
+                        if (!audioStore.available()) return;
+                        try {
+                            const hash = await computeAudioHash(arrayBuffer, file);
+                            source.audioHash = hash;
+                            if (!(await audioStore.has(hash))) {
+                                await audioStore.put(hash, new Blob([arrayBuffer], { type: (file && file.type) || 'audio/*' }),
+                                    { fileName: (file && file.name) || source.fileName || null });
+                            }
+                            source.needsFile = false;
+                        } catch (e) {
+                            console.warn('Could not persist audio to IndexedDB:', e);
+                        }
+                    }
+
+                    // After a book loads, decode any file sources whose bytes are cached in
+                    // IndexedDB so they play without a manual relink. Runs in the background.
+                    async function rehydrateAudioFromStore() {
+                        if (!audioStore.available() || !initAudioContext()) return;
+                        let restored = 0;
+                        const fileSubSources = [];
+                        (book.pages || []).forEach(page => (page.sources || []).forEach(variation =>
+                            (variation.sources || []).forEach(sub => { if (sub.type === 'file' && sub.audioHash) fileSubSources.push(sub); })));
+                        for (const sub of fileSubSources) {
+                            if (sub.source instanceof AudioBuffer) { sub.needsFile = false; continue; }
+                            try {
+                                const rec = await audioStore.get(sub.audioHash);
+                                if (rec && rec.blob) {
+                                    const buf = await audioContext.decodeAudioData(await rec.blob.arrayBuffer());
+                                    sub.source = buf;
+                                    sub.needsFile = false;
+                                    restored++;
+                                } else {
+                                    sub.needsFile = true; // hash recorded but bytes are gone
+                                }
+                            } catch (e) {
+                                console.warn('Failed to rehydrate audio', sub.audioHash, e);
+                                sub.needsFile = true;
+                            }
+                        }
+                        if (restored > 0) {
+                            console.log(`Rehydrated ${restored} audio file(s) from IndexedDB.`);
+                            renderPageList();
+                            if (typeof updateRelinkButtonVisibility === 'function') updateRelinkButtonVisibility();
+                        }
+                    }
+
                     // --- Default Empty Book Structure ---
                     function getDefaultBook() {
                         return {
@@ -2585,6 +2700,7 @@
                             if (sourceType === 'file' && addPageFileInput && addPageFileInput.files.length > 0) {
                                 const file = addPageFileInput.files[0];
                                 const arrayBuffer = await file.arrayBuffer();
+                                const bytesForStore = arrayBuffer.slice(0); // decodeAudioData detaches arrayBuffer
                                 if (!initAudioContext()) throw new Error("Audio system not ready.");
                                 const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                                 newSourceDetail = {
@@ -2595,6 +2711,7 @@
                                     endTime: addEndTimeInput.value ? parseTimeHms(addEndTimeInput.value) : null,
                                     needsFile: false
                                 };
+                                await persistAudioSource(newSourceDetail, file, bytesForStore); // B3: cache bytes in IndexedDB
                             } else if (sourceType === 'youtube' && addYoutubeUrlInput.value.trim() !== '') {
                                 newSourceDetail = {
                                     type: 'youtube',
@@ -5653,9 +5770,10 @@
                                             if (Array.isArray(variationContainer.sources)) {
                                                 console.log(`[loadBookFromFile] -> -> Detected new format with ${variationContainer.sources.length} sub-sources. Processing them.`);
                                                 const processedSubSources = variationContainer.sources.map(subSource => ({
-                                                    ...subSource, // Keep all existing properties from the sub-source
+                                                    ...subSource, // Keep all existing properties from the sub-source (incl. audioHash)
                                                     source: subSource.type === 'youtube' ? (subSource.source || extractYouTubeVideoId(subSource.fileName || '')) : null,
-                                                    needsFile: subSource.type === 'file'
+                                                    // Files with cached bytes (audioHash) are rehydrated from IndexedDB, no relink (B3)
+                                                    needsFile: subSource.type === 'file' && !subSource.audioHash
                                                 }));
                                                 return { ...variationContainer, sources: processedSubSources };
                                             }
@@ -5887,9 +6005,11 @@
                                             (async () => { // IIFE to handle async operations per file
                                                 try {
                                                     const arrayBuffer = await matchingFile.arrayBuffer();
+                                                    const bytesForStore = arrayBuffer.slice(0); // decodeAudioData detaches arrayBuffer
                                                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                                                     source.source = audioBuffer; // Store AudioBuffer
                                                     source.needsFile = false; // Mark as relinked
+                                                    await persistAudioSource(source, matchingFile, bytesForStore); // B3: cache so no relink next time
                                                     relinkedCount++;
                                                     console.log(`Relinked: ${source.fileName}`);
                                                 } catch (decodeError) {
@@ -7350,9 +7470,11 @@
                                 } else if (file) {
                                     newSourceDetail.fileName = file.name;
                                     const arrayBuffer = await file.arrayBuffer();
+                                    const bytesForStore = arrayBuffer.slice(0); // decodeAudioData detaches arrayBuffer
                                     if (!initAudioContext()) throw new Error("Audio system not ready.");
                                     newSourceDetail.source = await audioContext.decodeAudioData(arrayBuffer);
                                     newSourceDetail.needsFile = false;
+                                    await persistAudioSource(newSourceDetail, file, bytesForStore); // B3
                                 } else {
                                     throw new Error('Please select a sound file.');
                                 }
@@ -9346,13 +9468,15 @@
                                             type: subSource.type,
                                             fileName: subSource.fileName,
                                             source: subSource.type === 'youtube' ? subSource.source : null, // Only save YT source, not AudioBuffer
+                                            audioHash: subSource.audioHash || null, // B3: key to bytes cached in IndexedDB
                                             startTime: subSource.startTime,
                                             endTime: subSource.endTime,
                                             syrinscapeElementId: subSource.syrinscapeElementId,
                                             syrinscapeKind: subSource.syrinscapeKind,
                                             syrinscapePlayDuration: subSource.syrinscapePlayDuration,
                                             videoTitle: subSource.videoTitle,
-                                            needsFile: subSource.type === 'file' // Mark file as needing relink
+                                            // A file with cached bytes does not need a manual relink (B3)
+                                            needsFile: subSource.type === 'file' && !subSource.audioHash
                                         }))
                                     }))
                                 })) : [],
@@ -9534,9 +9658,10 @@
                                             if (Array.isArray(variationContainer.sources)) {
                                                 console.log(`[loadFromLocalStorage] -> -> Detected new format with ${variationContainer.sources.length} sub-sources. Processing them.`);
                                                 const processedSubSources = variationContainer.sources.map(subSource => ({
-                                                    ...subSource, // Keep all existing properties from the sub-source
+                                                    ...subSource, // Keep all existing properties from the sub-source (incl. audioHash)
                                                     source: subSource.type === 'youtube' ? (subSource.source || extractYouTubeVideoId(subSource.fileName || '')) : null,
-                                                    needsFile: subSource.type === 'file'
+                                                    // Files with cached bytes (audioHash) are rehydrated from IndexedDB, no relink (B3)
+                                                    needsFile: subSource.type === 'file' && !subSource.audioHash
                                                 }));
                                                 return { ...variationContainer, sources: processedSubSources };
                                             }
@@ -11738,6 +11863,10 @@
                         renderPageList(); // This line is correct
                         renderSoundtrackIcons();
                         updateUIState();
+
+                        // Restore cached local audio from IndexedDB so files play without a
+                        // manual relink (B3). Runs in the background; re-renders when done.
+                        rehydrateAudioFromStore().catch(e => console.warn('Audio rehydrate failed:', e));
 
                         if (initializeSyrinscapeButton) {
                             initializeSyrinscapeButton.addEventListener('click', initializeSyrinscapePlayer);
