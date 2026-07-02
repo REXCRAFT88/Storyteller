@@ -52,7 +52,7 @@
                     // hoisted function declaration, so it is safe to reference now.
                     window.__ytApiReadyCallback = () => {
                         if (pendingYTPlays.length > 0) {
-                            console.log(`Processing ${pendingYTPlays.length} pending YouTube plays...`);
+                            log(`Processing ${pendingYTPlays.length} pending YouTube plays...`);
                             const queued = pendingYTPlays;
                             pendingYTPlays = [];
                             queued.forEach(play => playSound(play.page, play.sourceDetailToPlay, play.startedByAutoplay, play.onEndedCallback, play.isCompoundSequence, play.isPlotThreadSound, play.isInternalLoopIteration, play.triggeredByAppendix));
@@ -60,6 +60,17 @@
                     };
                     // If the API became ready before this closure ran, drain now.
                     if (youtubeApiReady) window.__ytApiReadyCallback();
+
+                    // Leveled debug logging (3.5). The app emitted 300+ console.log lines in
+                    // normal operation; those now go through log() and are silent unless the
+                    // user opts in with storytellerDebug(true) from the console. Warnings and
+                    // errors still use console.warn/console.error directly.
+                    let DEBUG_LOGGING = false;
+                    function log(...args) { if (DEBUG_LOGGING) console.log(...args); }
+                    window.storytellerDebug = (on = true) => {
+                        DEBUG_LOGGING = !!on;
+                        console.log(`Storyteller debug logging ${DEBUG_LOGGING ? 'ON' : 'OFF'}`);
+                    };
 
                     // --- Local audio persistence (IndexedDB) — ANALYSIS.md B3 ---------------
                     // Audio files were previously decoded into memory only; every reload forced
@@ -170,7 +181,7 @@
                             }
                         }
                         if (restored > 0) {
-                            console.log(`Rehydrated ${restored} audio file(s) from IndexedDB.`);
+                            log(`Rehydrated ${restored} audio file(s) from IndexedDB.`);
                             renderPageList();
                             if (typeof updateRelinkButtonVisibility === 'function') updateRelinkButtonVisibility();
                         }
@@ -395,8 +406,6 @@
                     // Per-variation source-type editing (file/YouTube/Syrinscape inputs) was
                     // removed from the variation modal; its orphaned element lookups and the
                     // code paths that used them have been dropped (B4).
-                    const sourceVariationStartTimeInput = document.getElementById('sourceStartTime'); // Corrected, but seems unused in this context
-                    const sourceVariationEndTimeInput = document.getElementById('sourceEndTime'); // Corrected, but seems unused in this context
                     const sourceVariationKeywordsInput = document.getElementById('sourceVariationKeywords');
                     const sourceYoutubeSearchButton = document.getElementById('sourceYoutubeSearchButton');
                     const sourceVariationEnableVolumeOverrideCheckbox = document.getElementById('sourceVariationEnableVolumeOverride');
@@ -442,7 +451,7 @@
                     const editChapterNameInput = document.getElementById('editChapterName');
                     const editChapterIsStarredCheckbox = document.getElementById('editChapterIsStarred');
                     const editChapterKeywordsInput = document.getElementById('editChapterKeywords');
-                    const editChapterAutoplayPagesSelect = document.getElementById('editChapterAutoplayPages'); // This is correct
+                    const editChapterAutoplayPagesSelect = document.getElementById('editChapterAutoplayPages');
                     const editChapterTagsContainer = document.getElementById('editChapterTagsContainer');
                     const editChapterLeaveSoundsSelect = document.getElementById('editChapterLeaveSounds');
                     const editChapterLeaveTransitionSelect = document.getElementById('editChapterLeaveTransition');
@@ -672,7 +681,7 @@
                     // --- Modal Preview Player Functions ---
                     function setupFilePreview(file, container) {
                         if (!file || !container) {
-                            if (container) container.classList.add('hidden'); // This line is correct
+                            if (container) container.classList.add('hidden');
                             return;
                         }
                         if (activePreviewContext) stopModalPreview();
@@ -696,7 +705,7 @@
 
                     function setupYouTubePreview(urlOrVideoId, container, autoplay = false, startTime = null, endTime = null) {
                         if (!urlOrVideoId || !container) {
-                            if (container) container.classList.add('hidden'); // This line is correct
+                            if (container) container.classList.add('hidden');
                             return;
                         }
                         const videoId = urlOrVideoId.includes('youtube.com') || urlOrVideoId.includes('youtu.be') ? extractYouTubeVideoId(urlOrVideoId) : urlOrVideoId;
@@ -1004,7 +1013,7 @@
                             // Process final transcript first, as it's the most accurate.
                             if (finalTranscript) {
                                 const lowerFinal = finalTranscript.trim().toLowerCase();
-                                console.log('Final Transcript:', lowerFinal);
+                                log('Final Transcript:', lowerFinal);
                                 if (transcriptDisplay) transcriptDisplay.textContent = `"${finalTranscript.trim()}"`;
 
                                 // Create a string with only the unconsumed words for the final check.
@@ -1012,10 +1021,10 @@
                                 const unconsumedFinalText = finalWords.filter(word => !consumedWordsForUtterance.has(word)).join(' ');
 
                                 if (unconsumedFinalText) {
-                                    console.log('Processing unconsumed final text:', unconsumedFinalText);
+                                    log('Processing unconsumed final text:', unconsumedFinalText);
                                     checkForKeywords(unconsumedFinalText, book, false, consumedWordsForUtterance);
                                 } else {
-                                    console.log('All words in final transcript were already consumed by interim results.');
+                                    log('All words in final transcript were already consumed by interim results.');
                                 }
 
                                 consumedWordsForUtterance.clear(); // Clear consumed words for the next full utterance.
@@ -1035,7 +1044,7 @@
                                     // Create a string of all unconsumed words from the *entire* transcript so far.
                                     const textToCheck = currentWords.filter(word => !consumedWordsForUtterance.has(word)).join(' ');
                                     if (textToCheck) {
-                                        console.log(`Interim check at ${currentWordCount} words. Processing unconsumed text:`, textToCheck);
+                                        log(`Interim check at ${currentWordCount} words. Processing unconsumed text:`, textToCheck);
                                         // Pass only the unconsumed text to avoid re-evaluating triggered parts.
                                         // The delay logic is now handled inside checkForKeywords
                                         checkForKeywords(textToCheck, book, true, consumedWordsForUtterance);
@@ -1063,7 +1072,7 @@
                             } else if (event.error === 'aborted') {
                                 // This often happens when recognition.stop() or .abort() is called.
                                 // It's usually an intentional stop, so don't show an error message or restart.
-                                console.log("SR aborted (likely intentional).");
+                                log("SR aborted (likely intentional).");
                                 shouldStop = true;
                                 attemptRestart = false;
                             } else if (event.error === 'network') {
@@ -1102,7 +1111,7 @@
 
 
                         recognition.onend = () => {
-                            console.log(`SR ended. isListening: ${isListening}, pttActive: ${pttActive}, mode: ${currentListeningMode}, recognitionStarted: ${recognitionStarted}`);
+                            log(`SR ended. isListening: ${isListening}, pttActive: ${pttActive}, mode: ${currentListeningMode}, recognitionStarted: ${recognitionStarted}`);
                             const wasListening = isListening; // Capture state before modification
                             isListening = false; // Recognition has ended, so not actively listening right now
 
@@ -1112,19 +1121,19 @@
                                 (currentListeningMode === 'push' && pttActive && recognitionStarted);
 
                             if (shouldBeListening) {
-                                console.log("SR ended but should be listening; scheduling bounded restart...");
+                                log("SR ended but should be listening; scheduling bounded restart...");
                                 scheduleRecognitionRestart(); // bounded + backoff (B1)
                             } else {
-                                console.log("SR ended intentionally or not restarting.");
+                                log("SR ended intentionally or not restarting.");
                                 recognitionStarted = false; // Ensure this is false if not restarting
                                 updateUIState(); // Update UI to reflect stopped state
                             }
                         };
 
-                        recognition.onaudiostart = () => { console.log('Audio capturing started.'); resetSpeechRetryState(); if (isListening) updateUIState(); };
-                        recognition.onaudioend = () => { console.log('Audio capturing ended.'); };
-                        recognition.onspeechstart = () => { console.log('Speech detected.'); if (isListening && statusDiv) statusDiv.textContent = 'Speech Detected...'; };
-                        recognition.onspeechend = () => { console.log('Speech ended.'); if (isListening && statusDiv) statusDiv.textContent = 'Listening...'; };
+                        recognition.onaudiostart = () => { log('Audio capturing started.'); resetSpeechRetryState(); if (isListening) updateUIState(); };
+                        recognition.onaudioend = () => { log('Audio capturing ended.'); };
+                        recognition.onspeechstart = () => { log('Speech detected.'); if (isListening && statusDiv) statusDiv.textContent = 'Speech Detected...'; };
+                        recognition.onspeechend = () => { log('Speech ended.'); if (isListening && statusDiv) statusDiv.textContent = 'Listening...'; };
                     }
 
                     // --- Web Audio API Setup ---
@@ -1133,9 +1142,9 @@
                             try {
                                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                                 if (audioContext.state === 'suspended') {
-                                    audioContext.resume().then(() => console.log("AudioContext resumed. State:", audioContext.state));
+                                    audioContext.resume().then(() => log("AudioContext resumed. State:", audioContext.state));
                                 }
-                                console.log("AudioContext initialized. State:", audioContext.state);
+                                log("AudioContext initialized. State:", audioContext.state);
                             } catch (e) {
                                 showTemporaryMessage('Web Audio API not supported.', 'error', 5000);
                                 console.error("Error creating AudioContext:", e);
@@ -1146,7 +1155,7 @@
                             const resumeContext = () => {
                                 if (audioContext && audioContext.state === 'suspended') {
                                     audioContext.resume().then(() => {
-                                        console.log("AudioContext resumed on interaction. State:", audioContext.state);
+                                        log("AudioContext resumed on interaction. State:", audioContext.state);
                                         document.body.removeEventListener('click', resumeContext);
                                         document.body.removeEventListener('keydown', resumeContext);
                                     });
@@ -1307,9 +1316,9 @@
                     function startListening() {
                         if (!recognition) { console.error("SR not available."); return; }
                         if (!initAudioContext()) { showTemporaryMessage("Audio system not ready.", "error"); return; }
-                        if (isListening) { console.log("Already listening or starting."); return; }
+                        if (isListening) { log("Already listening or starting."); return; }
 
-                        console.log("Attempting to start listening...");
+                        log("Attempting to start listening...");
                         if (transcriptDisplay) transcriptDisplay.textContent = ''; // Clear previous transcript
                         isListening = true;
                         recognitionStarted = true; // Mark that we've intentionally started it
@@ -1317,7 +1326,7 @@
 
                         try {
                             recognition.start();
-                            console.log("recognition.start() called.");
+                            log("recognition.start() called.");
                         } catch (error) {
                             isListening = false; // Failed to start
                             recognitionStarted = false; // Failed to start
@@ -1340,7 +1349,7 @@
 
                         // Only proceed if recognition was started or if we're forcing an update
                         if (recognitionStarted || forceStopAndUIUpdate) {
-                            console.log(`Attempting to stop listening... Current state: isListening=${isListening}, recognitionStarted=${recognitionStarted}`);
+                            log(`Attempting to stop listening... Current state: isListening=${isListening}, recognitionStarted=${recognitionStarted}`);
                             const wasListening = isListening; // Capture if it was actively in the 'isListening' state
 
                             isListening = false; // No longer actively listening
@@ -1352,13 +1361,13 @@
                             if (wasListening) {
                                 try {
                                     recognition.abort(); // Use abort to stop immediately
-                                    console.log("recognition.abort() called.");
+                                    log("recognition.abort() called.");
                                 } catch (error) {
                                     // Log error but don't let it break the flow, as the main goal is to set state to stopped.
                                     console.warn("Error calling recognition.abort():", error.name, error.message);
                                 }
                             } else {
-                                console.log("Stop request processed, but was not actively in 'isListening' state. Ensured recognitionStarted is false.");
+                                log("Stop request processed, but was not actively in 'isListening' state. Ensured recognitionStarted is false.");
                             }
                             clearAllCooldowns();
                             resetSpeechRetryState(); // cancel any pending auto-restart + clear banner (B1)
@@ -1367,7 +1376,7 @@
                             lastInterimWordCount = 0;
                             if (transcriptDisplay) transcriptDisplay.textContent = ''; // Clear transcript
                         } else {
-                            console.log("Already stopped or not intended to be listening (recognitionStarted is false).");
+                            log("Already stopped or not intended to be listening (recognitionStarted is false).");
                         }
                     }
 
@@ -1415,7 +1424,7 @@
 
                     // --- Settings Modal Functions ---
                     function openSettingsModal() {
-                        console.log("Opening Settings modal.");
+                        log("Opening Settings modal.");
                         // Populate settings from the 'book.settings' object
                         settingsListeningModeRadios.forEach(radio => {
                             radio.checked = (radio.value === book.settings.listeningMode);
@@ -1456,7 +1465,7 @@
                     }
 
                     function saveSettings() {
-                        console.log("Saving settings...");
+                        log("Saving settings...");
                         const oldKeywordConfidence = book.settings.accuracyThreshold;
                         const oldListeningMode = book.settings.listeningMode;
                         const oldSyrinscapeToken = book.settings.syrinscapeAuthToken;
@@ -1498,7 +1507,7 @@
 
                         // Re-initialize Fuse.js if relevant settings changed
                         if (oldKeywordConfidence !== currentKeywordConfidenceThreshold) {
-                            console.log(`Settings changed affecting Fuse.js. Re-initializing... Min Confidence: ${currentKeywordConfidenceThreshold.toFixed(2)}`);
+                            log(`Settings changed affecting Fuse.js. Re-initializing... Min Confidence: ${currentKeywordConfidenceThreshold.toFixed(2)}`);
                             fuseOptions.threshold = 1.0 - currentKeywordConfidenceThreshold; // Update Fuse threshold
                             updateFuseIndex(); // Rebuild index
                         }
@@ -1514,7 +1523,7 @@
                         // Handle Syrinscape token change
                         if (oldSyrinscapeToken !== syrinscapeAuthToken) {
                             syrinscapePlayerReady = false; // Needs re-initialization
-                            console.log("Syrinscape Auth Token changed. Player will need re-initialization.");
+                            log("Syrinscape Auth Token changed. Player will need re-initialization.");
                             if (syrinscapeAuthToken) {
                                 initializeSyrinscapePlayer(); // Attempt re-init if new token provided
                             }
@@ -1522,14 +1531,14 @@
                         // Reset YouTube API key index if keys have changed
                         if (oldYoutubeKeys !== book.settings.youtubeApiKeys.join(',')) {
                             currentYoutubeApiKeyIndex = 0;
-                            console.log("YouTube API keys changed. Resetting key index.");
+                            log("YouTube API keys changed. Resetting key index.");
                         }
 
 
                         saveToLocalStorage();
                         closeSettingsModal();
                         showTemporaryMessage("Settings saved.", "success");
-                        console.log("Settings saved:", book.settings);
+                        log("Settings saved:", book.settings);
                     }
 
                     // --- Event Listeners (Settings Modal) ---
@@ -1547,7 +1556,7 @@
 
                     // --- Guidebook Modal Functions ---
                     function openGuidebookModal() {
-                        console.log("Opening Guidebook modal.");
+                        log("Opening Guidebook modal.");
                         guidebookSearchInput.value = ''; // Clear previous search
                         filterGuidebook(); // Apply empty filter to show all
                         modalOverlay.style.display = 'block';
@@ -1565,7 +1574,7 @@
 
                     // --- Appendix Modal Functions ---
                     function openAppendixModal() {
-                        console.log("Opening Appendix modal.");
+                        log("Opening Appendix modal.");
                         renderAppendixList();
                         modalOverlay.style.display = 'block';
                         appendixModal.style.display = 'flex';
@@ -1580,7 +1589,7 @@
 
                     // --- Add/Edit Appendix Entry Modal Functions ---
                     function openAddAppendixEntryModal() {
-                        console.log("Opening Add Appendix Entry modal.");
+                        log("Opening Add Appendix Entry modal.");
                         document.getElementById('appendixEntryModalTitle').textContent = 'Add Appendix Entry';
                         document.getElementById('editingAppendixEntryId').value = ''; // Ensure we're adding, not editing
 
@@ -1629,10 +1638,10 @@
                     function openAppendixEntryForEdit(entryId) {
                         const entry = book.appendix.find(e => e.id === entryId);
                         if (!entry) {
-                            showTemporaryMessage("Could not find appendix entry to edit.", "error"); // This line is correct
+                            showTemporaryMessage("Could not find appendix entry to edit.", "error");
                             return;
                         }
-                        console.log("Opening Appendix Entry for edit:", entry);
+                        log("Opening Appendix Entry for edit:", entry);
 
                         // Set modal state for editing
                         document.getElementById('appendixEntryModalTitle').textContent = 'Edit Appendix Entry';
@@ -1675,7 +1684,7 @@
                         // Populate activation conditions for all types except 'condition'
                         // *** LOG: Check what conditions are being passed to the 'Activation Conditions' builder.
                         // It should be entry.conditions, NOT entry.trigger.conditions.
-                        console.log("LOG: Initializing ACTIVATION conditions with:", entry.conditions);
+                        log("LOG: Initializing ACTIVATION conditions with:", entry.conditions);
                         initializeConditionBuilder('appendixActivationPageConditionsList', 'appendixOtherActivationConditions', 'appendixTagActivationConditions', entry.conditions || [], 'appendixActivationPageConditionSearchInput', 'appendixActivationTagSearchInput');
 
                         addEditAppendixEntryModal.style.display = 'flex';
@@ -1769,7 +1778,7 @@
                         const isEditing = !!entryId;
 
                         const triggerType = document.querySelector('input[name="appendixTriggerType"]:checked').value;
-                        let trigger = { type: triggerType }; // This line is correct
+                        let trigger = { type: triggerType };
                         let conditions = [];
                         let name = null; // Initialize name
 
@@ -1778,7 +1787,7 @@
                         if (nameInput) name = nameInput.value.trim() || null;
 
                         if (triggerType === 'phrase') {
-                            const phrases = document.getElementById('appendixPhrases').value.trim().toLowerCase().split(',').map(p => p.trim()).filter(Boolean); // This line is correct
+                            const phrases = document.getElementById('appendixPhrases').value.trim().toLowerCase().split(',').map(p => p.trim()).filter(Boolean);
                             if (phrases.length === 0) { showTemporaryMessage('Trigger phrases cannot be empty.', 'error'); return; }
                             trigger = { type: 'phrase', phrases: phrases };
                         } else if (triggerType === 'page_event') { // This logic remains the same
@@ -1795,7 +1804,7 @@
 
                             trigger = { type: 'contextual_phrase', event: document.getElementById('appendixContextualEvent').value, pages, phrases, timeWindow, allowMultiple: document.getElementById('appendixContextualAllowMultiple').checked };
                         } else if (triggerType === 'condition') {
-                            const conditionsFromBuilder = getConditionsFromBuilder('appendixTriggerPageConditionsList', 'appendixOtherTriggerConditions', 'appendixTagTriggerConditions'); // This line is correct
+                            const conditionsFromBuilder = getConditionsFromBuilder('appendixTriggerPageConditionsList', 'appendixOtherTriggerConditions', 'appendixTagTriggerConditions');
                             if (conditionsFromBuilder.length === 0) { showTemporaryMessage('Please add at least one condition for the trigger.', 'error'); return; }
                             const reverseOnExit = document.getElementById('appendixConditionReverseToggle').checked;
                             trigger.conditions = conditionsFromBuilder;
@@ -1808,8 +1817,8 @@
                         }
 
                         // *** LOG: Check the state of the trigger and conditions objects right before saving.
-                        console.log("LOG (SAVE): Trigger object being saved:", JSON.parse(JSON.stringify(trigger)));
-                        console.log("LOG (SAVE): Activation conditions array being saved:", JSON.parse(JSON.stringify(conditions)));
+                        log("LOG (SAVE): Trigger object being saved:", JSON.parse(JSON.stringify(trigger)));
+                        log("LOG (SAVE): Activation conditions array being saved:", JSON.parse(JSON.stringify(conditions)));
 
                         // Use the temporary state array directly, creating a deep copy to be safe.
                         const effects = JSON.parse(JSON.stringify(currentAppendixEffects));
@@ -1822,14 +1831,14 @@
                             book.appendix[entryIndex].trigger = trigger;
                             book.appendix[entryIndex].effects = effects;
                             book.appendix[entryIndex].conditions = conditions; // Save activation conditions
-                            showTemporaryMessage('Appendix entry updated.', 'success'); // This line is correct
-                            console.log("Updated appendix entry:", JSON.parse(JSON.stringify(book.appendix[entryIndex])));
+                            showTemporaryMessage('Appendix entry updated.', 'success');
+                            log("Updated appendix entry:", JSON.parse(JSON.stringify(book.appendix[entryIndex])));
                         } else {
-                            const newEntry = { id: `appendix_${generateUUID()}`, name, trigger, effects, conditions }; // This line is correct
+                            const newEntry = { id: `appendix_${generateUUID()}`, name, trigger, effects, conditions };
                             if (!book.appendix) book.appendix = []; // Ensure appendix array exists
                             book.appendix.push(newEntry);
                             showTemporaryMessage(`Appendix entry saved.`, 'success');
-                            console.log("Saved new appendix entry:", newEntry);
+                            log("Saved new appendix entry:", newEntry);
                         }
 
                         saveToLocalStorage();
@@ -1912,7 +1921,7 @@
                         saveToLocalStorage();
                         renderAppendixList();
                         showTemporaryMessage("Appendix entry deleted.", "success");
-                        console.log(`Deleted appendix entry ID: ${entryId}`);
+                        log(`Deleted appendix entry ID: ${entryId}`);
                     }
 
                     function renderAppendixEffectsList() {
@@ -1945,7 +1954,7 @@
                     }
 
                     function handleAddAppendixEffect() {
-                        openAppendixEffectModal(null, event); // This line is correct
+                        openAppendixEffectModal(null, event);
                     }
 
 
@@ -1959,7 +1968,7 @@
                         // Store the full data object on the select element's dataset for easy access
                         // when rendering controls. This avoids having to pass it around.
                         appendixEffectTypeSelect.dataset.effectData = JSON.stringify(effectData);
-                        const effectType = effectData.type || 'start_pages'; // This line is correct
+                        const effectType = effectData.type || 'start_pages';
                         appendixEffectTypeSelect.value = effectType;
                         limitAppendixEffectsForTrigger(document.querySelector('input[name="appendixTriggerType"]:checked')?.value || 'phrase', appendixEffectTypeSelect);
 
@@ -2101,7 +2110,7 @@
                                             li.dataset.pageId = page.id;
                                             li.innerHTML = `
                                         <span class="flex-grow">${escapeHtml(page.title)}</span>
-                                        <div class="flex-shrink-0 flex items-center gap-2"> // This line is correct
+                                        <div class="flex-shrink-0 flex items-center gap-2">
                                             <button type="button" class="appendix-reorder-btn move-up-btn" title="Move Up" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
                                             <button type="button" class="appendix-reorder-btn move-down-btn" title="Move Down" ${index === selectedIds.length - 1 ? 'disabled' : ''}>&darr;</button>
                                             <button type="button" class="text-red-400 hover:text-red-600 remove-from-queue-btn text-lg leading-none" title="Remove">&times;</button>
@@ -2258,12 +2267,12 @@
                                 const targetTypeSelect = targetContainer.querySelector('.appendix-volume-target-type');
                                 const targetSelectorDiv = targetContainer.querySelector('.appendix-volume-target-selector');
                                 targetTypeSelect.addEventListener('change', (e) => {
-                                    if (e.target.value === 'pages') createPageSelector(targetSelectorDiv, effectId); // This is correct
+                                    if (e.target.value === 'pages') createPageSelector(targetSelectorDiv, effectId);
                                     else if (e.target.value === 'chapters') createChapterSelector(targetSelectorDiv, effectId);
                                     else targetSelectorDiv.innerHTML = '';
                                 });
                                 createPageSelector(targetSelectorDiv, effectId);
-                                break; // This line is correct
+                                break;
 
                             case 'change_chapter':
                                 paramsContainer.innerHTML = `
@@ -2393,23 +2402,23 @@
                         const effectType = appendixEffectTypeSelect.value;
                         const effect = { id: effectId, type: effectType, params: {}, target: {} };
 
-                        // --- NEW LOGGING --- // This line is correct
-                        console.log(`%c[SAVE EFFECT]`, 'color: #7DF9FF; font-weight: bold;', `Starting save for effect type: ${effectType}`);
-                        console.log(`%c[SAVE EFFECT]`, 'color: #7DF9FF; font-weight: bold;', `Effect ID: ${effectId}, Is Editing: ${isEditing}`);
-                        // --- END NEW LOGGING --- // This line is correct
+
+                        log(`%c[SAVE EFFECT]`, 'color: #7DF9FF; font-weight: bold;', `Starting save for effect type: ${effectType}`);
+                        log(`%c[SAVE EFFECT]`, 'color: #7DF9FF; font-weight: bold;', `Effect ID: ${effectId}, Is Editing: ${isEditing}`);
+
 
                         effect.params = getAppendixEffectParamsFromUI();
 
                         // Gather targets (this logic remains the same)
-                        const pageItems = appendixEffectTargetContainer.querySelectorAll('.appendix-page-list .appendix-page-selector-item'); // This line is correct
+                        const pageItems = appendixEffectTargetContainer.querySelectorAll('.appendix-page-list .appendix-page-selector-item');
                         effect.target.pages = Array.from(pageItems)
                             .filter(item => item.querySelector('.page-checkbox').checked)
                             .map(item => ({ pageId: parseInt(item.querySelector('.page-checkbox').value, 10), variationId: item.querySelector('.variation-select').value || null }));
 
-                        // --- NEW LOGGING ---
-                        console.log(`%c[SAVE EFFECT]`, 'color: #7DF9FF; font-weight: bold;', 'Gathered Params from UI:', JSON.parse(JSON.stringify(effect.params)));
-                        console.log(`%c[SAVE EFFECT]`, 'color: #7DF9FF; font-weight: bold;', 'Gathered Targets from UI:', JSON.parse(JSON.stringify(effect.target)));
-                        // --- END NEW LOGGING --- // This line is correct
+
+                        log(`%c[SAVE EFFECT]`, 'color: #7DF9FF; font-weight: bold;', 'Gathered Params from UI:', JSON.parse(JSON.stringify(effect.params)));
+                        log(`%c[SAVE EFFECT]`, 'color: #7DF9FF; font-weight: bold;', 'Gathered Targets from UI:', JSON.parse(JSON.stringify(effect.target)));
+
 
                         const volTargetTypeSelect = appendixEffectTargetContainer.querySelector('.appendix-volume-target-type');
                         if (effectType === 'set_page_title') {
@@ -2426,7 +2435,7 @@
                             currentAppendixEffects.push(effect);
                         }
 
-                        console.log(`LOG (saveAppendixEffect): currentAppendixEffects array is now:`, JSON.parse(JSON.stringify(currentAppendixEffects)));
+                        log(`LOG (saveAppendixEffect): currentAppendixEffects array is now:`, JSON.parse(JSON.stringify(currentAppendixEffects)));
 
                         renderAppendixEffectsList();
                         closeAppendixEffectModal();
@@ -2464,7 +2473,7 @@
 
                     addChapterButton.addEventListener('click', createNewChapter); // This button is now hidden, but we'll leave the listener in case it's re-enabled.
                     cancelChapterEditButton.addEventListener('click', closeEditChapterModal);
-                    saveChapterEditButton.addEventListener('click', saveChapterChanges); // This line is correct
+                    saveChapterEditButton.addEventListener('click', saveChapterChanges);
                     burnBookButton.addEventListener('click', () => {
                         burnSwitchChapters.checked = true;
                         burnSwitchCollections.checked = true;
@@ -2547,7 +2556,7 @@
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
                                     const scaledVolume = (pageOrVariationVolume / 100) * (currentMasterVolume / 100); // Scale 0-1
                                     const syrinscapeLocalVolume = Math.min(1.5, scaledVolume * 1.5); // Syrinscape uses 0-1.5 for local volume
-                                    console.log(`Adjusting Syrinscape local volume to: ${syrinscapeLocalVolume} (Master: ${currentMasterVolume}%, Page/Var: ${pageOrVariationVolume}%)`);
+                                    log(`Adjusting Syrinscape local volume to: ${syrinscapeLocalVolume} (Master: ${currentMasterVolume}%, Page/Var: ${pageOrVariationVolume}%)`);
                                     syrinscape.player.audioSystem.setLocalVolume(syrinscapeLocalVolume.toString());
                                 }
                             }
@@ -2565,7 +2574,7 @@
                     document.getElementById('addPageFile').addEventListener('change', (e) => setupFilePreview(e.target.files[0], addPageFilePreviewContainer));
                     document.getElementById('addYoutubeUrl').addEventListener('input', (e) => setupYouTubePreview(e.target.value, addPageYouTubePreviewContainer));
 
-                    sourceYoutubeUrlInput.addEventListener('input', () => checkYouTubeEmbeddability(sourceYoutubeUrlInput, sourceYoutubeUrlStatus)); // This line is correct
+                    sourceYoutubeUrlInput.addEventListener('input', () => checkYouTubeEmbeddability(sourceYoutubeUrlInput, sourceYoutubeUrlStatus));
                     addYoutubeUrlInput.addEventListener('paste', () => setTimeout(() => checkYouTubeEmbeddability(addYoutubeUrlInput, addYoutubeUrlStatus), 50));
                     addYoutubeUrlInput.addEventListener('input', () => checkYouTubeEmbeddability(addYoutubeUrlInput, addYoutubeUrlStatus));
                     addButton.addEventListener('click', createNewPageFromModal);
@@ -2671,7 +2680,7 @@
                     // --- Create New Page Function (from Modal) ---
                     async function createNewPageFromModal(eventOrReturn = false) {
                         const returnPageObject = (eventOrReturn === true);
-                        console.log("Create New Page button clicked (from modal).");
+                        log("Create New Page button clicked (from modal).");
                         if (!initAudioContext()) { showTemporaryMessage("Audio system not ready.", "error"); return; }
 
                         let title = addPageTitleInput.value.trim();
@@ -2768,7 +2777,7 @@
                         try {
                             // The tempPageForAddModal already has the sources, we just need to update the main page properties
                             const newPageId = book.nextPageId++;
-                            console.log(`Creating new page from modal: "${title}" (ID: ${newPageId}), PrimaryKey(s): "${primaryKey}"`);
+                            log(`Creating new page from modal: "${title}" (ID: ${newPageId}), PrimaryKey(s): "${primaryKey}"`);
 
                             let finalLoop = loop;
                             let finalLoopCount = loopCount;
@@ -2786,7 +2795,7 @@
                                 loopCount: finalLoopCount,
                                 fadeInOut,
                                 endPlayKeywords,
-                                nextPageId: nextPageIdValue, // This line is correct
+                                nextPageId: nextPageIdValue,
                                 timeOfDaySetting: timeOfDaySetting,
                                 currentLoop: 0, // This property seems to be unused, consider removing
                                 sources: tempPageForAddModal.sources // Use the sources built up in the modal
@@ -2797,9 +2806,9 @@
                             if (currentActiveChapter && !currentActiveChapter.isIndex) {
                                 if (!currentActiveChapter.pageIds) currentActiveChapter.pageIds = [];
                                 currentActiveChapter.pageIds.push(newPageId);
-                                console.log(`Added page ${newPageId} to chapter "${currentActiveChapter.name}"`);
+                                log(`Added page ${newPageId} to chapter "${currentActiveChapter.name}"`);
                             } else {
-                                console.log(`New page ${newPageId} created (not added to a specific non-Index chapter).`);
+                                log(`New page ${newPageId} created (not added to a specific non-Index chapter).`);
                             }
 
                             updateFuseIndex();
@@ -2987,14 +2996,14 @@
                     }
 
                     function clearAllCooldowns() {
-                        console.log("Clearing cooldowns.");
+                        log("Clearing cooldowns.");
                         Object.values(soundCooldowns).forEach(clearTimeout);
                         soundCooldowns = {};
                     }
 
                     // --- Fuzzy Search & Chapter Keyword Setup ---
                     function updateFuseIndex() {
-                        console.log("Updating Fuse.js keyword index for pages...");
+                        log("Updating Fuse.js keyword index for pages...");
                         keywordListForFuse = [];
                         book.pages.forEach(page => {
                             const keysToIndex = [...(page.keywords || [])];
@@ -3016,7 +3025,7 @@
                         if (typeof Fuse === 'function') {
                             fuseOptions.threshold = 1.0 - currentKeywordConfidenceThreshold;
                             fuseInstance = new Fuse(keywordListForFuse, fuseOptions);
-                            console.log(`Fuse index updated with ${keywordListForFuse.length} items. Fuse Threshold: ${fuseOptions.threshold.toFixed(2)} (Min Confidence: ${currentKeywordConfidenceThreshold.toFixed(2)})`);
+                            log(`Fuse index updated with ${keywordListForFuse.length} items. Fuse Threshold: ${fuseOptions.threshold.toFixed(2)} (Min Confidence: ${currentKeywordConfidenceThreshold.toFixed(2)})`);
                         } else {
                             console.error("Fuse.js library not loaded.");
                             fuseInstance = null;
@@ -3024,7 +3033,7 @@
                     }
 
                     function updateChapterKeywordList() {
-                        console.log("Updating chapter keyword list...");
+                        log("Updating chapter keyword list...");
                         chapterKeywordList = [];
                         book.chapters.forEach(chapter => {
                             if (!chapter.isIndex && Array.isArray(chapter.chapterKeywords)) {
@@ -3039,7 +3048,7 @@
                                 });
                             }
                         });
-                        console.log(`Chapter keyword list updated with ${chapterKeywordList.length} words.`);
+                        log(`Chapter keyword list updated with ${chapterKeywordList.length} words.`);
                     }
 
                     // --- Page Matching Logic (findBestMatch) ---
@@ -3081,7 +3090,7 @@
                             });
 
                             if (foundInContext) {
-                                console.log(`PK condition for "${page.title}" met via look-behind context: [${lookBehindContext.primaryKeys.join(', ')}]`);
+                                log(`PK condition for "${page.title}" met via look-behind context: [${lookBehindContext.primaryKeys.join(', ')}]`);
                                 return true; // Found a required PK in the look-behind context
                             }
                         }
@@ -3133,7 +3142,7 @@
                     }
 
                     function findBestMatch(textToSearch, eligiblePageIds, excludedTranscriptWords = new Set(), excludePageIds = new Set(), context = 'normal') {
-                        console.log(`--- findBestMatch (Context: ${context}, Time: ${currentTimeOfDay}, Text: "${textToSearch}", Eligible: ${[...eligiblePageIds]}, Exclude Pages: ${[...excludePageIds]}, Exclude KW: ${[...excludedTranscriptWords]}) ---`);
+                        log(`--- findBestMatch (Context: ${context}, Time: ${currentTimeOfDay}, Text: "${textToSearch}", Eligible: ${[...eligiblePageIds]}, Exclude Pages: ${[...excludePageIds]}, Exclude KW: ${[...excludedTranscriptWords]}) ---`);
                         let potentialMatchesData = [];
                         const minConfidence = currentKeywordConfidenceThreshold;
 
@@ -3239,7 +3248,7 @@
                                 if (hasDefinedPK) { // This logic is correct
                                     // RULE 1: If a PK is defined and the condition is met (via text or look-behind),
                                     // we only need one additional regular keyword from the current text.
-                                    if (pkMetConfidence && matchedRegularKeywords_NonPronoun.length > 0) { // This line is correct
+                                    if (pkMetConfidence && matchedRegularKeywords_NonPronoun.length > 0) {
                                         meetsMinRequirements = true;
                                     } else {
                                         // This can happen if the look-behind PK was met, but no other keywords from the current text chunk matched.
@@ -3300,14 +3309,14 @@
                         });
 
                         if (potentialMatchesData.length === 0) {
-                            console.log(`--- findBestMatch (Context: ${context}) Result: No valid matches found meeting requirements.`);
+                            log(`--- findBestMatch (Context: ${context}) Result: No valid matches found meeting requirements.`);
                             return null;
                         }
 
-                        console.log(`--- Sorting Potential Matches (Context: ${context}, ${potentialMatchesData.length} candidates) ---`);
+                        log(`--- Sorting Potential Matches (Context: ${context}, ${potentialMatchesData.length} candidates) ---`);
                         potentialMatchesData.forEach(m => {
                             const matchedWords = m.matchDetails.map(d => d.matchedWord).join(', ');
-                            console.log(`  -> Page ${m.page.id} ("${m.page.title}"): HiConfCnt=${m.highConfidenceCount}, FuzzyScore=${m.fuzzyScoreSum.toFixed(3)}, AdjCnt=${m.pronounAdjacencyCount}, ExactPK=${m.exactPKMatch}, ExactKW=${m.exactKeywordCount}, Indices=${m.matchIndices}, MatchedWords=${matchedWords}`);
+                            log(`  -> Page ${m.page.id} ("${m.page.title}"): HiConfCnt=${m.highConfidenceCount}, FuzzyScore=${m.fuzzyScoreSum.toFixed(3)}, AdjCnt=${m.pronounAdjacencyCount}, ExactPK=${m.exactPKMatch}, ExactKW=${m.exactKeywordCount}, Indices=${m.matchIndices}, MatchedWords=${matchedWords}`);
                         });
 
                         potentialMatchesData.sort((a, b) => {
@@ -3359,18 +3368,18 @@
 
                         // Confidence Floor: Even if it's the "best" match, if it has no high-confidence keywords, it's not good enough.
                         if (bestMatchData.highConfidenceCount === 0) {
-                            console.log(`--- findBestMatch (Context: ${context}) Result: Best match "${bestMatchData.page.title}" rejected. No high-confidence keywords matched.`);
+                            log(`--- findBestMatch (Context: ${context}) Result: Best match "${bestMatchData.page.title}" rejected. No high-confidence keywords matched.`);
                             return null;
                         }
 
-                        console.log(`--- findBestMatch (Context: ${context}) Result: Best match is Page ${bestMatchData.page.id} ("${bestMatchData.page.title}") - HiConfCnt=${bestMatchData.highConfidenceCount}, FuzzyScore=${bestMatchData.fuzzyScoreSum.toFixed(3)}, AdjCnt=${bestMatchData.pronounAdjacencyCount}`);
+                        log(`--- findBestMatch (Context: ${context}) Result: Best match is Page ${bestMatchData.page.id} ("${bestMatchData.page.title}") - HiConfCnt=${bestMatchData.highConfidenceCount}, FuzzyScore=${bestMatchData.fuzzyScoreSum.toFixed(3)}, AdjCnt=${bestMatchData.pronounAdjacencyCount}`);
                         return bestMatchData;
                     }
 
                     // --- Keyword Checking Logic ---
                     // --- Keyword Checking Logic ---
                     async function checkForKeywords(text, currentBook, isInterim = false, wordsToExclude = new Set()) {
-                        if (!text || !isListening) return; // This line is correct
+                        if (!text || !isListening) return;
 
                         // 1. Stop Phrases Check (Highest Priority)
                         // Clean up old page events before checking anything else
@@ -3395,7 +3404,7 @@
                         if (stopPhrases && stopPhrases.length > 0) {
                             const foundStopPhrase = stopPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                             if (foundStopPhrase) {
-                                console.log(`Stop Phrase "${foundStopPhrase}" detected! Stopping all sounds.`);
+                                log(`Stop Phrase "${foundStopPhrase}" detected! Stopping all sounds.`);
                                 stopAllSounds();
                                 return; // Stop further processing
                             }
@@ -3406,14 +3415,14 @@
                         if (currentTimeOfDay === 'day' && nighttimeTransitionPhrases && nighttimeTransitionPhrases.length > 0) {
                             const foundNightPhrase = nighttimeTransitionPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                             if (foundNightPhrase) {
-                                console.log(`Nighttime transition phrase "${foundNightPhrase}" detected.`);
+                                log(`Nighttime transition phrase "${foundNightPhrase}" detected.`);
                                 toggleTimeOfDay('night'); // This will handle autoplay checks
                                 timeTransitionHandled = true;
                             }
                         } else if (currentTimeOfDay === 'night' && daytimeTransitionPhrases && daytimeTransitionPhrases.length > 0) {
                             const foundDayPhrase = daytimeTransitionPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                             if (foundDayPhrase) {
-                                console.log(`Daytime transition phrase "${foundDayPhrase}" detected.`);
+                                log(`Daytime transition phrase "${foundDayPhrase}" detected.`);
                                 toggleTimeOfDay('day'); // This will handle autoplay checks
                                 timeTransitionHandled = true;
                             }
@@ -3429,7 +3438,7 @@
                                         if (entry.conditions && entry.conditions.length > 0 && !checkAppendixConditions(entry.conditions)) {
                                             continue; // Skip if activation conditions are not met
                                         }
-                                        console.log(`Appendix Phrase Triggered: "${foundPhrase}" for entry ID ${entry.id}`);
+                                        log(`Appendix Phrase Triggered: "${foundPhrase}" for entry ID ${entry.id}`);
                                         executeAppendixEntry(entry);
                                         // For now, we assume an appendix phrase is a standalone command and stop further page checks.
                                         return;
@@ -3450,7 +3459,7 @@
                                     if (recentMatchingEvent) {
                                         const foundContextualPhrase = entry.trigger.phrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                                         if (foundContextualPhrase) {
-                                            console.log(`Appendix Contextual Phrase Triggered: "${foundContextualPhrase}" for entry ID ${entry.id} after event on page ${recentMatchingEvent.pageId}`);
+                                            log(`Appendix Contextual Phrase Triggered: "${foundContextualPhrase}" for entry ID ${entry.id} after event on page ${recentMatchingEvent.pageId}`);
                                             executeAppendixEntry(entry);
                                             if (!entry.trigger.allowMultiple) {
                                                 recentMatchingEvent.usedBy.add(entry.id); // Mark this event as used by this entry
@@ -3480,7 +3489,7 @@
                                 if (threadPhrases.length > 0) {
                                     const foundThreadPhrase = threadPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                                     if (foundThreadPhrase) {
-                                        console.log(`Plot Thread "${thread.id}" (${thread.title || 'Untitled'}) triggered by phrase: "${foundThreadPhrase}"`);
+                                        log(`Plot Thread "${thread.id}" (${thread.title || 'Untitled'}) triggered by phrase: "${foundThreadPhrase}"`);
                                         threadTriggered = true;
                                     }
                                 }
@@ -3488,7 +3497,7 @@
                                 if (!threadTriggered && threadKeywords.length > 0) {
                                     const foundThreadKeyword = threadKeywords.find(kw => new RegExp(`\\b${kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                                     if (foundThreadKeyword) {
-                                        console.log(`Plot Thread "${thread.id}" (${thread.title || 'Untitled'}) triggered by keyword: "${foundThreadKeyword}"`);
+                                        log(`Plot Thread "${thread.id}" (${thread.title || 'Untitled'}) triggered by keyword: "${foundThreadKeyword}"`);
                                         threadTriggered = true;
                                     }
                                 }
@@ -3496,10 +3505,10 @@
                                 if (threadTriggered) {
                                     const toPlotNode = getPlotNodeById(thread.toNodeId);
                                     if (toPlotNode && toPlotNode.chapterId) {
-                                        console.log(`Activating Plot Thread: From Chapter ${activeChapterNode.chapterId} to Chapter ${toPlotNode.chapterId}`);
+                                        log(`Activating Plot Thread: From Chapter ${activeChapterNode.chapterId} to Chapter ${toPlotNode.chapterId}`);
                                         const soundsToPlayFromThread = thread.soundPageIds || [];
                                         if (thread.timeChange && thread.timeChange !== 'none' && thread.timeChange !== currentTimeOfDay) {
-                                            console.log(`Plot Thread changing time to: ${thread.timeChange}`);
+                                            log(`Plot Thread changing time to: ${thread.timeChange}`);
                                             toggleTimeOfDay(thread.timeChange); // This will handle sound adjustments for time change
                                         }
                                         const triggerChapterAutoplay = !(thread.disableAutoplay || false);
@@ -3543,7 +3552,7 @@
                                             const returnRegex = new RegExp(`\\b${exitPhrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s+(?:the\\s+|a\\s+|an\\s+|from\\s+)?${keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
                                             if (returnRegex.test(text)) {
                                                 const triggerAutoplay = !(originThread.disableAutoplay || false);
-                                                console.log(`Exit Phrase "${exitPhrase}" + Keyword "${keyword}" (Type: ${returnKeywordType}) detected with active return context. Returning to chapter ${lookBehindContext.returnChapterContext.fromChapterId}. Autoplay: ${triggerAutoplay}`);
+                                                log(`Exit Phrase "${exitPhrase}" + Keyword "${keyword}" (Type: ${returnKeywordType}) detected with active return context. Returning to chapter ${lookBehindContext.returnChapterContext.fromChapterId}. Autoplay: ${triggerAutoplay}`);
                                                 setActiveChapter(lookBehindContext.returnChapterContext.fromChapterId, triggerAutoplay, 'exit_phrase_return');
                                                 exitPhraseHandled = true;
                                                 break; // Keyword found, no need to check others for this exit phrase
@@ -3561,10 +3570,10 @@
                                     const match = text.match(exitPhraseRegex);
 
                                     if (match && chapterKeywordData.chapterId == currentBook.activeChapterId) { // Matched an exit phrase for the *current* chapter
-                                        console.log(`Exit Phrase "${exitPhrase}" + Chapter Keyword "${targetKeyword}" detected for active chapter "${currentActiveChapterData.name}".`);
+                                        log(`Exit Phrase "${exitPhrase}" + Chapter Keyword "${targetKeyword}" detected for active chapter "${currentActiveChapterData.name}".`);
                                         const leaveTransitionTargetId = currentActiveChapterData.leaveTransitionTargetId || 'index'; // Default to Index
                                         const afterLeaveSoundsCallback = () => {
-                                            console.log(`Leave sounds finished. Transitioning to chapter ${leaveTransitionTargetId}.`);
+                                            log(`Leave sounds finished. Transitioning to chapter ${leaveTransitionTargetId}.`);
                                             setActiveChapter(leaveTransitionTargetId, true, 'exit_phrase');
                                         };
                                         // Play sounds configured to play on leaving this chapter, then transition
@@ -3590,7 +3599,7 @@
                                 for (const chapterKeywordData of chapterKeywordList) {
                                     const targetRegex = new RegExp(`\\b${chapterKeywordData.keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
                                     if (targetRegex.test(potentialTargetPhrase) && chapterKeywordData.chapterId != currentBook.activeChapterId) {
-                                        console.log(`Enter Phrase "${cue}" + Chapter Keyword "${chapterKeywordData.keyword}" matched! Switching to chapter ID: ${chapterKeywordData.chapterId}`);
+                                        log(`Enter Phrase "${cue}" + Chapter Keyword "${chapterKeywordData.keyword}" matched! Switching to chapter ID: ${chapterKeywordData.chapterId}`);
                                         setActiveChapter(chapterKeywordData.chapterId, true, 'enter_phrase'); // True for triggeredByVoice for autoplay
                                         enterPhraseFound = true;
                                         break; // Exit chapterKeywordList loop
@@ -3659,7 +3668,7 @@
                                         new RegExp(`\\b${keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text)
                                     ); // This regex needs to check against the un-consumed part of the text
                                     if (foundEndKeyword) {
-                                        console.log(`End keyword "${foundEndKeyword}" for looping sound "${activePage.title}". Stopping.`);
+                                        log(`End keyword "${foundEndKeyword}" for looping sound "${activePage.title}". Stopping.`);
                                         stopSingleSound(activePageId);
                                         setSoundCooldown(activePageId, SMART_COOLDOWN_MS); // Cooldown to prevent immediate retrigger
                                         stoppedSoundThisCheck = true;
@@ -3676,16 +3685,16 @@
                         while (keepSearching) {
                             // Deactivate look-behind if it's expired
                             if (lookBehindContext.active && (Date.now() - lookBehindContext.timestamp >= LOOK_BEHIND_DURATION_MS)) {
-                                console.log("Look-behind context expired.");
+                                log("Look-behind context expired.");
                                 lookBehindContext.active = false;
                                 lookBehindContext.primaryKeys = [];
                             }
 
                             // Find the best match from the remaining text, excluding pages already played in this utterance.
-                            const bestMatch = findBestMatch(text, relevantPageIds, wordsToExclude, pageIdsPlayedThisUtterance, 'multi_match_loop'); // This line is correct
+                            const bestMatch = findBestMatch(text, relevantPageIds, wordsToExclude, pageIdsPlayedThisUtterance, 'multi_match_loop');
 
                             if (bestMatch) {
-                                console.log(`Multi-match loop: Found match "${bestMatch.page.title}". Playing.`);
+                                log(`Multi-match loop: Found match "${bestMatch.page.title}". Playing.`);
                                 pageIdsPlayedThisUtterance.add(bestMatch.page.id); // Add to exclusion list for this utterance
 
                                 const sourceToPlay = findPlayableSourceVariation(bestMatch.page, false, textForVariationCheck);
@@ -3693,7 +3702,7 @@
                                     // Consume the matched words from the transcript so they aren't re-used.
                                     const wordsInMatch = bestMatch.matchDetails.map(d => d.matchedWord.toLowerCase());
                                     wordsInMatch.forEach(w => wordsToExclude.add(w));
-                                    console.log(`Consumed words from multi-match: ${[...wordsInMatch]}`);
+                                    log(`Consumed words from multi-match: ${[...wordsInMatch]}`);
 
                                     // Set the look-behind context if this match has a primary key. // This logic is correct
                                     if (isCompoundPhrasingEnabled && bestMatch.page.primaryKey) {
@@ -3701,7 +3710,7 @@
                                         lookBehindContext.active = true;
                                         lookBehindContext.primaryKeys = primaryKeys;
                                         lookBehindContext.timestamp = Date.now();
-                                        console.log(`Look-behind context activated with PKs: [${primaryKeys.join(', ')}]`);
+                                        log(`Look-behind context activated with PKs: [${primaryKeys.join(', ')}]`);
                                     }
 
                                     playSound(bestMatch.page, sourceToPlay, false, () => {
@@ -3730,14 +3739,14 @@
                     // --- Play Compound Sequence ---
                     function playCompoundSequence(queue, finalNextPageId) {
                         if (!queue || queue.length === 0) return;
-                        console.log(`Starting compound sequence playback (${queue.length} pages). Final next page: ${finalNextPageId}`);
+                        log(`Starting compound sequence playback (${queue.length} pages). Final next page: ${finalNextPageId}`);
                         let currentQueueIndex = 0;
 
-                        function playNextInSequence() { // This line is correct
+                        function playNextInSequence() {
                             if (currentQueueIndex >= queue.length) {
-                                console.log("Compound sequence finished.");
+                                log("Compound sequence finished.");
                                 if (finalNextPageId !== null && finalNextPageId !== undefined) {
-                                    console.log(`Compound sequence finished. Triggering final nextPageId: ${finalNextPageId}`);
+                                    log(`Compound sequence finished. Triggering final nextPageId: ${finalNextPageId}`);
                                     triggerNextPage(finalNextPageId);
                                 }
                                 return;
@@ -3748,7 +3757,7 @@
 
                             if (sourceToPlay) {
                                 const cooldownDuration = isSmartFilteringEnabled ? SMART_COOLDOWN_MS : QUICK_COOLDOWN_MS;
-                                console.log(`Compound Play (${currentQueueIndex + 1}/${queue.length}): "${page.title}" (ID: ${page.id}) Variation: ${sourceToPlay.name || sourceToPlay.fileName || sourceToPlay.type} (Chapter: ${sourceToPlay.chapterIds?.join(',') || 'General'}, Time: ${sourceToPlay.timeOfDay})`);
+                                log(`Compound Play (${currentQueueIndex + 1}/${queue.length}): "${page.title}" (ID: ${page.id}) Variation: ${sourceToPlay.name || sourceToPlay.fileName || sourceToPlay.type} (Chapter: ${sourceToPlay.chapterIds?.join(',') || 'General'}, Time: ${sourceToPlay.timeOfDay})`);
                                 playSound(page, sourceToPlay, false, onEnded, true, false); // isCompoundSequence = true
                                 setSoundCooldown(page.id, cooldownDuration);
                             } else {
@@ -3757,7 +3766,7 @@
                                 currentQueueIndex++;
                                 setTimeout(() => { playNextInSequence(); }, SEQUENTIAL_PLAY_DELAY_MS); // Still proceed with sequence
                             }
-                        } // This line is correct
+                        }
                         playNextInSequence();
                     }
 
@@ -3765,10 +3774,10 @@
                     // --- Play Sounds From Plot Thread (Simultaneous) ---
                     function playSoundsFromPlotThread(pageIds, context = "plot_thread_sounds") {
                         if (!pageIds || pageIds.length === 0) {
-                            console.log(`playSoundsFromPlotThread (${context}): No page IDs to play.`);
+                            log(`playSoundsFromPlotThread (${context}): No page IDs to play.`);
                             return;
                         }
-                        console.log(`playSoundsFromPlotThread (${context}): Starting simultaneous playback of ${pageIds.length} sounds in chapter ${book.activeChapterId} at time ${currentTimeOfDay}.`);
+                        log(`playSoundsFromPlotThread (${context}): Starting simultaneous playback of ${pageIds.length} sounds in chapter ${book.activeChapterId} at time ${currentTimeOfDay}.`);
 
                         pageIds.forEach(pageIdToPlay => {
                             const page = book.pages.find(p => p.id === pageIdToPlay);
@@ -3778,14 +3787,14 @@
                                     // Find a playable variation based on the NEW chapter and current time
                                     const sourceToPlay = findPlayableSourceVariation(page, true, null); // No text to check for plotter variations
                                     if (sourceToPlay) {
-                                        console.log(`playSoundsFromPlotThread (${context}) - Playing: "${page.title}" (ID: ${page.id})`);
+                                        log(`playSoundsFromPlotThread (${context}) - Playing: "${page.title}" (ID: ${page.id})`);
                                         playSound(page, sourceToPlay, true, null, false, true); // startedByAutoplay=true, isPlotThreadSound=true
                                     } else {
                                         console.warn(`playSoundsFromPlotThread (${context}): Skipping "${page.title}" - No playable variation for chapter ${book.activeChapterId} / time ${currentTimeOfDay}.`);
                                         showTemporaryMessage(`Plot: Cannot play "${page.title}" - No variation for new chapter/time.`, 'warning');
                                     }
                                 } else {
-                                    console.log(`playSoundsFromPlotThread (${context}): Skipping "${page.title}" due to page conditions not being met.`);
+                                    log(`playSoundsFromPlotThread (${context}): Skipping "${page.title}" due to page conditions not being met.`);
                                 }
                             } else {
                                 console.warn(`playSoundsFromPlotThread (${context}): Page ID ${pageIdToPlay} not found. Skipping.`);
@@ -3797,16 +3806,16 @@
                     // --- Play Leave Sounds Helper (Sequential with Callback) ---
                     function playLeaveSounds(pageIds, onAllSoundsFinishedCallback) {
                         if (!pageIds || pageIds.length === 0) {
-                            console.log("No 'leave sounds' configured for this chapter.");
+                            log("No 'leave sounds' configured for this chapter.");
                             if (typeof onAllSoundsFinishedCallback === 'function') onAllSoundsFinishedCallback();
                             return;
                         }
-                        console.log(`Playing ${pageIds.length} leave sounds sequentially.`);
+                        log(`Playing ${pageIds.length} leave sounds sequentially.`);
                         let currentIndex = 0;
 
                         function playNextLeaveSound() {
                             if (currentIndex >= pageIds.length) {
-                                console.log("All leave sounds finished.");
+                                log("All leave sounds finished.");
                                 if (typeof onAllSoundsFinishedCallback === 'function') onAllSoundsFinishedCallback();
                                 return;
                             }
@@ -3817,7 +3826,7 @@
                                 if (checkVariationConditions(page.conditions)) {
                                     const sourceToPlay = findPlayableSourceVariation(page, false, null); // No text to check for leave sound variations
                                     if (sourceToPlay) {
-                                        console.log(`Playing leave sound ${currentIndex + 1}/${pageIds.length}: "${page.title}"`);
+                                        log(`Playing leave sound ${currentIndex + 1}/${pageIds.length}: "${page.title}"`);
                                         playSound(page, sourceToPlay, true, () => { // Mark as autoplay, provide callback
                                             currentIndex++;
                                             setTimeout(playNextLeaveSound, SEQUENTIAL_PLAY_DELAY_MS); // Delay before next sound in sequence
@@ -3828,7 +3837,7 @@
                                         setTimeout(playNextLeaveSound, SEQUENTIAL_PLAY_DELAY_MS);
                                     }
                                 } else {
-                                    console.log(`Skipping leave sound "${page.title}" due to page conditions not being met.`);
+                                    log(`Skipping leave sound "${page.title}" due to page conditions not being met.`);
                                     currentIndex++;
                                     setTimeout(playNextLeaveSound, SEQUENTIAL_PLAY_DELAY_MS);
                                 }
@@ -3845,7 +3854,7 @@
                     function playSound(page, sourceDetailToPlay = null, startedByAutoplay = false, onEndedCallback = null, isCompoundSequence = false, isPlotThreadSound = false, isInternalLoopIteration = false, triggeredByAppendix = false) {
                         // If this page is already playing and this is not an internal loop call, just ignore the request.
                         if (activeSounds[page.id] && !isInternalLoopIteration) {
-                            console.log(`playSound: Ignoring trigger for Page ID ${page.id} ("${page.title}") because it is already playing.`);
+                            log(`playSound: Ignoring trigger for Page ID ${page.id} ("${page.title}") because it is already playing.`);
                             return;
                         }
 
@@ -3915,7 +3924,7 @@
                             syrinscapeTimeoutInstanceId: null
                         };
                         activeSounds[page.id] = soundData; // This will overwrite if it's an internal loop, which is fine as the instance data is fresh.
-                        console.log(`LOG (playSound): Playing Page ID ${page.id} ("${page.title}") - Type: ${sourceDetail.type}, Variation: ${sourceDetail.name || sourceDetail.fileName || sourceDetail.syrinscapeElementId} (LoopIter: ${page.currentLoop + 1}), Autoplay: ${soundData.startedByAutoplay}, PlotThreadSound: ${soundData.isPlotThreadSound}`);
+                        log(`LOG (playSound): Playing Page ID ${page.id} ("${page.title}") - Type: ${sourceDetail.type}, Variation: ${sourceDetail.name || sourceDetail.fileName || sourceDetail.syrinscapeElementId} (LoopIter: ${page.currentLoop + 1}), Autoplay: ${soundData.startedByAutoplay}, PlotThreadSound: ${soundData.isPlotThreadSound}`);
 
                         // Add to recent events list for contextual triggers
                         recentPageEvents.events.push({
@@ -3948,7 +3957,7 @@
                                 const finalGainValue = (finalVolume / 100) * (currentMasterVolume / 100);
                                 const targetGain = Math.max(MIN_GAIN, Math.min(1, finalGainValue));
 
-                                console.log(`LOG (playSound): Setting FILE volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final Gain: ${targetGain.toFixed(4)}`);
+                                log(`LOG (playSound): Setting FILE volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final Gain: ${targetGain.toFixed(4)}`);
 
                                 if (page.fadeInOut && !isRestart) { // isRestart for files might mean a manual re-trigger of a counted loop
                                     gainNode.gain.setValueAtTime(MIN_GAIN, now);
@@ -3976,7 +3985,7 @@
                                     if (page.loop && !actualLoopForFile && page.loopCount > 0) { // Counted loop for files (not using sourceNode.loop)
                                         if (page.currentLoop < page.loopCount) {
                                             page.currentLoop++;
-                                            console.log(`Looping FILE Page ID ${page.id} ("${page.title}") - Starting iteration ${page.currentLoop + 1} of ${page.loopCount}`);
+                                            log(`Looping FILE Page ID ${page.id} ("${page.title}") - Starting iteration ${page.currentLoop + 1} of ${page.loopCount}`);
                                             playSound(page, currentSourceDetail, startedByAutoplay, onEndedCallback, isCompoundSequence, isPlotThreadSound, true, activeData.triggeredByAppendix); // isInternalLoopIteration = true
                                             return; // Recursive call, so return
                                         }
@@ -3984,17 +3993,17 @@
                                     // If actualLoopForFile was true (indefinite), this onended only fires on explicit stop.
 
                                     if (isFinalEnd) {
-                                        console.log(`Final end for FILE Page ID ${page.id} ("${page.title}") Variation: ${currentSourceDetail.name || currentSourceDetail.fileName}`);
+                                        log(`Final end for FILE Page ID ${page.id} ("${page.title}") Variation: ${currentSourceDetail.name || currentSourceDetail.fileName}`);
                                         const callbackToExecute = activeData.onEndedCallback;
                                         const nextPageToTriggerId = page.nextPageId;
                                         const isCompound = activeData.isCompoundSequence;
                                         // Before deleting, capture the ID to pass to re-evaluation
-                                        const stoppedPageId = page.id; // This is correct
+                                        const stoppedPageId = page.id;
 
                                         delete activeSounds[page.id]; updatePageItem(page.id);
                                         // reEvaluateActiveSounds(stoppedPageId); // Re-evaluate other sounds now that this one has stopped
-                                        if (callbackToExecute && typeof callbackToExecute === 'function') { console.log(`Executing onEndedCallback for Page ID ${page.id}`); try { callbackToExecute(); } catch (e) { console.error(`Callback error Page ID ${page.id}:`, e); } }
-                                        else if (!isCompound && nextPageToTriggerId !== null) { console.log(`Triggering page's own nextPageId: ${nextPageToTriggerId}`); triggerNextPage(nextPageToTriggerId); }
+                                        if (callbackToExecute && typeof callbackToExecute === 'function') { log(`Executing onEndedCallback for Page ID ${page.id}`); try { callbackToExecute(); } catch (e) { console.error(`Callback error Page ID ${page.id}:`, e); } }
+                                        else if (!isCompound && nextPageToTriggerId !== null) { log(`Triggering page's own nextPageId: ${nextPageToTriggerId}`); triggerNextPage(nextPageToTriggerId); }
                                     }
                                 };
                                 if (activeSounds[page.id]) {
@@ -4015,13 +4024,13 @@
                                     const finalVolume = Math.max(0, Math.min(100, pageOrVariationVolume + modifier));
                                     const scaledVolume = (finalVolume / 100) * (currentMasterVolume / 100);
                                     const syrinscapeLocalVolume = Math.min(1.5, scaledVolume * 1.5);
-                                    console.log(`LOG (playSound): Setting SYRINSCAPE volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final Local Vol: ${syrinscapeLocalVolume.toFixed(4)}`);
+                                    log(`LOG (playSound): Setting SYRINSCAPE volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final Local Vol: ${syrinscapeLocalVolume.toFixed(4)}`);
                                     syrinscape.player.audioSystem.setLocalVolume(syrinscapeLocalVolume.toString());
 
                                     activeSounds[page.id].syrinscapeTimeoutInstanceId = timeoutInstanceId;
                                     evaluateAppendixStateTriggers(); // Evaluate state as soon as the sound starts
 
-                                    console.log(`Playing Syrinscape: ID=${elementId}, Kind=${kind}, Name="${currentSourceDetail.fileName}", Duration: ${currentSourceDetail.syrinscapePlayDuration || 'N/A'}, Loop Iter: ${page.currentLoop + 1}`);
+                                    log(`Playing Syrinscape: ID=${elementId}, Kind=${kind}, Name="${currentSourceDetail.fileName}", Duration: ${currentSourceDetail.syrinscapePlayDuration || 'N/A'}, Loop Iter: ${page.currentLoop + 1}`);
 
                                     if (kind === 'mood' || kind === 'moods') {
                                         syrinscape.player.controlSystem.startMood(elementId);
@@ -4033,7 +4042,7 @@
 
                                     if (currentSourceDetail.syrinscapePlayDuration && currentSourceDetail.syrinscapePlayDuration > 0) {
                                         const durationMs = currentSourceDetail.syrinscapePlayDuration * 1000;
-                                        console.log(`Syrinscape sound ${elementId} (Kind: ${kind}) will be stopped/looped after ${durationMs}ms. Instance ID: ${timeoutInstanceId}`);
+                                        log(`Syrinscape sound ${elementId} (Kind: ${kind}) will be stopped/looped after ${durationMs}ms. Instance ID: ${timeoutInstanceId}`);
 
                                         // Clear any PREVIOUS timeout for this page.id before setting a new one.
                                         if (activeSounds[page.id] && activeSounds[page.id].syrinscapeTimeoutId) {
@@ -4042,10 +4051,10 @@
                                         activeSounds[page.id].syrinscapeTimeoutId = setTimeout(() => {
                                             const currentActiveSoundData = activeSounds[page.id];
                                             if (!currentActiveSoundData || currentActiveSoundData.syrinscapeTimeoutInstanceId !== timeoutInstanceId || currentActiveSoundData.sourceDetail !== currentSourceDetail) {
-                                                console.log(`Syrinscape timed duration for Page ID ${page.id}: Stale timeout. Instance: ${timeoutInstanceId}. Current active instance: ${currentActiveSoundData?.syrinscapeTimeoutInstanceId}`);
+                                                log(`Syrinscape timed duration for Page ID ${page.id}: Stale timeout. Instance: ${timeoutInstanceId}. Current active instance: ${currentActiveSoundData?.syrinscapeTimeoutInstanceId}`);
                                                 return;
                                             }
-                                            console.log(`Timed duration reached for Syrinscape Page ID ${page.id} (Instance ${timeoutInstanceId}). Stopping current instance and checking loop.`);
+                                            log(`Timed duration reached for Syrinscape Page ID ${page.id} (Instance ${timeoutInstanceId}). Stopping current instance and checking loop.`);
                                             if (syrinscapePlayerReady && syrinscape.player && syrinscape.player.controlSystem) {
                                                 const idToStop = parseInt(currentSourceDetail.syrinscapeElementId, 10);
                                                 const kindToStop = currentSourceDetail.syrinscapeKind?.toLowerCase();
@@ -4063,7 +4072,7 @@
 
                                                 if (shouldContinueLooping) {
                                                     page.currentLoop++; // Increment for the loop iteration we are about to start
-                                                    console.log(`Page ${page.id} ("${page.title}") looping after Syrinscape duration. Starting loop iteration ${page.currentLoop} of ${page.loopCount === -1 ? 'Infinite' : page.loopCount}.`);
+                                                    log(`Page ${page.id} ("${page.title}") looping after Syrinscape duration. Starting loop iteration ${page.currentLoop} of ${page.loopCount === -1 ? 'Infinite' : page.loopCount}.`);
 
                                                     const originalCallback = currentActiveSoundData.onEndedCallback;
                                                     const originalIsCompound = currentActiveSoundData.isCompoundSequence;
@@ -4082,7 +4091,7 @@
                                                 }
                                             }
                                             // If not looping or finished loops for timed Syrinscape
-                                            console.log(`Syrinscape timed play finished for Page ID ${page.id}. Not looping further or loop completed.`);
+                                            log(`Syrinscape timed play finished for Page ID ${page.id}. Not looping further or loop completed.`);
                                             const stoppedPageId = page.id;
                                             const callbackToExecute = currentActiveSoundData.onEndedCallback;
                                             const nextPageToTriggerId = page.nextPageId;
@@ -4091,17 +4100,17 @@
                                             // reEvaluateActiveSounds(stoppedPageId); // Re-evaluate now that this sound has stopped
                                             updatePageItem(page.id);
                                             if (callbackToExecute && typeof callbackToExecute === 'function') {
-                                                console.log(`Executing onEndedCallback for timed Syrinscape Page ID ${page.id}`);
+                                                log(`Executing onEndedCallback for timed Syrinscape Page ID ${page.id}`);
                                                 try { callbackToExecute(); } catch (e) { console.error(`Callback error for timed Syrinscape Page ID ${page.id}:`, e); }
                                             } else if (!isCompound && nextPageToTriggerId !== null) {
-                                                console.log(`Triggering page's own nextPageId after timed Syrinscape: ${nextPageToTriggerId}`);
+                                                log(`Triggering page's own nextPageId after timed Syrinscape: ${nextPageToTriggerId}`);
                                                 triggerNextPage(nextPageToTriggerId);
                                             }
                                         }, durationMs);
                                     } else { // No specific duration set for this Syrinscape sound
                                         const isNativelyLoopingType = kind === 'mood' || kind === 'moods' || kind === 'music';
                                         if (isNativelyLoopingType) {
-                                            console.log(`Syrinscape sound ${elementId} (Kind: ${kind}) is natively loopable; no Storyteller duration set. Will loop via Syrinscape.`);
+                                            log(`Syrinscape sound ${elementId} (Kind: ${kind}) is natively loopable; no Storyteller duration set. Will loop via Syrinscape.`);
                                             // If page.loop is false but it's a mood, Syrinscape will loop it anyway.
                                             // onEndedCallback will likely only fire if explicitly stopped.
                                         } else if (page.loop && (page.loopCount === -1 || page.currentLoop < page.loopCount)) {
@@ -4117,7 +4126,7 @@
                                                 if (currentActiveSoundData && currentActiveSoundData.syrinscapeTimeoutInstanceId === oneShotTimeoutInstanceId) {
                                                     if (page.loop && (page.loopCount === -1 || page.currentLoop < page.loopCount)) {
                                                         page.currentLoop++;
-                                                        console.log(`Page ${page.id} ("${page.title}"): Assumed end of non-timed, non-native-looping Syrinscape. Re-triggering for loop ${page.currentLoop} of ${page.loopCount === -1 ? 'Infinite' : page.loopCount}.`);
+                                                        log(`Page ${page.id} ("${page.title}"): Assumed end of non-timed, non-native-looping Syrinscape. Re-triggering for loop ${page.currentLoop} of ${page.loopCount === -1 ? 'Infinite' : page.loopCount}.`);
                                                         playSound(page, currentSourceDetail, currentActiveSoundData.startedByAutoplay,
                                                             (page.loopCount !== -1 && page.currentLoop >= page.loopCount) ? currentActiveSoundData.onEndedCallback : null,
                                                             currentActiveSoundData.isCompoundSequence, currentActiveSoundData.isPlotThreadSound, true, currentActiveSoundData.triggeredByAppendix);
@@ -4131,7 +4140,7 @@
                                             }, assumedDurationForOneShotLoop);
                                         } else {
                                             // One-shot, not set to loop by page. Assume it ends.
-                                            console.log(`Syrinscape sound ${elementId} (Kind: ${kind}) is not natively loopable and not set to loop by page. Will play once.`);
+                                            log(`Syrinscape sound ${elementId} (Kind: ${kind}) is not natively loopable and not set to loop by page. Will play once.`);
                                             const assumedSelfTerminationDelay = (kind === 'oneshot' || kind === 'oneshots' || kind === 'sfx' || kind === 'element' || kind === 'elements') ? 3000 : 5000; // Shorter for typical one-shots
                                             const selfTermTimeoutInstanceId = Date.now() + Math.random();
                                             activeSounds[page.id].syrinscapeTimeoutInstanceId = selfTermTimeoutInstanceId;
@@ -4141,7 +4150,7 @@
                                                 const currentActiveSoundData = activeSounds[page.id];
                                                 if (currentActiveSoundData && currentActiveSoundData.syrinscapeTimeoutInstanceId === selfTermTimeoutInstanceId && !currentActiveSoundData.syrinscapePlayDuration) {
                                                     const stoppedPageId = page.id;
-                                                    console.log(`Assumed self-termination for Syrinscape Page ID ${stoppedPageId} (Kind: ${kind}).`);
+                                                    log(`Assumed self-termination for Syrinscape Page ID ${stoppedPageId} (Kind: ${kind}).`);
                                                     const callbackToExecute = currentActiveSoundData.onEndedCallback;
                                                     const nextPageToTriggerId = page.nextPageId;
                                                     const isCompound = currentActiveSoundData.isCompoundSequence;
@@ -4180,7 +4189,7 @@
                         };
 
                         if (!activeSounds[page.id] || activeSounds[page.id].sourceDetail !== sourceDetail || isPlotThreadSound) {
-                            console.log(`playYouTubeVideo: Updating/Creating activeSounds for Page ${page.id} to Variation: ${sourceDetail.name || sourceDetail.fileName}`);
+                            log(`playYouTubeVideo: Updating/Creating activeSounds for Page ${page.id} to Variation: ${sourceDetail.name || sourceDetail.fileName}`);
                             activeSounds[page.id] = { node: null, gainNode: null, sourceDetail: sourceDetail, startedByAutoplay: startedByAutoplay && !isPlotThreadSound, isPlotThreadSound: isPlotThreadSound, onEndedCallback: onEndedCallback, isCompoundSequence: isCompoundSequence };
                         } else {
                             activeSounds[page.id].startedByAutoplay = startedByAutoplay && !isPlotThreadSound;
@@ -4192,17 +4201,17 @@
                         const modifier = volumeModifiers[page.id] || 0;
                         const baseVolume = (pageOrVariationVolume / 100) * (currentMasterVolume / 100) * 100; // Volume 0-100
                         const finalYTVolume = Math.round(Math.max(0, Math.min(100, baseVolume + modifier)));
-                        console.log(`LOG (playYouTubeVideo): Setting YT volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final YT Vol: ${finalYTVolume}`);
+                        log(`LOG (playYouTubeVideo): Setting YT volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final YT Vol: ${finalYTVolume}`);
 
                         const startPlayback = (p) => {
-                            console.log(`YT startPlayback: Loading video ${playerOptions.videoId} for player ${playerId}`);
+                            log(`YT startPlayback: Loading video ${playerOptions.videoId} for player ${playerId}`);
                             p.setVolume(finalYTVolume);
                             // Instead of loadVideoById, we use cueVideoById which is more reliable for this flow
                             p.cueVideoById({ videoId: playerOptions.videoId, startSeconds: playerOptions.startSeconds, endSeconds: playerOptions.endSeconds });
                             // The onStateChange handler will catch the CUED event and play the video.
                         };
                         if (!player || !document.getElementById(playerId)) {
-                            console.log(`YT: Creating new player instance for ${playerId}`);
+                            log(`YT: Creating new player instance for ${playerId}`);
                             if (player) { try { player.destroy(); } catch (e) { } delete youtubePlayers[playerId]; }
                             let playerDiv = document.getElementById(playerId); if (!playerDiv) { playerDiv = document.createElement('div'); playerDiv.id = playerId; youtubePlayersContainer.appendChild(playerDiv); }
 
@@ -4210,7 +4219,7 @@
                                 height: '0', width: '0', videoId: playerOptions.videoId, playerVars: playerOptions.playerVars,
                                 events: {
                                     'onReady': (event) => {
-                                        console.log(`YT onReady: Player ${playerId} is ready.`);
+                                        log(`YT onReady: Player ${playerId} is ready.`);
                                         const readyPlayer = event.target;
                                         youtubePlayers[playerId] = readyPlayer;
                                         const currentActiveSound = activeSounds[page.id];
@@ -4231,19 +4240,19 @@
                                         if (!activeData || activeData.node !== event.target || activeData.sourceDetail !== sourceDetail) return;
 
                                         if (event.data === YT.PlayerState.CUED || (event.data === YT.PlayerState.BUFFERING && event.target.getPlayerState() !== YT.PlayerState.PLAYING)) {
-                                            console.log(`YT State Change: Player ${playerId} CUED/BUFFERING. Playing.`);
+                                            log(`YT State Change: Player ${playerId} CUED/BUFFERING. Playing.`);
                                             event.target.playVideo();
                                             updatePageItem(page.id);
                                         } else if (event.data === YT.PlayerState.PLAYING) {
                                             evaluateAppendixStateTriggers(); // Evaluate state as soon as the sound starts
-                                            console.log(`YT State Change: Player ${playerId} PLAYING.`);
+                                            log(`YT State Change: Player ${playerId} PLAYING.`);
                                             updatePageItem(page.id);
                                         } else if (event.data === YT.PlayerState.ENDED) {
-                                            console.log(`YT State Change: Player ${playerId} ENDED (Variation: ${sourceDetail.name || sourceDetail.fileName})`); let isFinalEnd = false;
+                                            log(`YT State Change: Player ${playerId} ENDED (Variation: ${sourceDetail.name || sourceDetail.fileName})`); let isFinalEnd = false;
                                             if (page.loopCount === -1) {
-                                                console.log(`YT Loop: Indefinite loop for ${playerId}. Seeking and playing.`); event.target.seekTo(playerOptions.startSeconds || 0, true); event.target.playVideo();
+                                                log(`YT Loop: Indefinite loop for ${playerId}. Seeking and playing.`); event.target.seekTo(playerOptions.startSeconds || 0, true); event.target.playVideo();
                                             } else if (page.loopCount > 0) {
-                                                page.currentLoop++; console.log(`YT Loop: Counted loop for ${playerId}. Loop ${page.currentLoop}/${page.loopCount}`);
+                                                page.currentLoop++; log(`YT Loop: Counted loop for ${playerId}. Loop ${page.currentLoop}/${page.loopCount}`);
                                                 if (page.currentLoop >= page.loopCount) isFinalEnd = true;
                                                 else { event.target.seekTo(playerOptions.startSeconds || 0, true); event.target.playVideo(); }
                                             } else {
@@ -4251,17 +4260,17 @@
                                             }
 
                                             if (isFinalEnd) {
-                                                console.log(`YT Final End for Page ID ${page.id} ("${page.title}") Variation: ${sourceDetail.name || sourceDetail.fileName}`);
+                                                log(`YT Final End for Page ID ${page.id} ("${page.title}") Variation: ${sourceDetail.name || sourceDetail.fileName}`);
                                                 const stoppedPageId = page.id;
                                                 const callbackToExecute = activeData.onEndedCallback; const nextPageToTriggerId = page.nextPageId; const isCompound = activeData.isCompoundSequence;
                                                 delete activeSounds[page.id]; updatePageItem(page.id);
-                                                // reEvaluateActiveSounds(stoppedPageId); // This line is correct
-                                                if (callbackToExecute && typeof callbackToExecute === 'function') { console.log(`Executing onEndedCallback for YT Page ID ${page.id} (with delay)`); setTimeout(() => { try { callbackToExecute(); } catch (e) { console.error(`Callback error YT Page ID ${page.id}:`, e); } }, COMPOUND_DELAY_MS); }
-                                                else if (!isCompound && nextPageToTriggerId !== null) { console.log(`Triggering page's own nextPageId: ${nextPageToTriggerId}`); triggerNextPage(nextPageToTriggerId); }
+                                                // reEvaluateActiveSounds(stoppedPageId);
+                                                if (callbackToExecute && typeof callbackToExecute === 'function') { log(`Executing onEndedCallback for YT Page ID ${page.id} (with delay)`); setTimeout(() => { try { callbackToExecute(); } catch (e) { console.error(`Callback error YT Page ID ${page.id}:`, e); } }, COMPOUND_DELAY_MS); }
+                                                else if (!isCompound && nextPageToTriggerId !== null) { log(`Triggering page's own nextPageId: ${nextPageToTriggerId}`); triggerNextPage(nextPageToTriggerId); }
                                             }
                                         } else if (event.data === YT.PlayerState.PAUSED && activeData.node === event.target) {
                                             if (page.loopCount === 0 || (page.loopCount > 0 && page.currentLoop >= page.loopCount)) {
-                                                console.log(`YT State Change: Player ${playerId} PAUSED and not looping/finished loop. Removing from active sounds.`);
+                                                log(`YT State Change: Player ${playerId} PAUSED and not looping/finished loop. Removing from active sounds.`);
                                                 delete activeSounds[page.id];
                                                 updatePageItem(page.id);
                                             }
@@ -4270,7 +4279,7 @@
                                 }
                             });
                         } else {
-                            console.log(`YT: Using existing player ${playerId}. Restart: ${isRestart}`);
+                            log(`YT: Using existing player ${playerId}. Restart: ${isRestart}`);
                             activeSounds[page.id].node = player;
                             if (isRestart) {
                                 player.seekTo(playerOptions.startSeconds || 0, true);
@@ -4284,18 +4293,18 @@
 
                     // --- Trigger Next Page ---
                     function triggerNextPage(nextPageId) {
-                        console.log(`Attempting to trigger next page: ID ${nextPageId}`);
+                        log(`Attempting to trigger next page: ID ${nextPageId}`);
                         const nextPage = book.pages.find(p => p.id === nextPageId);
                         if (nextPage) {
                             if (!checkVariationConditions(nextPage.conditions)) {
-                                evaluateAppendixStateTriggers(); // Evaluate state even if next page doesn't play // This line is correct
+                                evaluateAppendixStateTriggers(); // Evaluate state even if next page doesn't play
                                 console.warn(`Cannot play chained page "${nextPage.title}" (ID: ${nextPageId}): Conditions not met.`);
                                 showTemporaryMessage(`Cannot play chained page "${nextPage.title}": Conditions not met.`, 'warning');
                                 return;
                             }
                             const sourceToPlay = findPlayableSourceVariation(nextPage, false);
                             if (sourceToPlay) { // Variation keywords are not checked for chained pages
-                                console.log(`Chaining to page "${nextPage.title}", selected source: ${sourceToPlay.name || sourceToPlay.fileName || sourceToPlay.type}`);
+                                log(`Chaining to page "${nextPage.title}", selected source: ${sourceToPlay.name || sourceToPlay.fileName || sourceToPlay.type}`);
                                 setTimeout(() => playSound(nextPage, sourceToPlay, false, null, false, false), 50);
                                 evaluateAppendixStateTriggers(); // Evaluate state after successfully starting the next page
                             } else {
@@ -4313,7 +4322,7 @@
                     function stopSingleSound(pageId, context = 'user') {
                         const activeSoundData = activeSounds[pageId];
                         if (!activeSoundData) return;
-                        console.log(`LOG (stopSingleSound): Stopping Page ID ${pageId} ("${book.pages.find(p => p.id === pageId)?.title}") - Context: ${context}`);
+                        log(`LOG (stopSingleSound): Stopping Page ID ${pageId} ("${book.pages.find(p => p.id === pageId)?.title}") - Context: ${context}`);
 
                         const { node, gainNode, sourceDetail } = activeSoundData;
 
@@ -4330,12 +4339,12 @@
 
                         // Remove from active list immediately so it appears stopped in UI
                         delete activeSounds[pageId];
-                        renderPageList(); // This line is correct
+                        renderPageList();
                         // reEvaluateActiveSounds(pageId); // Re-evaluate other sounds now that this one has stopped
 
                         // Handle fade-out and stopping based on type
                         if (sourceDetail.type === 'file' && gainNode && audioContext && node instanceof AudioBufferSourceNode) {
-                            console.log(`LOG (stopSingleSound): Fading out FILE Page ID: ${pageId}`);
+                            log(`LOG (stopSingleSound): Fading out FILE Page ID: ${pageId}`);
                             const now = audioContext.currentTime;
                             try {
                                 gainNode.gain.cancelScheduledValues(now);
@@ -4351,13 +4360,13 @@
                                 if (node?.stop) { try { node.stop(); node.disconnect(); if (gainNode) gainNode.disconnect(); } catch (err) { } }
                             }
                         } else if (sourceDetail.type === 'youtube' && node?.stopVideo) {
-                            console.log(`LOG (stopSingleSound): Fading out YOUTUBE Page ID: ${pageId}`);
+                            log(`LOG (stopSingleSound): Fading out YOUTUBE Page ID: ${pageId}`);
                             fadeOutYouTube(node, FADE_DURATION);
                         } else if (sourceDetail.type === 'syrinscape' && syrinscapePlayerReady) {
                             const elementId = sourceDetail.syrinscapeElementId;
                             const kind = sourceDetail.syrinscapeKind?.toLowerCase();
                             if (elementId) {
-                                console.log(`LOG (stopSingleSound): Stopping SYRINSCAPE (no fade): ID=${elementId}, Kind=${kind}`);
+                                log(`LOG (stopSingleSound): Stopping SYRINSCAPE (no fade): ID=${elementId}, Kind=${kind}`);
                                 if (kind === 'mood' || kind === 'moods') {
                                     syrinscape.player.controlSystem.stopMood(parseInt(elementId, 10));
                                 } else if (kind !== 'samples' && kind !== 'oneshot' && kind !== 'oneshots' && (!kind || !kind.includes('sample'))) {
@@ -4374,19 +4383,19 @@
                             usedBy: new Set() // To track which single-use triggers have used this event
                         });
                         // Trigger 'stopped' event for Appendix
-                        triggerAppendixPageEvent(pageId, 'stopped'); // This line is correct
+                        triggerAppendixPageEvent(pageId, 'stopped');
                         evaluateAppendixStateTriggers(); // Re-evaluate conditions now that a sound has stopped
                     }
 
 
                     // --- Stop All Sounds ---
                     function stopAllSounds() {
-                        console.log("LOG (stopAllSounds): Stopping all sounds...");
+                        log("LOG (stopAllSounds): Stopping all sounds...");
                         const activeIds = Object.keys(activeSounds);
                         activeIds.forEach(id => stopSingleSound(parseInt(id, 10)));
 
                         if (syrinscapePlayerReady && syrinscape.player && syrinscape.player.controlSystem) {
-                            console.log("Calling Syrinscape global stopAll.");
+                            log("Calling Syrinscape global stopAll.");
                             syrinscape.player.controlSystem.stopAll();
                         }
                         if (activeSyrinscapePreview && syrinscapePlayerReady && syrinscape.player && syrinscape.player.controlSystem) {
@@ -4425,7 +4434,7 @@
                     }
 
                     // --- Update Add Page Dropdown ---
-                    function updateAddNextPageDropdown() { // This line is correct
+                    function updateAddNextPageDropdown() {
                         populateNextPageDropdown(addNextPageIdSelect);
                     }
 
@@ -4701,8 +4710,8 @@
                         li.addEventListener('drop', (e) => {
                             e.preventDefault();
                             e.stopPropagation(); // Prevent chapter drop handler
-                            li.classList.remove('drag-over-for-collection'); // This line is correct
-                            const draggedPageIdStr = e.dataTransfer.getData('text/plain'); // This line is correct
+                            li.classList.remove('drag-over-for-collection');
+                            const draggedPageIdStr = e.dataTransfer.getData('text/plain');
 
 
                             const targetPageId = page.id;
@@ -4714,7 +4723,7 @@
                         const playingSourceDetail = isPlaying ? activeSounds[page.id].sourceDetail : null;
                         const firstSource = playingSourceDetail || page.sources[0] || {};
                         // If not playing, we need to look inside the first variation's sources array for the actual source type.
-                        // If playing, playingSourceDetail is the actual source. // This line is correct
+                        // If playing, playingSourceDetail is the actual source.
                         const sourceForIcon = playingSourceDetail || (firstSource.sources && firstSource.sources[0]) || firstSource;
 
                         const typeIcon = sourceForIcon.type === 'file' ? '<i class="fas fa-file-audio text-blue-500 fa-fw" title="File"></i>'
@@ -4772,7 +4781,6 @@
                             `<button class="action-button remove-from-chapter-button" title="Remove from Chapter '${escapeHtml(activeChapter.name)}'"><i class="fas fa-book-open fa-fw"></i></button>` : '';
 
                         let triggerDisplay = '';
-                        const keywordsText = (page.keywords || []).join(', ');
                         const phrasesText = (page.phrases || []).join('; ');
                         const hasPhrases = phrasesText.length > 0;
 
@@ -4878,7 +4886,7 @@
                         li.querySelectorAll('.remove-from-chapter-button').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); removePageFromCurrentChapter(page.id); }));
                         li.querySelectorAll('.remove-from-collection-button').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); removePageFromCollection(page.id, btn.dataset.collectionId); }));
                         li.querySelectorAll('.star-checkbox').forEach(cb => cb.addEventListener('change', (e) => { e.stopPropagation(); togglePageStar(page.id, e.target); }));
-                        li.querySelectorAll('.play-toggle-button').forEach(btn => btn.addEventListener('click', (e) => { // This line is correct
+                        li.querySelectorAll('.play-toggle-button').forEach(btn => btn.addEventListener('click', (e) => {
                             e.stopPropagation();
                             const isCurrentlyPlaying = btn.classList.contains('is-playing');
                             if (isCurrentlyPlaying) stopSingleSound(page.id);
@@ -4889,18 +4897,18 @@
                     }
                     // --- Appendix Execution Logic ---
                     function triggerAppendixPageEvent(pageId, eventType) {
-                        if (!book.appendix || book.appendix.length === 0) return; // This line is correct
+                        if (!book.appendix || book.appendix.length === 0) return;
 
                         for (const entry of book.appendix) {
                             if (entry.trigger.type === 'page_event' && entry.trigger.event === eventType && entry.trigger.pages.includes(pageId)) {
-                                console.log(`Appendix Page Event Triggered: Page ${pageId} ${eventType}`);
+                                log(`Appendix Page Event Triggered: Page ${pageId} ${eventType}`);
                                 executeAppendixEntry(entry);
                             }
                         }
                     }
 
                     function triggerAppendixPageEvent(pageId, eventType) {
-                        if (!book.appendix || book.appendix.length === 0) return; // This line is correct
+                        if (!book.appendix || book.appendix.length === 0) return;
 
                         const pageIdInt = parseInt(pageId, 10);
 
@@ -4912,19 +4920,19 @@
 
                             // Ensure trigger and pages array exist before checking
                             if (entry.trigger?.type === 'page_event' && Array.isArray(entry.trigger.pages) && entry.trigger.event === eventType && entry.trigger.pages.includes(pageIdInt)) {
-                                console.log(`Appendix Page Event Triggered: Page ${pageId} ${eventType}`);
+                                log(`Appendix Page Event Triggered: Page ${pageId} ${eventType}`);
                                 executeAppendixEntry(entry);
                             }
                         }
                     }
 
                     function getConditionsFromBuilder(containerId, otherConditionsContainerId, tagContainerId) {
-                        const container = document.getElementById(containerId); // This line is correct
+                        const container = document.getElementById(containerId);
                         const otherContainer = document.getElementById(otherConditionsContainerId);
                         const tagContainer = document.getElementById(tagContainerId);
                         if (!container) return [];
                         // --- DEBUG LOG ---
-                        console.log(`%c[DEBUG] getConditionsFromBuilder: Reading conditions from UI containers.`, 'color: yellow');
+                        log(`%c[DEBUG] getConditionsFromBuilder: Reading conditions from UI containers.`, 'color: yellow');
                         // --- END DEBUG LOG ---
 
                         const conditions = [];
@@ -4947,7 +4955,7 @@
                         tagConditionItems.forEach(item => { // Re-using plotter styling
                             const state = item.dataset.state;
                             // --- DEBUG LOG ---
-                            console.log(`%c[DEBUG] getConditionsFromBuilder: Reading tag condition item. Tag ID: ${item.dataset.tagId}, State: ${state}`, 'color: yellow');
+                            log(`%c[DEBUG] getConditionsFromBuilder: Reading tag condition item. Tag ID: ${item.dataset.tagId}, State: ${state}`, 'color: yellow');
                             // --- END DEBUG LOG ---
                             if (state === 'is' || state === 'not') {
                                 const tagId = item.dataset.tagId;
@@ -4966,7 +4974,7 @@
                         });
 
                         // --- DEBUG LOG ---
-                        console.log(`%c[DEBUG] getConditionsFromBuilder: Final constructed conditions array:`, 'color: yellow', JSON.parse(JSON.stringify(conditions)));
+                        log(`%c[DEBUG] getConditionsFromBuilder: Final constructed conditions array:`, 'color: yellow', JSON.parse(JSON.stringify(conditions)));
                         // --- END DEBUG LOG ---
 
                         return conditions;
@@ -4991,7 +4999,7 @@
                     }
 
                     function evaluateAppendixStateTriggers() {
-                        if (!book.appendix || book.appendix.length === 0) return; // This line is correct
+                        if (!book.appendix || book.appendix.length === 0) return;
                     }
 
 
@@ -5030,7 +5038,7 @@
                                 }
                             });
                             pageIdsToReset.forEach(pId => {
-                                console.log(`Reversal: Clearing volume modifier for page ID ${pId} from entry ${entry.id}`);
+                                log(`Reversal: Clearing volume modifier for page ID ${pId} from entry ${entry.id}`);
                                 if (volumeModifiers[pId] !== undefined) {
                                     delete volumeModifiers[pId];
                                 }
@@ -5053,7 +5061,7 @@
                             }
 
                             // Determine target chapters
-                            if (effect.target?.chapters) { // This line is correct
+                            if (effect.target?.chapters) {
                                 effect.target.chapters.forEach(id => targetChapterIds.add(id));
                             }
                             if (effect.target?.affectAll) {
@@ -5063,13 +5071,13 @@
                                 targetChapterIds.add(book.activeChapterId);
                             }
 
-                            console.log(`Executing Appendix Effect: ${effect.type}`);
+                            log(`Executing Appendix Effect: ${effect.type}`);
 
                             switch (effect.type) {
                                 case 'start_pages':
                                 case 'end_pages':
                                     if (effect.params?.playSequentially) {
-                                        console.log(`Executing sequential ${effect.type} effect.`); // This part seems to have an error in the previous diff. Correcting it.
+                                        log(`Executing sequential ${effect.type} effect.`); // This part seems to have an error in the previous diff. Correcting it.
                                         const pagesToPlay = (effect.target.pages || []).map(pData => {
                                             const page = book.pages.find(p => p.id === pData.pageId);
                                             if (!page) return null;
@@ -5093,17 +5101,17 @@
 
                                         const playNextInSequence = () => {
                                             if (currentIndex >= pagesToPlay.length) {
-                                                console.log("Sequential play finished.");
+                                                log("Sequential play finished.");
                                                 return;
                                             }
                                             const pageToPlay = pagesToPlay[currentIndex];
-                                            console.log(`Playing sequential page ${currentIndex + 1}/${pagesToPlay.length}: "${pageToPlay.title}"`);
+                                            log(`Playing sequential page ${currentIndex + 1}/${pagesToPlay.length}: "${pageToPlay.title}"`);
 
                                             // The onEndedCallback for playSound will be our function to trigger the next sound
                                             const onSoundEnd = () => {
                                                 currentIndex++;
                                                 playNextInSequence();
-                                            }; // This line is correct
+                                            };
 
                                             // Mark as autoplay, provide the callback, but not as a compound sequence or plot thread sound
                                             playSound(pageToPlay.page, pageToPlay.sourceToPlay, true, onSoundEnd, false, false, false, true);
@@ -5111,7 +5119,7 @@
 
                                         playNextInSequence(); // Start the sequence
                                     } else {
-                                        console.log(`Executing simultaneous ${effect.type} effect.`);
+                                        log(`Executing simultaneous ${effect.type} effect.`);
                                         (effect.target.pages || []).forEach(pData => {
                                             const page = book.pages.find(p => p.id === pData.pageId);
                                             if (page) {
@@ -5160,7 +5168,7 @@
                                     break;
 
                                 case 'reset_volume':
-                                    targetPageIds.forEach(id => delete volumeModifiers[id]); // This line is correct
+                                    targetPageIds.forEach(id => delete volumeModifiers[id]);
                                     if (effect.target.affectAll) volumeModifiers = {};
                                     const idsToRestart = Object.keys(activeSounds).map(id => parseInt(id, 10)).filter(id => targetPageIds.has(id));
                                     idsToRestart.forEach(id => {
@@ -5211,7 +5219,7 @@
                             const soundData = activeSounds[pageId];
                             // *** FIX: Add a guard to ensure soundData exists before trying to access its properties.
                             if (!soundData) {
-                                // console.log(`adjustCurrentlyPlayingVolumes: Skipping page ${pageId}, not in activeSounds.`);
+                                // log(`adjustCurrentlyPlayingVolumes: Skipping page ${pageId}, not in activeSounds.`);
                                 return;
                             }
                             if (soundData.gainNode) { // Only for file-based sounds with a gain node
@@ -5239,14 +5247,14 @@
                     }
 
                     // --- Duplicate Page Function ---
-                    function duplicatePage(pageId) { // This line is correct
+                    function duplicatePage(pageId) {
                         const originalPage = book.pages.find(p => p.id === pageId);
                         if (!originalPage) {
                             showTemporaryMessage("Error: Original page not found.", "error");
                             return;
                         }
 
-                        console.log(`Duplicating page: "${originalPage.title}" (ID: ${pageId})`);
+                        log(`Duplicating page: "${originalPage.title}" (ID: ${pageId})`);
 
                         // Create a deep, serializable copy of the page object.
                         // This correctly copies all properties except for the non-serializable AudioBuffer.
@@ -5259,7 +5267,7 @@
                         newPage.sources.forEach((newSource, index) => {
                             const originalSource = originalPage.sources[index];
                             if (originalSource && originalSource.type === 'file' && originalSource.source instanceof AudioBuffer) {
-                                newSource.source = originalSource.source; // This line is correct
+                                newSource.source = originalSource.source;
                             }
                         });
 
@@ -5296,8 +5304,8 @@
                     }
 
                     // --- Manual Play Function ---
-                    function playPageManually(pageId, asOneShot = false) { // This line is correct
-                        console.log(`Manual play requested for Page ID: ${pageId}`);
+                    function playPageManually(pageId, asOneShot = false) {
+                        log(`Manual play requested for Page ID: ${pageId}`);
                         const page = book.pages.find(p => p.id === pageId);
                         if (!page) {
                             console.error(`Page ${pageId} not found.`);
@@ -5306,7 +5314,7 @@
                         }
 
                         if (activeSounds[pageId] && activeSounds[pageId].sourceDetail?.type !== 'syrinscape') {
-                            console.log(`Page ${pageId} is already playing. Stopping and restarting for manual play.`);
+                            log(`Page ${pageId} is already playing. Stopping and restarting for manual play.`);
                             stopSingleSound(pageId);
                         }
 
@@ -5316,7 +5324,7 @@
                             console.warn(`No playable variations for Page ID: ${pageId} in chapter ${book.activeChapterId} / time ${currentTimeOfDay}`); showTemporaryMessage(`Cannot play "${page.title}": No variation for this chapter/time!`, 'error');
                             return;
                         }
-                        console.log(`Manually playing "${page.title}" (Source: ${sourceToPlay.name || sourceToPlay.fileName || sourceToPlay.type}, Chapter: ${sourceToPlay.chapterIds?.join(',') || 'General'}, Time: ${sourceToPlay.timeOfDay})`);
+                        log(`Manually playing "${page.title}" (Source: ${sourceToPlay.name || sourceToPlay.fileName || sourceToPlay.type}, Chapter: ${sourceToPlay.chapterIds?.join(',') || 'General'}, Time: ${sourceToPlay.timeOfDay})`);
 
                         const tempPage = { ...page };
                         if (asOneShot) {
@@ -5327,11 +5335,11 @@
                     }
 
                     // --- Toggle Page Star ---
-                    function togglePageStar(pageId, checkboxElement) { // This line is correct
+                    function togglePageStar(pageId, checkboxElement) {
                         const page = book.pages.find(p => p.id === pageId);
                         if (page) {
                             page.isStarred = checkboxElement.checked;
-                            console.log(`Page "${page.title}" starred state: ${page.isStarred}`);
+                            log(`Page "${page.title}" starred state: ${page.isStarred}`);
                             const label = checkboxElement.closest('.star-label');
                             if (label) {
                                 const icon = label.querySelector('i');
@@ -5346,7 +5354,7 @@
 
                     // --- Delete Page Function ---
                     // --- Delete Page Function ---
-                    // --- Delete Page Function --- // This line is correct
+                    // --- Delete Page Function ---
                     function deletePageFromBook(pageId) {
                         const pageIndex = book.pages.findIndex(p => p.id === pageId);
                         if (pageIndex === -1) return;
@@ -5357,7 +5365,7 @@
                         // User confirmation for deletion
                         if (!confirm(`Are you sure you want to permanently delete page "${deletedTitle}" from the book? This cannot be undone.`)) return;
 
-                        console.log(`Deleting Page ID: ${pageId} ("${deletedTitle}")`);
+                        log(`Deleting Page ID: ${pageId} ("${deletedTitle}")`);
                         stopSingleSound(pageId); // Stop sound if playing
                         if (soundCooldowns[pageId]) { clearTimeout(soundCooldowns[pageId]); delete soundCooldowns[pageId]; }
 
@@ -5434,7 +5442,7 @@
                         if (indexInChapter > -1) {
                             const page = book.pages.find(p => p.id === pageId);
                             activeChapter.pageIds.splice(indexInChapter, 1);
-                            console.log(`Removed page ${pageId} from chapter "${activeChapter.name}"`);
+                            log(`Removed page ${pageId} from chapter "${activeChapter.name}"`);
                             saveToLocalStorage();
                             showTemporaryMessage(`Page "${page?.title || pageId}" removed from chapter "${activeChapter.name}".`, "success");
                             renderPageList(); // Re-render to reflect change
@@ -5492,7 +5500,7 @@
                         const includeSettings = saveSwitchSettings.checked;
                         const includeSoundtracks = document.getElementById('saveSwitchSoundtracks') ? document.getElementById('saveSwitchSoundtracks').checked : true;
 
-                        console.log("Saving to file with options:", { fileName, includeChapters, includeCollections, includePages, includeAppendix, includeSettings });
+                        log("Saving to file with options:", { fileName, includeChapters, includeCollections, includePages, includeAppendix, includeSettings });
 
                         try {
                             saveToLocalStorage(); // Ensure current state is in localStorage before stringifying for download
@@ -5516,7 +5524,7 @@
                             }
                             if (includeCollections) {
                                 partialBook.collections = fullBook.collections;
-                            } // This line is correct
+                            }
                             if (includeAppendix) {
                                 partialBook.appendix = fullBook.appendix;
                             }
@@ -5571,7 +5579,7 @@
 
                     // --- Load Book From File ---
                     function handleFileLoad(event) {
-                        console.log("Load book from file triggered.");
+                        log("Load book from file triggered.");
                         const file = event.target.files[0];
                         if (!file) return;
 
@@ -5729,7 +5737,7 @@
 
                             // Update global state variables from the newly merged settings
                             currentListeningMode = book.settings.listeningMode;
-                            isCompoundPhrasingEnabled = book.settings.compoundPhrasing; // This line is correct
+                            isCompoundPhrasingEnabled = book.settings.compoundPhrasing;
                             currentKeywordConfidenceThreshold = book.settings.accuracyThreshold;
                             stopAudioMode = book.settings.stopAudioMode;
                             currentMasterVolume = book.settings.masterVolume;
@@ -5777,16 +5785,16 @@
 
                                     let sourcesData = [];
                                     if (Array.isArray(item.sources)) {
-                                        console.log(`[loadBookFromFile] Processing sources for page "${item.title}" (ID: ${item.id})`);
+                                        log(`[loadBookFromFile] Processing sources for page "${item.title}" (ID: ${item.id})`);
                                         sourcesData = item.sources.map((variationContainer, index) => {
-                                            console.log(`[loadBookFromFile] -> Variation #${index}:`, JSON.parse(JSON.stringify(variationContainer)));
+                                            log(`[loadBookFromFile] -> Variation #${index}:`, JSON.parse(JSON.stringify(variationContainer)));
                                             if (variationContainer.type && variationContainer.sources === undefined) {
-                                                console.log(`[loadBookFromFile] -> -> Detected old format source. Wrapping in variation container.`);
+                                                log(`[loadBookFromFile] -> -> Detected old format source. Wrapping in variation container.`);
                                                 const subSource = { ...variationContainer, needsFile: variationContainer.type === 'file' };
                                                 return { id: `var_${generateUUID()}`, name: variationContainer.name || null, isDefault: variationContainer.isDefault || false, conditions: variationContainer.conditions || null, variationKeywords: variationContainer.variationKeywords || [], sources: [subSource] };
                                             }
                                             if (Array.isArray(variationContainer.sources)) {
-                                                console.log(`[loadBookFromFile] -> -> Detected new format with ${variationContainer.sources.length} sub-sources. Processing them.`);
+                                                log(`[loadBookFromFile] -> -> Detected new format with ${variationContainer.sources.length} sub-sources. Processing them.`);
                                                 const processedSubSources = variationContainer.sources.map(subSource => ({
                                                     ...subSource, // Keep all existing properties from the sub-source (incl. audioHash)
                                                     source: subSource.type === 'youtube' ? (subSource.source || extractYouTubeVideoId(subSource.fileName || '')) : null,
@@ -5803,7 +5811,7 @@
                                     const newPage = {
                                         id: item.id, title: item.title, primaryKey: item.primaryKey || null,
                                         keywords: Array.isArray(item.keywords) ? item.keywords : [],
-                                        phrases: Array.isArray(item.phrases) ? item.phrases : [], // This line is correct
+                                        phrases: Array.isArray(item.phrases) ? item.phrases : [],
                                         isStarred: item.isStarred || false,
                                         volume: typeof item.volume === 'number' ? item.volume : 80,
                                         loop: loopCount !== 0, loopCount: loopCount,
@@ -6001,7 +6009,7 @@
                         if (!files || files.length === 0) return;
                         if (!initAudioContext()) { showTemporaryMessage("Audio system not ready.", "error"); event.target.value = ''; return; }
 
-                        console.log(`Processing ${files.length} files for relinking...`);
+                        log(`Processing ${files.length} files for relinking...`);
                         showTemporaryMessage(`Scanning ${files.length} files...`, 'info', 5000);
 
                         let relinkedCount = 0;
@@ -6018,7 +6026,7 @@
                                     const lowerCaseFileName = source.fileName.toLowerCase();
                                     const matchingFile = fileMap.get(lowerCaseFileName);
                                     if (matchingFile) {
-                                        console.log(`Found match for "${source.fileName}". Decoding...`);
+                                        log(`Found match for "${source.fileName}". Decoding...`);
                                         promises.push(
                                             (async () => { // IIFE to handle async operations per file
                                                 try {
@@ -6029,7 +6037,7 @@
                                                     source.needsFile = false; // Mark as relinked
                                                     await persistAudioSource(source, matchingFile, bytesForStore); // B3: cache so no relink next time
                                                     relinkedCount++;
-                                                    console.log(`Relinked: ${source.fileName}`);
+                                                    log(`Relinked: ${source.fileName}`);
                                                 } catch (decodeError) {
                                                     errorCount++;
                                                     console.error(`Error decoding "${matchingFile.name}" for page "${page.title}":`, decodeError);
@@ -6060,7 +6068,7 @@
                             }
                         }
                         event.target.value = ''; // Clear the directory input
-                        console.log("Relinking finished.");
+                        log("Relinking finished.");
                     }
 
 
@@ -6173,8 +6181,8 @@
                         const oldChapterId = book.activeChapterId;
                         // Avoid redundant processing if chapter isn't actually changing, unless it's a specific re-trigger context
                         if (oldChapterId == newChapterId && transitionContext === 'tab_click' && !triggeredByVoiceOrPlotterOrTab) {
-                            console.log(`Chapter ${newChapterId} is already active and not a voice/plotter/tab transition. No change.`);
-                            return; // This line is correct
+                            log(`Chapter ${newChapterId} is already active and not a voice/plotter/tab transition. No change.`);
+                            return;
                         }
 
 
@@ -6182,12 +6190,12 @@
                         if (!newActiveChapter) { console.error(`Chapter ID ${newChapterId} not found.`); return; }
 
                         const oldChapter = book.chapters.find(ch => ch.id == oldChapterId);
-                        console.log(`Changing chapter from ${oldChapterId} ("${oldChapter?.name}") to ${newChapterId} ("${newActiveChapter.name}"). Stop Mode: '${stopAudioMode}', Context: ${transitionContext}`, thread ? `via Thread ${thread.id}` : '');
+                        log(`Changing chapter from ${oldChapterId} ("${oldChapter?.name}") to ${newChapterId} ("${newActiveChapter.name}"). Stop Mode: '${stopAudioMode}', Context: ${transitionContext}`, thread ? `via Thread ${thread.id}` : '');
 
                         // Handle return context
                         if (transitionContext === 'plot_thread' && thread && thread.enableReturn) {
                             lookBehindContext.returnChapterContext = { fromChapterId: oldChapterId, viaThreadId: thread.id };
-                            console.log(`Return context SET to chapter ${oldChapterId} via thread ${thread.id}.`);
+                            log(`Return context SET to chapter ${oldChapterId} via thread ${thread.id}.`);
                         } else {
                             lookBehindContext.returnChapterContext = null; // Clear context on any other transition
                         }
@@ -6213,17 +6221,17 @@
                         if (!skipInitialStopping) {
                             switch (stopAudioMode) {
                                 case 'autoplay':
-                                    console.log(`LOG (setActiveChapter): Stop Mode 'autoplay': Stopping only autoplay/leave/plotter sounds.`);
+                                    log(`LOG (setActiveChapter): Stop Mode 'autoplay': Stopping only autoplay/leave/plotter sounds.`);
                                     Object.entries(activeSounds).forEach(([pageIdStr, soundData]) => {
                                         const pageId = parseInt(pageIdStr, 10);
                                         if (soundData.startedByAutoplay || soundData.isPlotThreadSound) {
                                             // If this is a plot thread transition, and the sound is part of what the new thread will play,
                                             // it will be restarted by playSoundsFromPlotThread. Stop it for now.
                                             if (transitionContext === 'plot_thread' && soundsFromPlotThread.includes(pageId)) {
-                                                console.log(` -> Plotter sound Page ${pageId} will be handled by subsequent playSoundsFromPlotThread. Stopping for now.`);
+                                                log(` -> Plotter sound Page ${pageId} will be handled by subsequent playSoundsFromPlotThread. Stopping for now.`);
                                                 stopSingleSound(pageId, 'chapter_change_plotter_sound');
                                             } else {
-                                                console.log(` -> Stopping Page ${pageId}: Started by Autoplay (${soundData.startedByAutoplay}) or Plot Thread Sound (${soundData.isPlotThreadSound}).`);
+                                                log(` -> Stopping Page ${pageId}: Started by Autoplay (${soundData.startedByAutoplay}) or Plot Thread Sound (${soundData.isPlotThreadSound}).`);
                                                 stopSingleSound(pageId, 'chapter_change_autoplay');
                                             }
                                         } else { // Manually played sounds
@@ -6234,7 +6242,7 @@
                                     break;
                                 case 'all': // 'all' is now handled like 'smart' but with different keep criteria
                                 case 'smart': case 'indexContinue': // 'indexContinue' behaves like 'smart' unless going to Index
-                                    console.log(`LOG (setActiveChapter): Stop Mode '${stopAudioMode}': Smart stopping/keeping...`);
+                                    log(`LOG (setActiveChapter): Stop Mode '${stopAudioMode}': Smart stopping/keeping...`);
                                     Object.entries(activeSounds).forEach(([pageIdStr, soundData]) => {
                                         const pageId = parseInt(pageIdStr, 10);
                                         const page = book.pages.find(p => p.id === pageId);
@@ -6243,17 +6251,17 @@
                                         // If this is a plot thread transition, and the sound is part of what the new thread will play,
                                         // it will be restarted by playSoundsFromPlotThread. Stop it for now.
                                         if (transitionContext === 'plot_thread' && soundsFromPlotThread.includes(pageId)) {
-                                            console.log(` -> Plotter sound Page ${pageId} ("${page.title}") will be handled by subsequent play. Stopping for now.`);
+                                            log(` -> Plotter sound Page ${pageId} ("${page.title}") will be handled by subsequent play. Stopping for now.`);
                                             stopSingleSound(pageId, 'chapter_change_plotter_sound');
                                         } else {
                                             const isStarred = page.isStarred;
                                             const isInDestination = newChapterPageIds.has(pageId);
                                             const shouldKeep = stopAudioMode === 'all' ? false : (isStarred || isInDestination);
                                             if (!shouldKeep) {
-                                                console.log(` -> Stopping Page ${pageId} ("${page.title}"): Does not meet keep criteria for mode '${stopAudioMode}'.`);
+                                                log(` -> Stopping Page ${pageId} ("${page.title}"): Does not meet keep criteria for mode '${stopAudioMode}'.`);
                                                 stopSingleSound(pageId, 'chapter_change_stop');
                                             } else {
-                                                console.log(` -> Potentially Keeping Page ${pageId} ("${page.title}"): Starred (${isStarred}) or in destination (${isInDestination}).`);
+                                                log(` -> Potentially Keeping Page ${pageId} ("${page.title}"): Starred (${isStarred}) or in destination (${isInDestination}).`);
                                                 soundsToPotentiallyKeep.set(pageId, { page, soundData });
                                             }
                                         }
@@ -6261,7 +6269,7 @@
                                     break;
                             }
                         } else {
-                            console.log(`LOG (setActiveChapter): Stop Mode 'indexContinue' to Index (non-plotter): Keeping all sounds initially.`);
+                            log(`LOG (setActiveChapter): Stop Mode 'indexContinue' to Index (non-plotter): Keeping all sounds initially.`);
                             Object.entries(activeSounds).forEach(([pageIdStr, soundData]) => {
                                 const pageId = parseInt(pageIdStr, 10);
                                 const page = book.pages.find(p => p.id === pageId);
@@ -6271,21 +6279,21 @@
                         book.activeChapterId = newChapterId; saveToLocalStorage();
                         if (typeof evaluateSoundtrackTriggers === 'function') evaluateSoundtrackTriggers(newChapterId, 'chapter');
                         // reEvaluateActiveSounds(); // This is now handled by the logic below, making it redundant.
-                        console.log(`LOG (setActiveChapter): Active chapter set to: ${newChapterId} ("${newActiveChapter.name}"), Triggered by voice/plotter/tab: ${triggeredByVoiceOrPlotterOrTab}, Context: ${transitionContext}`);
+                        log(`LOG (setActiveChapter): Active chapter set to: ${newChapterId} ("${newActiveChapter.name}"), Triggered by voice/plotter/tab: ${triggeredByVoiceOrPlotterOrTab}, Context: ${transitionContext}`);
                         renderChapterTabs(); renderPageList(); // Update UI for new chapter
 
                         // Now, handle sounds that were potentially kept: check for variation switches
-                        console.log(`LOG (setActiveChapter): Checking ${soundsToPotentiallyKeep.size} potentially continuing sounds for variation switch...`);
+                        log(`LOG (setActiveChapter): Checking ${soundsToPotentiallyKeep.size} potentially continuing sounds for variation switch...`);
                         soundsToPotentiallyKeep.forEach(({ page, soundData }, pageId) => {
                             // If the sound was stopped in the switch block above (e.g. for plot thread sounds), it won't be in activeSounds anymore
                             if (!activeSounds[pageId] && !soundsFromPlotThread.includes(pageId)) { // Also check if it's not about to be played by plot thread
-                                console.log(` -> Sound ${pageId} was already stopped or handled. Skipping variation check.`);
+                                log(` -> Sound ${pageId} was already stopped or handled. Skipping variation check.`);
                                 return;
                             }
 
                             // Check if the page itself is still valid for the current time of day
                             if (page.timeOfDaySetting !== 'always' && page.timeOfDaySetting !== currentTimeOfDay) {
-                                console.log(` -> Stopping Page ${pageId} ("${page.title}"): Page time restriction (${page.timeOfDaySetting}) doesn't match current time (${currentTimeOfDay}).`);
+                                log(` -> Stopping Page ${pageId} ("${page.title}"): Page time restriction (${page.timeOfDaySetting}) doesn't match current time (${currentTimeOfDay}).`);
                                 if (activeSounds[pageId]) stopSingleSound(pageId, 'chapter_change_time_restriction');
                                 return;
                             }
@@ -6293,17 +6301,17 @@
                             const newAppropriateVariation = findPlayableSourceVariation(page, transitionContext === 'plot_thread'); // Pass plotter context for variation selection
 
                             if (!newAppropriateVariation) {
-                                console.log(` -> Stopping Page ${pageId} ("${page.title}"): No playable variation for new chapter "${newActiveChapter.name}" / time ${currentTimeOfDay}.`);
+                                log(` -> Stopping Page ${pageId} ("${page.title}"): No playable variation for new chapter "${newActiveChapter.name}" / time ${currentTimeOfDay}.`);
                                 if (activeSounds[pageId]) stopSingleSound(pageId, 'chapter_change_no_variation');
                             } else if (newAppropriateVariation !== currentVariation) {
-                                console.log(`LOG (setActiveChapter): Switching Variation for Page ${pageId} ("${page.title}")`);
+                                log(`LOG (setActiveChapter): Switching Variation for Page ${pageId} ("${page.title}")`);
                                 if (activeSounds[pageId]) stopSingleSound(pageId, 'chapter_change_variation_switch'); // Stop old variation
                                 // Re-play with new variation, preserving original intent (autoplay, callback, etc.)
                                 setTimeout(() => {
                                     playSound(page, newAppropriateVariation, soundData.startedByAutoplay, soundData.onEndedCallback, soundData.isCompoundSequence, soundData.isPlotThreadSound);
                                 }, 50); // Small delay to allow stop to process
                             } else {
-                                console.log(` -> Keeping Page ${pageId} ("${page.title}"): Current variation is still appropriate.`);
+                                log(` -> Keeping Page ${pageId} ("${page.title}"): Current variation is still appropriate.`);
                                 // If it was stopped for plot_thread but is now being kept, ensure it's back in activeSounds
                                 if (!activeSounds[pageId]) activeSounds[pageId] = soundData;
                             }
@@ -6312,7 +6320,7 @@
                         // Trigger autoplay pages for the new chapter if appropriate
                         if (triggeredByVoiceOrPlotterOrTab && !newActiveChapter.isIndex) {
                             if (transitionContext === 'plot_thread') { // For plot threads, the flag directly controls autoplay
-                                console.log(`Plot thread transition to "${newActiveChapter.name}". Chapter autoplay is ${triggeredByVoiceOrPlotterOrTab ? 'ENABLED' : 'DISABLED'}.`);
+                                log(`Plot thread transition to "${newActiveChapter.name}". Chapter autoplay is ${triggeredByVoiceOrPlotterOrTab ? 'ENABLED' : 'DISABLED'}.`);
                                 playAutoplayPages(newActiveChapter.id);
                             } else if (['enter_phrase', 'exit_phrase', 'exit_phrase_return', 'tab_click'].includes(transitionContext)) {
                                 // For other triggered transitions (including plot thread returns), play autoplay pages for the new chapter.
@@ -6367,7 +6375,7 @@
                         }
                         if (!confirm(`Delete chapter "${chapterToDelete.name}"? Pages within this chapter will NOT be deleted from the book but will be unassigned from this chapter.`)) return;
 
-                        console.log(`Deleting chapter: "${chapterToDelete.name}" (ID: ${chapterId})`);
+                        log(`Deleting chapter: "${chapterToDelete.name}" (ID: ${chapterId})`);
 
                         // Remove this chapterId from any page source variations that were specifically assigned to it
                         book.pages.forEach(page => {
@@ -6449,7 +6457,7 @@
                                 const index = c.pageIds.indexOf(pageId);
                                 if (index > -1) {
                                     c.pageIds.splice(index, 1);
-                                    console.log(`Removed page ${pageId} from existing collection "${c.name}"`);
+                                    log(`Removed page ${pageId} from existing collection "${c.name}"`);
                                 }
                             });
                         });
@@ -6561,11 +6569,11 @@
                     function playAutoplayPages(chapterId) {
                         const chapter = book.chapters.find(ch => ch.id == chapterId);
                         if (!chapter || chapter.isIndex || !chapter.autoPlayPageIds || chapter.autoPlayPageIds.length === 0) {
-                            console.log(`Autoplay: No pages or not eligible for chapter ${chapterId}`);
+                            log(`Autoplay: No pages or not eligible for chapter ${chapterId}`);
                             return;
                         }
 
-                        console.log(`Triggering autoplay for chapter "${chapter.name}" (Time: ${currentTimeOfDay})`);
+                        log(`Triggering autoplay for chapter "${chapter.name}" (Time: ${currentTimeOfDay})`);
                         const pagesToPlay = chapter.autoPlayPageIds.map(id => book.pages.find(p => p.id === id)).filter(Boolean);
 
                         pagesToPlay.forEach((page, index) => {
@@ -6579,7 +6587,7 @@
                                 // Only re-trigger if the page's time setting is NOT 'always'.
                                 // This prevents one-shots from re-triggering on every time change.
                                 if (page.timeOfDaySetting === 'always') { // Stricter check
-                                    console.log(`Time-change autoplay skip: "${page.title}" is an 'always' page and should not retrigger on time change.`);
+                                    log(`Time-change autoplay skip: "${page.title}" is an 'always' page and should not retrigger on time change.`);
                                     return;
                                 }
                             }
@@ -6591,7 +6599,7 @@
                                 if (sourceToPlay) {
                                     // Stagger playback slightly for multiple autoplay pages
                                     setTimeout(() => {
-                                        console.log(`Autoplaying page "${page.title}" (Index ${index}) Variation: ${sourceToPlay.name || sourceToPlay.fileName}`);
+                                        log(`Autoplaying page "${page.title}" (Index ${index}) Variation: ${sourceToPlay.name || sourceToPlay.fileName}`);
                                         playSound(page, sourceToPlay, true, null, false, false);
                                     }, index * 150);
                                 } else {
@@ -6599,7 +6607,7 @@
                                     showTemporaryMessage(`Cannot autoplay "${page.title}": No variation for this chapter/time!`, 'warning');
                                 }
                             } else {
-                                console.log(`Skipping autoplay for "${page.title}" due to page time restriction (${page.timeOfDaySetting} vs ${currentTimeOfDay}).`);
+                                log(`Skipping autoplay for "${page.title}" due to page time restriction (${page.timeOfDaySetting} vs ${currentTimeOfDay}).`);
                             }
                         });
                     }
@@ -6607,7 +6615,7 @@
 
                     // --- Add Page Modal Functions ---
                     function openAddPageModal() {
-                        console.log("Opening Add Page modal.");
+                        log("Opening Add Page modal.");
                         tempPageForAddModal = {
                             id: -1, // Temporary ID
                             sources: []
@@ -6675,7 +6683,7 @@
                             showTemporaryMessage("Cannot edit the Index chapter.", "info");
                             return;
                         }
-                        console.log(`[openEditChapterModal] Opening for chapter: "${chapter.name}" (ID: ${chapterId})`);
+                        log(`[openEditChapterModal] Opening for chapter: "${chapter.name}" (ID: ${chapterId})`);
 
                         editChapterIdInput.value = chapter.id;
                         editChapterNameInput.value = chapter.name;
@@ -6683,9 +6691,9 @@
                         editChapterIsStarredCheckbox.checked = chapter.isStarred || false;
 
                         // --- DEBUG LOGS ---
-                        console.log(`[openEditChapterModal] Chapter data from book object:`, JSON.parse(JSON.stringify(chapter)));
-                        console.log(`[openEditChapterModal] Chapter tagIds being loaded:`, chapter.tagIds);
-                        console.log(`[openEditChapterModal] All available tags from book.settings:`, JSON.parse(JSON.stringify(book.settings.chapterTags)));
+                        log(`[openEditChapterModal] Chapter data from book object:`, JSON.parse(JSON.stringify(chapter)));
+                        log(`[openEditChapterModal] Chapter tagIds being loaded:`, chapter.tagIds);
+                        log(`[openEditChapterModal] All available tags from book.settings:`, JSON.parse(JSON.stringify(book.settings.chapterTags)));
                         // --- END DEBUG LOGS ---
 
                         // Autoplay Pages
@@ -6762,7 +6770,7 @@
                         const newTagIds = newTags.map(t => t.id);
 
                         // --- DEBUG LOGS ---
-                        console.log(`[saveChapterChanges] Saving tags for chapter ${chapterId}:`, { tags: newTags, tagIds: newTagIds });
+                        log(`[saveChapterChanges] Saving tags for chapter ${chapterId}:`, { tags: newTags, tagIds: newTagIds });
                         // --- END DEBUG LOGS ---
 
 
@@ -6783,7 +6791,7 @@
                         chapter.leaveSoundPageIds = newLeaveSoundPageIds;
                         chapter.leaveTransitionTargetId = newLeaveTransitionTargetId;
 
-                        console.log(`Chapter ${chapterId} updated:`, chapter);
+                        log(`Chapter ${chapterId} updated:`, chapter);
                         updateChapterKeywordList();
                         saveToLocalStorage();
                         renderChapterTabs();
@@ -6809,7 +6817,7 @@
                     function openEditCollectionModal(collectionId) {
                         const collection = (book.collections || []).find(c => c.id === collectionId);
                         if (!collection) return;
-                        console.log(`Opening edit modal for collection: "${collection.name}" (ID: ${collectionId})`);
+                        log(`Opening edit modal for collection: "${collection.name}" (ID: ${collectionId})`);
 
                         editCollectionIdInput.value = collection.id;
                         editCollectionNameInput.value = collection.name;
@@ -6984,9 +6992,9 @@
                     function openEditPageModal(pageId, forAddPage = false) {
                         const page = book.pages.find(p => p.id === pageId);
                         if (!page) { console.error(`Page ID ${pageId} not found.`); return; }
-                        console.log(`DEBUG: Opening edit modal for page:`, JSON.parse(JSON.stringify(page)));
+                        log(`DEBUG: Opening edit modal for page:`, JSON.parse(JSON.stringify(page)));
                         const modal = forAddPage ? addPageModal : editPageModal;
-                        console.log(`Opening edit modal for page: "${page.title}" (ID: ${pageId})`);
+                        log(`Opening edit modal for page: "${page.title}" (ID: ${pageId})`);
                         currentlyEditingPageId = pageId;
 
                         editPageIdInput.value = page.id;
@@ -7043,7 +7051,7 @@
                     }
 
                     function renderVariationList(page) {
-                        console.log(`DEBUG: Rendering variation list for page "${page.title}". Page.sources data:`, JSON.parse(JSON.stringify(page.sources)));
+                        log(`DEBUG: Rendering variation list for page "${page.title}". Page.sources data:`, JSON.parse(JSON.stringify(page.sources)));
                         const listUl = (page.id === -1) ? addSourceListUl : editSourceListUl;
                         listUl.innerHTML = '';
                         if (!page.sources || page.sources.length === 0) {
@@ -7052,12 +7060,12 @@
                         }
                         page.sources.forEach((source, index) => {
                             const li = document.createElement('li');
-                            li.dataset.sourceIndex = index; // This line is correct
+                            li.dataset.sourceIndex = index;
 
                             const variation = source; // For clarity, as we are refactoring
                             const displayName = variation.name || `Variation ${index + 1}`;
                             const truncatedName = displayName.length > 25 ? displayName.substring(0, 22) + '...' : displayName;
-                            console.log(`DEBUG: Variation #${index} ("${displayName}") has sub-sources:`, variation.sources);
+                            log(`DEBUG: Variation #${index} ("${displayName}") has sub-sources:`, variation.sources);
                             const subSourceCount = variation.sources?.length || 0;
                             const missingIndicator = subSourceCount === 0 ? '<span class="missing-file-indicator ml-2">(No Sources)</span>' : '';
                             const defaultIndicator = source.isDefault ? `<i class="fas fa-star source-default-indicator" title="Default Variation"></i>` : '';
@@ -7083,11 +7091,11 @@
                         </div>`;
 
                             li.querySelector('.edit-source-button').addEventListener('click', (e) => {
-                                e.stopPropagation(); // This line is correct
+                                e.stopPropagation();
                                 openVariationSettingsModal(page.id, index, page.id === -1);
                             });
                             li.querySelector('.manage-sources-button').addEventListener('click', (e) => {
-                                e.stopPropagation(); // This line is correct
+                                e.stopPropagation();
                                 openManageSourcesModal(page.id, index, false, page.id === -1);
                             });
                             li.querySelector('.remove-source-button').addEventListener('click', handleRemoveSourceClick);
@@ -7098,7 +7106,7 @@
                     function closeEditModal() {
                         modalOverlay.style.display = 'none';
                         editPageModal.style.display = 'none';
-                        if (activePreviewContext) { // This line is correct
+                        if (activePreviewContext) {
                             stopModalPreview();
                         }
                         currentlyEditingPageId = null;
@@ -7115,11 +7123,11 @@
                     }
 
                     function saveEditChanges() {
-                        const pageId = parseInt(editPageIdInput.value, 10); // This line is correct
+                        const pageId = parseInt(editPageIdInput.value, 10);
                         const page = book.pages.find(p => p.id === pageId);
                         if (!page) return;
 
-                        console.log(`Saving changes for page: "${page.title}" (ID: ${pageId})`);
+                        log(`Saving changes for page: "${page.title}" (ID: ${pageId})`);
                         const newTitle = editPageTitleInput.value.trim();
                         const newPrimaryKeyRaw = editPrimaryKeyInput.value.trim();
                         const newPrimaryKey = newPrimaryKeyRaw ? newPrimaryKeyRaw.toLowerCase() : null;
@@ -7159,7 +7167,7 @@
                         page.fadeInOut = newFadeInOut;
                         page.endPlayKeywords = finalLoop ? (newEndPlayKeywordsRaw === '' ? [] : newEndPlayKeywordsRaw.toLowerCase().split(',').map(k => k.trim()).filter(Boolean)) : [];
                         page.nextPageId = newNextPageId;
-                        page.timeOfDaySetting = newTimeOfDaySetting; // This line is correct
+                        page.timeOfDaySetting = newTimeOfDaySetting;
 
                         const finalSources = [];
                         const sourceListItems = editSourceListUl.querySelectorAll('li');
@@ -7191,7 +7199,7 @@
                         if (editFadeInOutCheckbox) editFadeInOutCheckbox.disabled = page.sources.some(s => s.type !== 'file');
 
 
-                        console.log("Page updated:", page);
+                        log("Page updated:", page);
                         updateFuseIndex();
                         saveToLocalStorage();
                         renderPageList();
@@ -7238,7 +7246,7 @@
                             const source = page.sources[sourceIndex];
                             sourceVariationModalTitle.textContent = 'Edit Variation Settings';
                             // --- DEBUG LOG ---
-                            console.log(`%c[DEBUG] openVariationSettingsModal: Loading conditions for variation "${source.name || `index ${sourceIndex}`}"`, 'color: cyan', JSON.parse(JSON.stringify(source.conditions || [])));
+                            log(`%c[DEBUG] openVariationSettingsModal: Loading conditions for variation "${source.name || `index ${sourceIndex}`}"`, 'color: cyan', JSON.parse(JSON.stringify(source.conditions || [])));
                             // --- END DEBUG LOG ---
 
                             const hasVolumeOverride = typeof source.volumeOverride === 'number' && source.volumeOverride !== null;
@@ -7530,10 +7538,10 @@
                             if (isEditing) {
                                 // Merge new details with old, preserving properties not in newSourceDetail
                                 variation.sources[sourceIndex] = { ...variation.sources[sourceIndex], ...newSourceDetail };
-                                console.log(`Sub-variation source at index ${sourceIndex} updated.`);
+                                log(`Sub-variation source at index ${sourceIndex} updated.`);
                             } else {
                                 variation.sources.push(newSourceDetail);
-                                console.log("New sub-variation source added.");
+                                log("New sub-variation source added.");
                             }
 
                             renderSubVariationList(variation);
@@ -7560,7 +7568,7 @@
                         let isDefault = sourceVariationIsDefaultCheckbox.checked;
 
                         // LOG: Log the state of the 'isDefault' checkbox when saving
-                        console.log(`LOG (saveSourceVariationChanges): 'isDefault' checkbox is checked: ${isDefault}`);
+                        log(`LOG (saveSourceVariationChanges): 'isDefault' checkbox is checked: ${isDefault}`);
 
                         const sourceType = document.querySelector('input[name="sourceVariationSourceType"]:checked')?.value;
                         const name = sourceVariationNameInput.value.trim() || null;
@@ -7572,7 +7580,7 @@
 
                         const conditions = getConditionsFromBuilder('sourceVariationPageConditionsList', 'sourceVariationOtherConditions', 'sourceVariationTagConditionsList');
                         // --- DEBUG LOG ---
-                        console.log(`%c[DEBUG] saveSourceVariationChanges: Conditions retrieved from builder:`, 'color: lightgreen', JSON.parse(JSON.stringify(conditions)));
+                        log(`%c[DEBUG] saveSourceVariationChanges: Conditions retrieved from builder:`, 'color: lightgreen', JSON.parse(JSON.stringify(conditions)));
                         // --- END DEBUG LOG ---
 
                         // If this variation is being set as default, unset the old default
@@ -7580,7 +7588,7 @@
                             page.sources.forEach((s, idx) => {
                                 // LOG: Log which other variations are being unset as default
                                 if (s.isDefault && (!isEditing || idx !== sourceIndex)) {
-                                    console.log(`LOG (saveSourceVariationChanges): Unsetting 'isDefault' on variation index ${idx}.`);
+                                    log(`LOG (saveSourceVariationChanges): Unsetting 'isDefault' on variation index ${idx}.`);
                                 }
                                 if (!isEditing || idx !== sourceIndex) {
                                     s.isDefault = false;
@@ -7590,7 +7598,7 @@
                             // If we are unchecking the default, we need to ensure another one becomes default
                             isDefault = false; // Explicitly set to false for this variation
                             // LOG: Log that the current default is being unchecked
-                            console.log(`LOG (saveSourceVariationChanges): The current default variation (index ${sourceIndex}) is being unchecked.`);
+                            log(`LOG (saveSourceVariationChanges): The current default variation (index ${sourceIndex}) is being unchecked.`);
                         }
 
                         try {
@@ -7607,22 +7615,22 @@
                                 sources: isEditing ? page.sources[sourceIndex].sources : [] // Keep existing sources if editing
                             };
                             // --- DEBUG LOG ---
-                            console.log(`%c[DEBUG] saveSourceVariationChanges: Final variation data object being saved:`, 'color: lightgreen', JSON.parse(JSON.stringify(newVariationData)));
+                            log(`%c[DEBUG] saveSourceVariationChanges: Final variation data object being saved:`, 'color: lightgreen', JSON.parse(JSON.stringify(newVariationData)));
                             // --- END DEBUG LOG ---
 
                             if (isEditing && sourceIndex !== null && page.sources[sourceIndex]) {
                                 page.sources[sourceIndex] = { ...page.sources[sourceIndex], ...newVariationData };
-                                console.log(`Source variation at index ${sourceIndex} updated.`);
+                                log(`Source variation at index ${sourceIndex} updated.`);
                             } else {
                                 page.sources.push(newVariationData);
-                                console.log("New source variation added.");
+                                log("New source variation added.");
                             }
 
                             // After all changes, if no variation is default and the user didn't just uncheck the last one, make the first one default.
                             // if (page.sources.length > 0 && !page.sources.some(s => s.isDefault)) {
                             //     page.sources[0].isDefault = true;
                             //     // LOG: Log that a new default has been automatically assigned
-                            //     console.log(`LOG (saveSourceVariationChanges): No default variation found after changes. Automatically setting variation index 0 as default.`);
+                            //     log(`LOG (saveSourceVariationChanges): No default variation found after changes. Automatically setting variation index 0 as default.`);
                             //     showTemporaryMessage("No default variation was set. The first variation has been marked as default.", "info", 4000);
                             // }
 
@@ -7724,7 +7732,7 @@
                         if (activePreviewContext) {
                             stopModalPreview();
                         }
-                        const page = book.pages.find(p => p.id == currentlyEditingPageId); // This line is correct
+                        const page = book.pages.find(p => p.id == currentlyEditingPageId);
                         const firstSyrinscapeSource = page?.sources.find(s => s.type === 'syrinscape');
                         const syrinscapeKindForLoopEval = firstSyrinscapeSource ? firstSyrinscapeSource.syrinscapeKind : null;
                         const syrinscapeDurationForLoopEval = firstSyrinscapeSource?.sources[0] ? firstSyrinscapeSource.sources[0].syrinscapePlayDuration : null;
@@ -7751,7 +7759,7 @@
                         if (activePreviewContext) {
                             stopModalPreview();
                         }
-                        const page = book.pages.find(p => p.id == currentlyEditingPageId); // This line is correct
+                        const page = book.pages.find(p => p.id == currentlyEditingPageId);
                         const firstSyrinscapeSource = page?.sources.find(s => s.type === 'syrinscape');
                         const syrinscapeKindForLoopEval = firstSyrinscapeSource ? firstSyrinscapeSource.syrinscapeKind : null;
                         const syrinscapeDurationForLoopEval = firstSyrinscapeSource?.sources[0] ? firstSyrinscapeSource.sources[0].syrinscapePlayDuration : null;
@@ -7786,7 +7794,7 @@
                             }
                             closeStoryPlotterModal(); closeSyrinscapeSearchModal(); closeAppendixModal(); closeAddEditAppendixEntryModal(); closeAppendixEffectModal(); // closePlotThreadMenu is called inside closeStoryPlotterModal
                             closeManageSourcesModal(); closeAddEditSourceModal();
-                        } // This line is correct
+                        }
                     });
                     saveEditButton.addEventListener('click', saveEditChanges);
                     openAddSourceVariationModalButton.addEventListener('click', () => {
@@ -7827,7 +7835,7 @@
                     });
 
                     cancelSourceButton.addEventListener('click', closeAddEditSourceModal);
-                    saveSourceButton.addEventListener('click', saveSourceChanges); // This line is correct
+                    saveSourceButton.addEventListener('click', saveSourceChanges);
                     sourceYoutubeUrlInput.addEventListener('input', () => checkYouTubeEmbeddability(sourceYoutubeUrlInput, document.getElementById('sourceYoutubeUrlStatus')));
 
 
@@ -7836,7 +7844,7 @@
                     /** Imports a chapter from a selected JSON file. */
                     function importChapter(event) {
                         if (!event.target.files.length) return;
-                        console.log("Import chapter triggered.");
+                        log("Import chapter triggered.");
                         const file = event.target.files[0];
                         if (!file) return;
 
@@ -7905,7 +7913,7 @@
                                         idMap[originalId] = finalPageId;
 
                                         pageToAdd.primaryKey = pageToAdd.primaryKey || null;
-                                        pageToAdd.sources = (pageToAdd.sources || []).map(s => ({ // This line is correct
+                                        pageToAdd.sources = (pageToAdd.sources || []).map(s => ({
                                             name: s.name || null,
                                             type: ['file', 'youtube', 'syrinscape'].includes(s.type) ? s.type : 'file',
                                             fileName: s.fileName || null,
@@ -7952,7 +7960,7 @@
                                     leaveSoundPageIds: (importedChapterData.leaveSoundPageIds || []).map(originalId => idMap[originalId]).filter(finalId => finalId !== undefined),
                                     leaveTransitionTargetId: importedChapterData.leaveTransitionTargetId || 'index'
                                 };
-                                book.chapters.push(finalNewChapter); // This line is correct
+                                book.chapters.push(finalNewChapter);
 
 
                                 updateFuseIndex();
@@ -7987,7 +7995,7 @@
                             showTemporaryMessage("Cannot export the Index chapter.", "error");
                             return;
                         }
-                        console.log(`Exporting chapter: "${chapterToExport.name}" (ID: ${chapterToExport.id})`);
+                        log(`Exporting chapter: "${chapterToExport.name}" (ID: ${chapterToExport.id})`);
                         try {
                             const pagesInData = chapterToExport.pageIds // Use chapterToExport
                                 .map(pageId => book.pages.find(p => p.id === pageId))
@@ -7997,7 +8005,7 @@
                                         name: s.name || null, type: s.type, fileName: s.fileName,
                                         syrinscapeElementId: s.syrinscapeElementId || null,
                                         syrinscapeKind: s.syrinscapeKind || null,
-                                        syrinscapePlayDuration: s.syrinscapePlayDuration === undefined ? null : s.syrinscapePlayDuration, // This line is correct
+                                        syrinscapePlayDuration: s.syrinscapePlayDuration === undefined ? null : s.syrinscapePlayDuration,
                                         startTime: s.startTime, endTime: s.endTime,
                                         source: s.type === 'youtube' ? s.source : null, // Don't save AudioBuffer
                                         variationKeywords: s.variationKeywords || [],
@@ -8058,7 +8066,7 @@
                             showTemporaryMessage("Cannot export: Collection not found.", "error");
                             return;
                         }
-                        console.log(`Exporting collection: "${collectionToExport.name}" (ID: ${collectionToExport.id})`);
+                        log(`Exporting collection: "${collectionToExport.name}" (ID: ${collectionToExport.id})`);
                         try {
                             const pagesInData = collectionToExport.pageIds
                                 .map(pageId => book.pages.find(p => p.id === pageId))
@@ -8163,7 +8171,7 @@
                                 let addedCollCount = 0;
                                 let overwrittenCollCount = 0;
                                 loadedData.collections.forEach(importedColl => {
-                                    const finalPageIds = (importedColl.pageIds || []).map(id => idMap[id]).filter(id => id !== undefined); // This is correct
+                                    const finalPageIds = (importedColl.pageIds || []).map(id => idMap[id]).filter(id => id !== undefined);
                                     const existingColl = (book.collections || []).find(c => c.name.toLowerCase() === importedColl.name.toLowerCase());
 
                                     if (existingColl) {
@@ -8181,7 +8189,7 @@
                                             overwrittenCollCount++; // Count as a modification
                                         }
                                     } else {
-                                        const newCollection = { id: `coll_${book.nextCollectionId++}`, name: importedColl.name, isStarred: importedColl.isStarred || false, isCollapsed: importedColl.isCollapsed || false, pageIds: finalPageIds, tagIds: importedColl.tagIds || [] }; // This line is correct
+                                        const newCollection = { id: `coll_${book.nextCollectionId++}`, name: importedColl.name, isStarred: importedColl.isStarred || false, isCollapsed: importedColl.isCollapsed || false, pageIds: finalPageIds, tagIds: importedColl.tagIds || [] };
                                         if (!book.collections) book.collections = [];
                                         book.collections.push(newCollection);
                                         addedCollCount++;
@@ -8206,7 +8214,7 @@
                             showTemporaryMessage("No collections to export.", "info");
                             return;
                         }
-                        console.log("Exporting collections...");
+                        log("Exporting collections...");
                         try {
                             const allPageIdsInCollections = new Set();
                             (book.collections || []).forEach(c => {
@@ -8221,7 +8229,7 @@
                                         name: s.name || null, type: s.type, fileName: s.fileName,
                                         syrinscapeElementId: s.syrinscapeElementId || null,
                                         syrinscapeKind: s.syrinscapeKind || null,
-                                        syrinscapePlayDuration: s.syrinscapePlayDuration === undefined ? null : s.syrinscapePlayDuration, // This line is correct
+                                        syrinscapePlayDuration: s.syrinscapePlayDuration === undefined ? null : s.syrinscapePlayDuration,
                                         startTime: s.startTime, endTime: s.endTime,
                                         videoTitle: s.videoTitle || null,
                                         source: s.type === 'youtube' ? s.source : null, // Don't save AudioBuffer
@@ -8265,7 +8273,7 @@
                     }
 
                     function importCollections(event) {
-                        if (!event.target.files.length) return; // This line is correct
+                        if (!event.target.files.length) return;
                         const file = event.target.files[0];
                         if (!file) return;
 
@@ -8329,7 +8337,7 @@
                                             existingColl.isStarred = importedColl.isStarred || false;
                                             existingColl.isCollapsed = importedColl.isCollapsed || false;
                                             existingColl.tagIds = importedColl.tagIds || []; // Also overwrite tags
-                                            overwrittenCollCount++; // This line is correct
+                                            overwrittenCollCount++;
                                         }
                                     } else {
                                         const newCollection = { id: `coll_${book.nextCollectionId++}`, name: importedColl.name, isStarred: importedColl.isStarred || false, isCollapsed: importedColl.isCollapsed || false, pageIds: finalPageIds, tagIds: importedColl.tagIds || [] };
@@ -8502,7 +8510,7 @@
                         renderChapterTabs();
                         renderPageList();
                         renderSoundtrackIcons();
-                        updateUIState(); // This line is correct
+                        updateUIState();
                         // Close the modal after burning
                         burnBookModal.style.display = 'none';
                         modalOverlay.style.display = 'none';
@@ -8510,7 +8518,7 @@
                     }
 
                     // --- Helper: Find Playable Source Variation ---
-                    function findPlayableSourceVariation(page, isPlotterContextForVariationSelection = false, textToSearch = null) { // This line is correct
+                    function findPlayableSourceVariation(page, isPlotterContextForVariationSelection = false, textToSearch = null) {
                         if (!page || !page.sources || page.sources.length === 0) return null;
 
                         // 1. Create Candidate Pool: Filter for variations that have at least one playable sub-source.
@@ -8523,7 +8531,7 @@
                         );
 
                         if (allPlayableVariations.length === 0) {
-                            console.log(`No playable variations found for page "${page.title}" after checking sources.`);
+                            log(`No playable variations found for page "${page.title}" after checking sources.`);
                             return null;
                         }
 
@@ -8539,7 +8547,7 @@
                             });
 
                             if (keywordMatches.length > 0) {
-                                console.log(`Found ${keywordMatches.length} variation(s) with matching keywords and conditions for "${page.title}".`);
+                                log(`Found ${keywordMatches.length} variation(s) with matching keywords and conditions for "${page.title}".`);
                                 candidatePool = keywordMatches;
                             }
                         }
@@ -8554,7 +8562,7 @@
                             });
 
                             if (conditionalMatches.length > 0) {
-                                console.log(`Found ${conditionalMatches.length} variation(s) with matching conditions (and no keywords) for "${page.title}".`);
+                                log(`Found ${conditionalMatches.length} variation(s) with matching conditions (and no keywords) for "${page.title}".`);
                                 candidatePool = conditionalMatches;
                             }
                         }
@@ -8564,7 +8572,7 @@
                             // First, look for a designated "Default" variation whose conditions are met.
                             const defaultVariation = allPlayableVariations.find(v => v.isDefault);
                             if (defaultVariation && checkVariationConditions(defaultVariation.conditions)) {
-                                console.log(`Found valid Default variation for "${page.title}".`);
+                                log(`Found valid Default variation for "${page.title}".`);
                                 candidatePool = [defaultVariation];
                             } else {
                                 // If no valid default, look for any variation with NO keywords and NO conditions.
@@ -8573,7 +8581,7 @@
                                     (!v.conditions || v.conditions.length === 0)
                                 );
                                 if (generalVariations.length > 0) {
-                                    console.log(`Found ${generalVariations.length} general-purpose variation(s) for "${page.title}".`);
+                                    log(`Found ${generalVariations.length} general-purpose variation(s) for "${page.title}".`);
                                     candidatePool = generalVariations;
                                 }
                             }
@@ -8581,7 +8589,7 @@
 
                         // 5. Final Selection
                         if (candidatePool.length === 0) {
-                            console.log(`No suitable variation found for page "${page.title}" after all checks.`);
+                            log(`No suitable variation found for page "${page.title}" after all checks.`);
                             return null; // No suitable variation found at all
                         }
 
@@ -8589,7 +8597,7 @@
                         const randomIndex = Math.floor(Math.random() * candidatePool.length);
                         const chosenVariation = candidatePool[randomIndex];
 
-                        console.log(`Variation Chosen: "${chosenVariation.name || `Variation ${page.sources.indexOf(chosenVariation)}`}" for page "${page.title}". Now selecting a source.`);
+                        log(`Variation Chosen: "${chosenVariation.name || `Variation ${page.sources.indexOf(chosenVariation)}`}" for page "${page.title}". Now selecting a source.`);
 
                         // From the chosen variation, randomly select one playable sound source.
                         const playableSubSources = chosenVariation.sources.filter(sub =>
@@ -8601,7 +8609,7 @@
                         if (playableSubSources.length > 0) {
                             const subSourceIndex = Math.floor(Math.random() * playableSubSources.length);
                             const chosenSubSource = playableSubSources[subSourceIndex];
-                            console.log(` -> Final Source Selected: ${chosenSubSource.fileName || chosenSubSource.type}`);
+                            log(` -> Final Source Selected: ${chosenSubSource.fileName || chosenSubSource.type}`);
                             return chosenSubSource; // Return the specific, playable source object
                         }
 
@@ -8609,8 +8617,8 @@
                         return null;
                     }
 
-                    function reEvaluateActiveSounds(triggeringPageId = null) { // This line is correct
-                        console.log(`Re-evaluating active sounds due to context change. Trigger: ${triggeringPageId || 'N/A'}`);
+                    function reEvaluateActiveSounds(triggeringPageId = null) {
+                        log(`Re-evaluating active sounds due to context change. Trigger: ${triggeringPageId || 'N/A'}`);
                         const activeSoundEntries = Object.entries(activeSounds);
 
                         activeSoundEntries.forEach(([pageIdStr, soundData]) => {
@@ -8618,7 +8626,7 @@
                             // NEW: Don't re-evaluate sounds that were just explicitly triggered by an Appendix effect.
                             // Their variation is intentional and should not be overridden by this general re-evaluation.
                             if (soundData.triggeredByAppendix) {
-                                console.log(`Re-evaluation: Skipping page ${pageId} ("${soundData.page?.title}") because it was triggered by an Appendix effect.`);
+                                log(`Re-evaluation: Skipping page ${pageId} ("${soundData.page?.title}") because it was triggered by an Appendix effect.`);
                                 return;
                             }
 
@@ -8629,7 +8637,7 @@
                             const newBestVariation = findPlayableSourceVariation(page, soundData.isPlotThreadSound);
 
                             if (newBestVariation && currentVariation && newBestVariation !== currentVariation) {
-                                console.log(`State Change: Switching variation for active sound "${page.title}" (ID: ${pageId})`);
+                                log(`State Change: Switching variation for active sound "${page.title}" (ID: ${pageId})`);
                                 stopSingleSound(pageId, 're-evaluation');
                                 playSound(page, newBestVariation, soundData.startedByAutoplay, soundData.onEndedCallback, soundData.isCompoundSequence, soundData.isPlotThreadSound);
                             }
@@ -8649,7 +8657,7 @@
                         const activeChapterTags = new Set(book.chapters.find(ch => ch.id == book.activeChapterId)?.tagIds || []);
 
                         // --- DEBUG LOG ---
-                        console.log(`%c[DEBUG] checkVariationConditions: Checking tags. Active tags: [${[...activeChapterTags].join(', ')}]. Required: [${tagIsConditions.map(c => c.params.tagId).join(', ')}]. Forbidden: [${tagNotConditions.map(c => c.params.tagId).join(', ')}]`, 'color: magenta');
+                        log(`%c[DEBUG] checkVariationConditions: Checking tags. Active tags: [${[...activeChapterTags].join(', ')}]. Required: [${tagIsConditions.map(c => c.params.tagId).join(', ')}]. Forbidden: [${tagNotConditions.map(c => c.params.tagId).join(', ')}]`, 'color: magenta');
                         // --- END DEBUG LOG ---
                         if (tagIsConditions.length > 0 && !tagIsConditions.every(cond => activeChapterTags.has(cond.params.tagId))) {
                             return false; // Must have ALL specified tags
@@ -8709,12 +8717,12 @@
                         const newTime = forceTime === 'toggle' ? (currentTimeOfDay === 'day' ? 'night' : 'day') : (forceTime || (currentTimeOfDay === 'day' ? 'night' : 'day'));
 
                         if (newTime === oldTime && !forceTime) {
-                            console.log("Time toggle requested, but time is already:", oldTime); // This line is correct
+                            log("Time toggle requested, but time is already:", oldTime);
                             return;
                         }
                         currentTimeOfDay = newTime;
                         book.currentTimeOfDay = currentTimeOfDay;
-                        console.log(`Time of day changed from ${oldTime} to ${currentTimeOfDay}.`);
+                        log(`Time of day changed from ${oldTime} to ${currentTimeOfDay}.`);
                         showTemporaryMessage(`Time changed to ${currentTimeOfDay}.`, 'info');
                         if (typeof evaluateSoundtrackTriggers === 'function') evaluateSoundtrackTriggers(currentTimeOfDay, 'time');
 
@@ -8729,13 +8737,13 @@
                             // settings ('on' or 'off') we always run autoplay here regardless of listening state.
                             const autoplayOnClickSetting = book.settings.autoplayOnClick || 'listening';
                             const shouldAutoplayNow = (autoplayOnClickSetting === 'on') || (autoplayOnClickSetting === 'listening' && isListening);
-                            console.log(`Re-evaluating autoplay for chapter "${activeChapter.name}" after time change to ${currentTimeOfDay}. Listening: ${isListening}, Setting: ${autoplayOnClickSetting}, Will autoplay: ${shouldAutoplayNow}`);
+                            log(`Re-evaluating autoplay for chapter "${activeChapter.name}" after time change to ${currentTimeOfDay}. Listening: ${isListening}, Setting: ${autoplayOnClickSetting}, Will autoplay: ${shouldAutoplayNow}`);
                             if (shouldAutoplayNow) {
                                 isTimeChangeAutoplay = true;
                                 playAutoplayPages(activeChapter.id);
                                 isTimeChangeAutoplay = false;
                             } else {
-                                console.log('Skipping autoplay on time change due to listening setting/state.');
+                                log('Skipping autoplay on time change due to listening setting/state.');
                             }
                         }
 
@@ -8745,34 +8753,34 @@
                     }
 
                     function transitionVariation(pageId, fromVariationId, toVariationId) {
-                        // --- NEW LOGGING --- // This line is correct
-                        console.log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `Attempting variation transition for Page ID: ${pageId}`);
-                        console.log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `Params: from='${fromVariationId}', to='${toVariationId}'`);
-                        // --- END NEW LOGGING ---
+
+                        log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `Attempting variation transition for Page ID: ${pageId}`);
+                        log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `Params: from='${fromVariationId}', to='${toVariationId}'`);
+
 
                         const activeSound = activeSounds[pageId];
                         if (!activeSound) {
-                            // --- NEW LOGGING ---
-                            console.log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `FAIL: Page ${pageId} is not currently active.`); // This line is correct
-                            // --- END NEW LOGGING ---
+
+                            log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `FAIL: Page ${pageId} is not currently active.`);
+
                             return;
                         }
 
                         const page = book.pages.find(p => p.id === parseInt(pageId, 10)); // Ensure pageId is a number
                         if (!page) {
-                            // --- NEW LOGGING --- // This line is correct
-                            console.log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `FAIL: Page object for ID ${pageId} not found.`);
-                            // --- END NEW LOGGING ---
+
+                            log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `FAIL: Page object for ID ${pageId} not found.`);
+
                             return;
                         }
 
                         const currentVariationId = activeSound.parentVariation?.id;
-                        const toVariation = page.sources.find(s => s.id === toVariationId); // This line is correct
+                        const toVariation = page.sources.find(s => s.id === toVariationId);
 
-                        // --- NEW LOGGING ---
-                        console.log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `Detected current playing variation ID: '${currentVariationId}'`);
-                        console.log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `Target variation object found:`, toVariation ? JSON.parse(JSON.stringify(toVariation)) : 'Not Found');
-                        // --- END NEW LOGGING ---
+
+                        log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `Detected current playing variation ID: '${currentVariationId}'`);
+                        log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `Target variation object found:`, toVariation ? JSON.parse(JSON.stringify(toVariation)) : 'Not Found');
+
 
                         if (!toVariation) {
                             console.warn(`Transition Variation: Target variation ID ${toVariationId} not found on page ${pageId}.`);
@@ -8781,19 +8789,19 @@
 
                         // Prevent transitioning to the same variation
                         if (currentVariationId === toVariationId) {
-                            console.log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `SKIP: Already playing target variation '${toVariationId}'.`); // This line is correct
+                            log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `SKIP: Already playing target variation '${toVariationId}'.`);
                             return;
                         }
                         if (fromVariationId === 'any' || fromVariationId === currentVariationId) { // This check is now correct
-                            // --- NEW LOGGING ---
-                            console.log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `SUCCESS: Condition met. Transitioning page ${pageId} from '${currentVariationId}' to '${toVariationId}'.`);
-                            // --- END NEW LOGGING ---
-                            stopSingleSound(pageId, 'variation_transition'); // This line is correct
+
+                            log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `SUCCESS: Condition met. Transitioning page ${pageId} from '${currentVariationId}' to '${toVariationId}'.`);
+
+                            stopSingleSound(pageId, 'variation_transition');
                             setTimeout(() => playSound(page, toVariation, false, null, false, false, false, true), 100);
                         } else {
-                            // --- NEW LOGGING ---
-                            console.log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `FAIL: Condition not met. 'from' condition ('${fromVariationId}') does not match current variation ('${currentVariationId}').`);
-                            // --- END NEW LOGGING ---
+
+                            log(`%c[TRANSITION]`, 'color: #FFD700; font-weight: bold;', `FAIL: Condition not met. 'from' condition ('${fromVariationId}') does not match current variation ('${currentVariationId}').`);
+
                         }
                     }
 
@@ -8806,7 +8814,7 @@
 
                     // --- Story Plotter Modal Functions ---
                     function openStoryPlotterModal() {
-                        console.log("Opening Story Plotter modal.");
+                        log("Opening Story Plotter modal.");
                         ensureAllChaptersArePlotNodes();
                         plotBoardView = { ...(book.storyPlot.viewTransform || { x: 0, y: 0, scale: 1.0 }) };
                         renderPlotBoard();
@@ -8998,7 +9006,7 @@
                                 book.storyPlot.nodes.push(newNodeData);
                                 existingNodeChapterIds.add(chapter.id);
                                 changed = true;
-                                console.log(`Auto-added plot node for chapter "${chapter.name}" (ID: ${chapter.id}) at ${initialX},${initialY}`);
+                                log(`Auto-added plot node for chapter "${chapter.name}" (ID: ${chapter.id}) at ${initialX},${initialY}`);
                             }
                         });
 
@@ -9079,7 +9087,7 @@
                             plotThreadStartConnector = null;
                             plotBoardContainer.style.cursor = 'grab';
                             plotBoardContainer.removeEventListener('mousemove', previewPlotThreadDraw);
-                            console.log("Thread drawing cancelled (invalid click or same node).");
+                            log("Thread drawing cancelled (invalid click or same node).");
                         }
                     }
 
@@ -9093,7 +9101,7 @@
                         plotThreadPreviewLine.style.pointerEvents = 'none';
                         plotBoardSVG.appendChild(plotThreadPreviewLine);
 
-                        console.log(`Starting thread draw from node ${nodeId}`);
+                        log(`Starting thread draw from node ${nodeId}`);
                         plotBoardContainer.addEventListener('mousemove', previewPlotThreadDraw);
                         plotBoardContainer.addEventListener('mouseup', cancelThreadDrawOnBoardMouseUp, { capture: true, once: true });
                     }
@@ -9106,7 +9114,7 @@
                             plotThreadStartConnector = null;
                             plotBoardContainer.style.cursor = 'grab';
                             plotBoardContainer.removeEventListener('mousemove', previewPlotThreadDraw);
-                            console.log("Thread drawing cancelled by board mouseup.");
+                            log("Thread drawing cancelled by board mouseup.");
                         }
                     }
 
@@ -9171,7 +9179,7 @@
                         saveToLocalStorage();
                         renderPlotBoard();
                         showTemporaryMessage("Plot thread created. Click to configure.", "success");
-                        console.log(`Created plot thread ${newThreadId} from ${fromNodeId} to ${toNodeId}`);
+                        log(`Created plot thread ${newThreadId} from ${fromNodeId} to ${toNodeId}`);
                     }
 
                     // --- Story Plotter Thread Configuration Menu ---
@@ -9184,7 +9192,7 @@
                         const fromNode = getPlotNodeById(thread.fromNodeId);
                         const toNode = getPlotNodeById(thread.toNodeId);
                         const fromChapter = fromNode ? book.chapters.find(ch => ch.id == fromNode.chapterId) : null;
-                        const toChapter = toNode ? book.chapters.find(ch => ch.id == toNode.chapterId) : null; // This line is correct
+                        const toChapter = toNode ? book.chapters.find(ch => ch.id == toNode.chapterId) : null;
                         plotThreadMenuTitle.textContent = `Thread: ${fromChapter?.name || 'Unknown'} → ${toChapter?.name || 'Unknown'}`;
 
                         plotThreadTitleInput.value = thread.title || '';
@@ -9228,7 +9236,7 @@
 
                         populatePlotThreadSounds(thread);
                         // Filter out time conditions before passing to the builder, as it's now handled separately
-                        const nonTimeConditions = (thread.conditions || []).filter(c => c.type !== 'time_is' && !c.type.startsWith('tag_')); // This line is correct
+                        const nonTimeConditions = (thread.conditions || []).filter(c => c.type !== 'time_is' && !c.type.startsWith('tag_'));
                         initializeConditionBuilder('plotThreadPageConditionsList', null, null, nonTimeConditions, 'plotThreadPageConditionSearchInput', null);
 
                         plotThreadMenu.style.display = 'flex'; // Use flex to match other modals
@@ -9236,7 +9244,7 @@
 
                     function closePlotThreadMenu() {
                         plotThreadMenu.style.display = 'none';
-                        currentlySelectedPlotThreadId = null; // This line is correct
+                        currentlySelectedPlotThreadId = null;
                     } // This function is correct
 
                     function filterPlotThreadMenuSounds() {
@@ -9300,7 +9308,7 @@
                         if (timeState === 'day' || timeState === 'night') {
                             conditions.push({ type: 'time_is', params: { time: timeState } });
                         }
-                        thread.conditions = conditions.length > 0 ? conditions : null; // This line is correct
+                        thread.conditions = conditions.length > 0 ? conditions : null;
 
                         // Save from the new button
                         thread.timeChange = plotThreadTimeChangeButton.dataset.state || 'none';
@@ -9308,14 +9316,14 @@
 
                         saveToLocalStorage();
                         showTemporaryMessage("Plot thread changes saved.", "success");
-                        console.log("Plot thread updated:", thread);
+                        log("Plot thread updated:", thread);
                         closePlotThreadMenu();
                         renderPlotBoard();
                     }
 
                     function updatePlotThreadReturnKeywordButton(state) {
                         const button = document.getElementById('plotThreadReturnKeywordTypeButton');
-                        button.dataset.state = state; // This line is correct
+                        button.dataset.state = state;
                         let iconClass = 'fa-layer-group'; // Default for 'both'
                         let title = 'Return uses Both Chapter & Thread Keywords';
                         switch (state) {
@@ -9338,7 +9346,7 @@
 
                     document.getElementById('plotThreadReturnKeywordTypeButton').addEventListener('click', () => {
                         const button = document.getElementById('plotThreadReturnKeywordTypeButton');
-                        const currentState = button.dataset.state; // This line is correct
+                        const currentState = button.dataset.state;
                         const nextState = currentState === 'both' ? 'chapter' : (currentState === 'chapter' ? 'thread' : 'both');
                         updatePlotThreadReturnKeywordButton(nextState);
                     });
@@ -9367,7 +9375,7 @@
 
                     plotThreadTimeChangeButton.addEventListener('click', () => {
                         const currentState = plotThreadTimeChangeButton.dataset.state;
-                        const nextState = currentState === 'none' ? 'day' : (currentState === 'day' ? 'night' : (currentState === 'night' ? 'toggle' : 'none')); // This line is correct
+                        const nextState = currentState === 'none' ? 'day' : (currentState === 'day' ? 'night' : (currentState === 'night' ? 'toggle' : 'none'));
                         updatePlotThreadTimeChangeButton(nextState);
                     });
 
@@ -9381,7 +9389,7 @@
                             saveToLocalStorage();
                             renderPlotBoard();
                             showTemporaryMessage("Plot thread deleted.", "info");
-                            console.log(`Plot thread ${currentlySelectedPlotThreadId} deleted.`);
+                            log(`Plot thread ${currentlySelectedPlotThreadId} deleted.`);
                         } else {
                             console.error("Failed to delete thread: ID not found after confirmation.");
                         }
@@ -9414,7 +9422,7 @@
 
 
                     function handlePlotBoardPanStart(event) {
-                        if (event.target !== plotBoardContainer && event.target !== plotBoardSVG) return; // This line is correct
+                        if (event.target !== plotBoardContainer && event.target !== plotBoardSVG) return;
                         if (event.button !== 0 && event.button !== 1) return; // Allow middle mouse button for panning too
                         event.preventDefault();
                         isPlotBoardPanning = true;
@@ -9456,7 +9464,7 @@
                                 nextTagId: book.nextTagId ?? 0,
                                 activeChapterId: book.activeChapterId ?? 'index',
                                 currentTimeOfDay: book.currentTimeOfDay ?? 'day',
-                                nextCollectionId: book.nextCollectionId ?? 0, // This line is correct
+                                nextCollectionId: book.nextCollectionId ?? 0,
                                 settings: book.settings ? { ...getDefaultBook().settings, ...book.settings } : getDefaultBook().settings,
                                 collections: Array.isArray(book.collections) ? book.collections.map(c => ({ id: c.id, name: c.name, isStarred: c.isStarred, isCollapsed: c.isCollapsed, pageIds: c.pageIds, tagIds: c.tagIds || [], tagMatchRule: c.tagMatchRule || 'any' })) : [],
                                 pages: Array.isArray(book.pages) ? book.pages.map(page => ({
@@ -9507,7 +9515,7 @@
                                     chapterKeywords: chapter.chapterKeywords || [],
                                     // --- DEBUG LOG ---
                                     tagIds: (() => {
-                                        console.log(`[saveToLocalStorage] Saving chapter "${chapter.name}" with tagIds:`, chapter.tagIds);
+                                        log(`[saveToLocalStorage] Saving chapter "${chapter.name}" with tagIds:`, chapter.tagIds);
                                         return chapter.tagIds || [];
                                     })(),
                                     autoPlayPageIds: chapter.autoPlayPageIds || [],
@@ -9572,7 +9580,7 @@
 
                         const legacy = localStorage.getItem(bestKey);
                         if (legacy) {
-                            console.log(`Migrating book from legacy key "${bestKey}" -> "${LOCAL_STORAGE_KEY}".`);
+                            log(`Migrating book from legacy key "${bestKey}" -> "${LOCAL_STORAGE_KEY}".`);
                             try {
                                 localStorage.setItem(LOCAL_STORAGE_KEY, legacy); // adopt under the fixed key; keep legacy as backup
                             } catch (e) {
@@ -9583,10 +9591,10 @@
                     }
 
                     function loadFromLocalStorage() {
-                        console.log("Attempting to load from local storage...");
+                        log("Attempting to load from local storage...");
                         const savedData = readSavedBookRaw();
                         if (!savedData) {
-                            console.log("No data found in local storage.");
+                            log("No data found in local storage.");
                             try {
                                 const savedSearches = localStorage.getItem(YT_RECENT_SEARCHES_KEY);
                                 if (savedSearches) recentYoutubeSearches = JSON.parse(savedSearches);
@@ -9599,7 +9607,7 @@
                             const loadedData = JSON.parse(savedData);
                             if (!loadedData || typeof loadedData !== 'object') {
                                 throw new Error("Invalid book data format in local storage.");
-                            } // This line is correct
+                            }
 
                             const defaultBookData = getDefaultBook();
                             try {
@@ -9612,7 +9620,7 @@
                             book = { ...defaultBookData };
 
                             book.settings = { ...defaultBookData.settings, ...(loadedData.settings || {}) };
-                            if (book.settings.compoundPhrasing === undefined) book.settings.compoundPhrasing = defaultBookData.settings.compoundPhrasing; // This line is correct
+                            if (book.settings.compoundPhrasing === undefined) book.settings.compoundPhrasing = defaultBookData.settings.compoundPhrasing;
                             if (typeof book.settings.accuracyThreshold !== 'number' || isNaN(book.settings.accuracyThreshold)) book.settings.accuracyThreshold = defaultBookData.settings.accuracyThreshold;
                             book.settings.accuracyThreshold = Math.max(0.5, Math.min(1, book.settings.accuracyThreshold));
                             if (typeof book.settings.stopAudioOnChapterChange === 'boolean') {
@@ -9665,16 +9673,16 @@
 
                                     let sourcesData = [];
                                     if (Array.isArray(item.sources)) {
-                                        console.log(`[loadFromLocalStorage] Processing sources for page "${item.title}" (ID: ${item.id})`);
+                                        log(`[loadFromLocalStorage] Processing sources for page "${item.title}" (ID: ${item.id})`);
                                         sourcesData = item.sources.map((variationContainer, index) => {
-                                            console.log(`[loadFromLocalStorage] -> Variation #${index}:`, JSON.parse(JSON.stringify(variationContainer)));
+                                            log(`[loadFromLocalStorage] -> Variation #${index}:`, JSON.parse(JSON.stringify(variationContainer)));
                                             if (variationContainer.type && variationContainer.sources === undefined) {
-                                                console.log(`[loadFromLocalStorage] -> -> Detected old format source. Wrapping in variation container.`);
+                                                log(`[loadFromLocalStorage] -> -> Detected old format source. Wrapping in variation container.`);
                                                 const subSource = { ...variationContainer, needsFile: variationContainer.type === 'file' };
                                                 return { id: `var_${generateUUID()}`, name: variationContainer.name || null, isDefault: variationContainer.isDefault || false, conditions: variationContainer.conditions || null, variationKeywords: variationContainer.variationKeywords || [], sources: [subSource] };
                                             }
                                             if (Array.isArray(variationContainer.sources)) {
-                                                console.log(`[loadFromLocalStorage] -> -> Detected new format with ${variationContainer.sources.length} sub-sources. Processing them.`);
+                                                log(`[loadFromLocalStorage] -> -> Detected new format with ${variationContainer.sources.length} sub-sources. Processing them.`);
                                                 const processedSubSources = variationContainer.sources.map(subSource => ({
                                                     ...subSource, // Keep all existing properties from the sub-source (incl. audioHash)
                                                     source: subSource.type === 'youtube' ? (subSource.source || extractYouTubeVideoId(subSource.fileName || '')) : null,
@@ -9698,8 +9706,8 @@
                                         fadeInOut: typeof item.fadeInOut === 'boolean' ? item.fadeInOut : false,
                                         endPlayKeywords: Array.isArray(item.endPlayKeywords) ? item.endPlayKeywords : [],
                                         nextPageId: item.nextPageId ?? null,
-                                        timeOfDaySetting: ['day', 'night', 'always'].includes(item.timeOfDaySetting) ? item.timeOfDaySetting : 'always', // This line is correct
-                                        currentLoop: 0, sources: sourcesData // This line is correct
+                                        timeOfDaySetting: ['day', 'night', 'always'].includes(item.timeOfDaySetting) ? item.timeOfDaySetting : 'always',
+                                        currentLoop: 0, sources: sourcesData
                                     };
                                     loadedPages.push(newPage);
                                     if (typeof item.id === 'number' && item.id >= book.nextPageId) {
@@ -9800,7 +9808,7 @@
                                 book.soundtracks = [];
                             }
 
-                            console.log("Book data successfully parsed and applied from local storage.");
+                            log("Book data successfully parsed and applied from local storage.");
                             return true;
 
                         } catch (error) {
@@ -9808,7 +9816,7 @@
                             showTemporaryMessage(`Load from autosave failed: ${error.message}. Starting fresh.`, "error", 5000);
                             localStorage.removeItem(LOCAL_STORAGE_KEY);
                             book = getDefaultBook();
-                            currentListeningMode = book.settings.listeningMode; // This line is correct
+                            currentListeningMode = book.settings.listeningMode;
                             isSmartFilteringEnabled = book.settings.smartFiltering;
                             isCompoundPhrasingEnabled = book.settings.compoundPhrasing;
                             currentKeywordConfidenceThreshold = book.settings.accuracyThreshold;
@@ -9833,10 +9841,10 @@
 
                     // --- YouTube Preview Player Callbacks ---
                     function onYtPreviewPlayerReady(event) {
-                        console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `onYtPreviewPlayerReady fired. Player is ready.`);
+                        log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `onYtPreviewPlayerReady fired. Player is ready.`);
                         if (activePreviewContext && activePreviewContext.type === 'youtube') {
-                            console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Context found. Attempting to initialize sliders.`);
-                            console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Context details:`, JSON.parse(JSON.stringify(activePreviewContext)));
+                            log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Context found. Attempting to initialize sliders.`);
+                            log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Context details:`, JSON.parse(JSON.stringify(activePreviewContext)));
 
                             // Give the player a moment to load metadata and duration
                             let attempts = 0;
@@ -9844,7 +9852,7 @@
                             const checkDurationAndInit = () => {
                                 const duration = event.target.getDuration ? event.target.getDuration() : 0;
                                 if (duration > 0 || attempts >= maxAttempts) {
-                                    console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Duration is ${duration}. Initializing sliders.`);
+                                    log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Duration is ${duration}. Initializing sliders.`);
                                     initializePreviewSliders(activePreviewContext.container, event.target);
                                 } else {
                                     attempts++;
@@ -9856,18 +9864,18 @@
                     }
 
                     function onYtPreviewPlayerStateChange(event) { // This function is correct
-                        console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `onYtPreviewPlayerStateChange fired. New state: ${event.data}`);
+                        log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `onYtPreviewPlayerStateChange fired. New state: ${event.data}`);
                         const playerState = event.data;
 
                         // When a new video is cued, its metadata (like duration) is available.
                         // This is the key to fixing the issue for subsequent videos.
                         if (playerState === YT.PlayerState.CUED) {
-                            console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Video cued. Re-initializing sliders for new video.`);
+                            log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Video cued. Re-initializing sliders for new video.`);
                             if (activePreviewContext && activePreviewContext.type === 'youtube') {
                                 const startTime = activePreviewContext.startTime;
                                 // Seek to the start time when the video is cued and ready.
                                 if (startTime !== null && startTime > 0) {
-                                    console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Seeking to initial start time: ${startTime} seconds.`);
+                                    log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Seeking to initial start time: ${startTime} seconds.`);
                                     event.target.seekTo(startTime, true); // Seek...
                                     event.target.pauseVideo(); // ...and then immediately pause to prevent autoplay on seek.
                                 } else {
@@ -9952,7 +9960,7 @@
                         const anySubModalOpen = addModalVisible || editPageModalVisible || editChapterModalVisible || settingsModalVisible || guidebookModalVisible || variationModalVisible || threadMenuVisible || syrinscapeSearchModalVisible;
                         const anyModalOpenForGlobalShortcuts = anySubModalOpen || plotterModalVisible;
 
-                        const inCollectionRename = event.target.tagName === 'INPUT' && event.target.closest('.collection-header'); // This line is correct
+                        const inCollectionRename = event.target.tagName === 'INPUT' && event.target.closest('.collection-header');
 
                         if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                             if (addModalVisible) { addButton.click(); event.preventDefault(); }
@@ -9975,7 +9983,7 @@
                             else if (settingsModalVisible) { cancelSettingsButton.click(); event.preventDefault(); }
                             else if (guidebookModalVisible) { closeGuidebookButton.click(); event.preventDefault(); }
                             else if (addEditAppendixEntryModal.style.display === 'flex') { cancelAppendixEntryButton.click(); event.preventDefault(); }
-                            else if (appendixModal.style.display === 'flex') { closeAppendixModalButton.click(); event.preventDefault(); } // This line is correct
+                            else if (appendixModal.style.display === 'flex') { closeAppendixModalButton.click(); event.preventDefault(); }
                             else if (saveFileModal.style.display === 'flex') { cancelSaveFileButton.click(); event.preventDefault(); }
 
                         } else if (!inInput && !anyModalOpenForGlobalShortcuts && !inCollectionRename) {
@@ -9988,9 +9996,9 @@
                             }
                         }
                     });
-                    document.addEventListener('keydown', (event) => { // This line is correct
+                    document.addEventListener('keydown', (event) => {
                         const anyModalOpen = modalOverlay.style.display === 'block' || storyPlotterModal.style.display === 'flex' || plotThreadMenu.style.display === 'block' || syrinscapeSearchModal.style.display === 'flex' || appendixModal.style.display === 'flex' || addEditAppendixEntryModal.style.display === 'flex' || appendixEffectModal.style.display === 'flex';
-                        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable || anyModalOpen) return; // This line is correct
+                        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable || anyModalOpen) return;
 
                         if (event.key === ' ' && !event.repeat) {
                             if (currentListeningMode === 'push') {
@@ -10005,9 +10013,9 @@
                             event.preventDefault();
                         }
                     });
-                    document.addEventListener('keyup', (event) => { // This line is correct
+                    document.addEventListener('keyup', (event) => {
                         const anyModalOpen = modalOverlay.style.display === 'block' || storyPlotterModal.style.display === 'flex' || plotThreadMenu.style.display === 'block' || syrinscapeSearchModal.style.display === 'flex' || appendixModal.style.display === 'flex' || addEditAppendixEntryModal.style.display === 'flex' || appendixEffectModal.style.display === 'flex';
-                        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable || anyModalOpen) return; // This line is correct
+                        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable || anyModalOpen) return;
 
                         if (event.key === ' ') {
                             if (currentListeningMode === 'push') {
@@ -10048,19 +10056,19 @@
                             return;
                         }
 
-                        console.log("Initializing Syrinscape player with token:", syrinscapeAuthToken);
-                        showTemporaryMessage('Initializing Syrinscape Player...', 'info', 3000); // This line is correct
+                        log("Initializing Syrinscape player with token:", syrinscapeAuthToken);
+                        showTemporaryMessage('Initializing Syrinscape Player...', 'info', 3000);
 
                         try {
                             syrinscape.player.init({
                                 configure: async () => {
-                                    console.log("Syrinscape player.init configure callback - setting token.");
+                                    log("Syrinscape player.init configure callback - setting token.");
                                     syrinscape.config.token = syrinscapeAuthToken;
                                     await syrinscape.config.sync();
-                                    console.log("Syrinscape token configured and synced.");
+                                    log("Syrinscape token configured and synced.");
                                 },
                                 onActive: () => {
-                                    console.log('Syrinscape Player activated (audio context ready).');
+                                    log('Syrinscape Player activated (audio context ready).');
                                     syrinscapePlayerReady = true;
                                     showTemporaryMessage('Syrinscape Player Initialized & Active!', 'success', 3000);
                                 },
@@ -10072,7 +10080,7 @@
                             if (syrinscape.player.audioContext && syrinscape.player.audioContext.state !== 'running') {
                                 showTemporaryMessage('Syrinscape may need a click on the page to activate audio.', 'info', 5000);
                             } else if (syrinscape.player.audioContext && syrinscape.player.audioContext.state === 'running' && !syrinscapePlayerReady) {
-                                console.log('Syrinscape audio context is running, but onActive callback has not fired yet.');
+                                log('Syrinscape audio context is running, but onActive callback has not fired yet.');
                             }
 
                         } catch (error) {
@@ -10088,7 +10096,7 @@
                             showTemporaryMessage('Set Syrinscape Auth Token in Settings to search.', 'error', 4000);
                             return;
                         }
-                        console.log(`Opening Syrinscape search modal for context: ${context}`);
+                        log(`Opening Syrinscape search modal for context: ${context}`);
                         currentSyrinscapeSearchContext = context;
                         syrinscapeSearchQueryInput.value = '';
                         syrinscapeSearchResultsUl.innerHTML = '';
@@ -10100,14 +10108,14 @@
 
                     function closeSyrinscapeSearchModal() {
                         if (activeSyrinscapePreview && syrinscapePlayerReady && syrinscape.player && syrinscape.player.controlSystem) {
-                            console.log(`Stopping preview from modal close: ID=${activeSyrinscapePreview.elementId}, Kind=${activeSyrinscapePreview.kind}`);
+                            log(`Stopping preview from modal close: ID=${activeSyrinscapePreview.elementId}, Kind=${activeSyrinscapePreview.kind}`);
                             const elementId = parseInt(activeSyrinscapePreview.elementId, 10);
                             const kind = activeSyrinscapePreview.kind?.toLowerCase();
                             if (kind === 'mood' || kind === 'moods') {
                                 syrinscape.player.controlSystem.stopMood(elementId);
                             } else if (kind === 'music') {
                                 // Music might need to be stopped via stopElements
-                                console.log(`Stopping Syrinscape music preview via stopElements: ID=${elementId}`);
+                                log(`Stopping Syrinscape music preview via stopElements: ID=${elementId}`);
                                 syrinscape.player.controlSystem.stopElements([elementId.toString()]);
                             } else {
                                 syrinscape.player.controlSystem.stopElements([elementId.toString()]);
@@ -10146,7 +10154,7 @@
 
                         const params = new URLSearchParams({ q: query, library: 'Available to Play', pp: 50 });
                         const requestUrl = `${SYRINSCAPE_API_SEARCH_URL}?${params.toString()}`;
-                        console.log(`Requesting Syrinscape search: ${requestUrl}`);
+                        log(`Requesting Syrinscape search: ${requestUrl}`);
 
                         try {
                             const response = await fetch(requestUrl, { method: 'GET', headers: headers });
@@ -10161,7 +10169,7 @@
                                 throw new Error(errorDetail);
                             }
                             const data = await response.json();
-                            console.log("Syrinscape Search API Response:", data);
+                            log("Syrinscape Search API Response:", data);
                             renderSyrinscapeSearchResults(data.results || []);
                         } catch (error) {
                             console.error("Error searching Syrinscape:", error);
@@ -10186,7 +10194,7 @@
                             const soundsetName = item.soundset_name;
 
                             if (elementKind && elementKind.toLowerCase().includes('sample')) {
-                                console.log(`Hiding Sample: ${elementName} (ID: ${elementId}, Kind: ${elementKind})`);
+                                log(`Hiding Sample: ${elementName} (ID: ${elementId}, Kind: ${elementKind})`);
                                 return;
                             }
 
@@ -10249,7 +10257,7 @@
 
                         // Stop any previously active preview if it's different from the current one
                         if (activeSyrinscapePreview && activeSyrinscapePreview.elementId !== elementId) {
-                            console.log(`Stopping previous preview: ID=${activeSyrinscapePreview.elementId}, Kind=${activeSyrinscapePreview.kind}`);
+                            log(`Stopping previous preview: ID=${activeSyrinscapePreview.elementId}, Kind=${activeSyrinscapePreview.kind}`);
                             const prevElementId = parseInt(activeSyrinscapePreview.elementId, 10);
                             const prevKind = activeSyrinscapePreview.kind?.toLowerCase();
                             if (prevKind === 'mood' || prevKind === 'moods') {
@@ -10265,7 +10273,7 @@
                         }
 
                         if (isCurrentlyPlayingThisPreview) { // If this preview is playing, stop it
-                            console.log(`Stopping Syrinscape preview: ID=${elementId}, Kind=${elementKind}`);
+                            log(`Stopping Syrinscape preview: ID=${elementId}, Kind=${elementKind}`);
                             const idToStop = parseInt(elementId, 10);
                             const kindToStop = elementKind?.toLowerCase();
                             if (kindToStop === 'mood' || kindToStop === 'moods') {
@@ -10278,7 +10286,7 @@
                             buttonElement.title = 'Preview Sound';
                             activeSyrinscapePreview = null;
                         } else { // Start this preview
-                            console.log(`Playing Syrinscape preview: ID=${elementId}, Kind=${elementKind}, Name="${elementName}"`);
+                            log(`Playing Syrinscape preview: ID=${elementId}, Kind=${elementKind}, Name="${elementName}"`);
                             const idToPlay = parseInt(elementId, 10);
                             const kindToPlay = elementKind?.toLowerCase();
 
@@ -10296,7 +10304,7 @@
 
 
                     function selectSyrinscapeSound(elementId, elementName, elementKind) {
-                        console.log(`Syrinscape sound selected: ID=${elementId}, Name=${elementName}, Kind=${elementKind}, Context: ${currentSyrinscapeSearchContext}`);
+                        log(`Syrinscape sound selected: ID=${elementId}, Name=${elementName}, Kind=${elementKind}, Context: ${currentSyrinscapeSearchContext}`);
                         let targetLoopCb, targetIndefCb, targetCountIn, targetLoopOptionsDiv, targetEndKeywordsDiv, targetDurationInput;
 
                         if (currentSyrinscapeSearchContext === 'add') {
@@ -10376,7 +10384,7 @@
                         try {
                             if (document.pictureInPictureElement === pipVideo) {
                                 await document.exitPictureInPicture();
-                                console.log("Exited PiP mode.");
+                                log("Exited PiP mode.");
                                 if (pipStream) {
                                     pipStream.getTracks().forEach(track => track.stop());
                                     pipStream = null;
@@ -10399,10 +10407,10 @@
                                 await pipVideo.play().catch(e => console.warn("PiP video play() was interrupted or failed:", e));
 
                                 pipWindow = await pipVideo.requestPictureInPicture({ width: PIP_CANVAS_SIZE, height: PIP_CANVAS_SIZE }); // Attempt to suggest size
-                                console.log("Entered PiP mode with video element.");
+                                log("Entered PiP mode with video element.");
 
                                 pipWindow.addEventListener('leavepictureinpicture', () => {
-                                    console.log("PiP window closed by user or API.");
+                                    log("PiP window closed by user or API.");
                                     if (pipStream) {
                                         pipStream.getTracks().forEach(track => track.stop());
                                         pipStream = null;
@@ -10425,7 +10433,7 @@
 
                     // --- YouTube Player API Callbacks for Verification ---
                     function onYtVerificationPlayerReady(event) {
-                        console.log("YouTube verification player is ready.");
+                        log("YouTube verification player is ready.");
                         // Mute the player immediately to ensure no sound is heard during verification.
                         event.target.mute();
                     }
@@ -10509,14 +10517,14 @@
                         youtubeSearchError.classList.add('hidden');
 
                         const cacheKey = `yt-search-cache-${query}`;
-                        const pageCacheKey = `${cacheKey}-${pageToken || 'start'}`; // This line is correct
+                        const pageCacheKey = `${cacheKey}-${pageToken || 'start'}`;
 
-                        // --- Caching Logic --- // This line is correct
+                        // --- Caching Logic ---
                         const cached = localStorage.getItem(pageCacheKey);
                         if (cached) {
                             const { timestamp, data } = JSON.parse(cached);
-                            if (Date.now() - timestamp < 2 * 60 * 60 * 1000) { // 2 hour cache // This line is correct
-                                console.log(`Loading YouTube search results for "${query}" (Page: ${pageToken || 'start'}) from cache.`);
+                            if (Date.now() - timestamp < 2 * 60 * 60 * 1000) { // 2 hour cache
+                                log(`Loading YouTube search results for "${query}" (Page: ${pageToken || 'start'}) from cache.`);
                                 await verifyAndDisplayYoutubeVideos(data.items, data.nextPageToken, data.prevPageToken);
                                 return;
                             }
@@ -10587,7 +10595,7 @@
                                 }
                                 appendYoutubeResult(item);
                             } catch (e) {
-                                console.log(`Video "${item.snippet.title}" (${item.id.videoId}) is not embeddable. Skipping.`);
+                                log(`Video "${item.snippet.title}" (${item.id.videoId}) is not embeddable. Skipping.`);
                             }
                         }
                         isYtVerifying = false;
@@ -10600,7 +10608,7 @@
                             currentYtVerificationVideoId = videoId;
                             ytVerificationPromise = { resolve, reject };
                             ytVerificationPlayer.loadVideoById(videoId); // Use loadVideoById to trigger play attempt
-                        }); // This line is correct
+                        });
                     }
 
                     function appendYoutubeResult(item) {
@@ -10687,7 +10695,7 @@
                                 const oldPreviewContainer = currentlyPlayingYtTile.querySelector('.media-preview-container');
                                 if (oldPreviewContainer) {
                                     // Use style.display for more direct control that isn't overridden by Tailwind classes
-                                    oldPreviewContainer.style.display = 'none'; // This line is correct
+                                    oldPreviewContainer.style.display = 'none';
                                 }
 
                                 if (ytPreviewPlayer && typeof ytPreviewPlayer.stopVideo === 'function') {
@@ -10703,7 +10711,7 @@
 
                             // Explicitly show the container for the item we are about to play.
                             // Use style.display to ensure it shows up.
-                            previewContainer.style.display = 'block'; // This line is correct
+                            previewContainer.style.display = 'block';
 
                             // If this tile is not the one with the active player, set it up.
                             if (activePreviewContext?.container !== previewContainer || !ytPreviewPlayer) {
@@ -10858,11 +10866,11 @@
 
                     function createOrLoadYtPreviewPlayer(videoId, autoplay = false) {
                         currentYtPreviewVideoId = videoId;
-                        console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `createOrLoadYtPreviewPlayer called for videoId: ${videoId}. Player exists: ${!!ytPreviewPlayer}`);
+                        log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `createOrLoadYtPreviewPlayer called for videoId: ${videoId}. Player exists: ${!!ytPreviewPlayer}`);
                         if (!ytPreviewPlayer || ytPreviewPlayer.isDestroyed?.()) {
-                            console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Creating NEW YT.Player instance.`);
+                            log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Creating NEW YT.Player instance.`);
                             ytPreviewPlayer = new YT.Player('youtube-preview-player', {
-                                height: '0', width: '0', videoId: videoId, // This line is correct
+                                height: '0', width: '0', videoId: videoId,
                                 playerVars: { 'playsinline': 1, 'controls': 0, 'autoplay': 0, 'loop': 0 }, // Always set autoplay to 0 here, control it via API calls
                                 events: {
                                     'onReady': onYtPreviewPlayerReady,
@@ -10871,7 +10879,7 @@
                                 }
                             });
                         } else {
-                            console.log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Re-using existing player. Cueing video: ${videoId}`);
+                            log(`%c[PREVIEW]`, 'color: #9966CC; font-weight: bold;', `Re-using existing player. Cueing video: ${videoId}`);
                             // We always cue here. The onStateChange handler will catch the CUED event
                             // and allow us to initialize sliders correctly.
                             // The play/pause button in the UI will handle starting playback.
@@ -10927,7 +10935,7 @@
                     // --- Appendix Condition Builder Functions ---
                     function initializeConditionBuilder(pageListContainerId, otherConditionsContainerId, tagListContainerId, conditions = [], pageSearchInputId, tagSearchInputId) {
                         const pageListContainer = document.getElementById(pageListContainerId);
-                        const otherConditionsContainer = otherConditionsContainerId ? document.getElementById(otherConditionsContainerId) : null; // This line is correct
+                        const otherConditionsContainer = otherConditionsContainerId ? document.getElementById(otherConditionsContainerId) : null;
                         const tagListContainer = document.getElementById(tagListContainerId);
                         const searchInput = document.getElementById(pageSearchInputId);
                         const tagSearchInput = document.getElementById(tagSearchInputId);
@@ -10940,14 +10948,14 @@
 
                         // Separate conditions into page-based and other
                         const pageConditions = conditions.filter(c => c.type.startsWith('page_'));
-                        const tagConditions = conditions.filter(c => c.type.startsWith('tag_')); // This is correct
+                        const tagConditions = conditions.filter(c => c.type.startsWith('tag_'));
                         const otherConditions = conditions.filter(c => !c.type.startsWith('page_') && !c.type.startsWith('tag_'));
 
                         // *** LOG: Log the conditions being passed to the builder.
                         // --- DEBUG LOG ---
-                        console.log(`%c[DEBUG] initializeConditionBuilder: Initializing for "${pageListContainerId}" with conditions:`, 'color: orange', JSON.parse(JSON.stringify(conditions)));
+                        log(`%c[DEBUG] initializeConditionBuilder: Initializing for "${pageListContainerId}" with conditions:`, 'color: orange', JSON.parse(JSON.stringify(conditions)));
                         // --- END DEBUG LOG ---
-                        console.log(`LOG: Initializing condition builder "${pageListContainerId}" with ${conditions.length} conditions.`);
+                        log(`LOG: Initializing condition builder "${pageListContainerId}" with ${conditions.length} conditions.`);
 
                         // --- 1. Setup Page Conditions ---
                         pageListContainer.innerHTML = ''; // Clear previous
@@ -10973,7 +10981,7 @@
                         if (searchInput) {
                             searchInput.oninput = () => {
                                 const term = searchInput.value.toLowerCase();
-                                pageListContainer.querySelectorAll('.plot-thread-page-item').forEach(item => { // This is correct
+                                pageListContainer.querySelectorAll('.plot-thread-page-item').forEach(item => {
                                     item.style.display = item.querySelector('.page-title').textContent.toLowerCase().includes(term) ? '' : 'none';
                                 });
                             };
@@ -10987,7 +10995,7 @@
                                 return [numericTagId, c.type === 'tag_is' ? 'is' : 'not'];
                             }));
                             // --- DEBUG LOG ---
-                            console.log(`%c[DEBUG] initializeConditionBuilder: Processed tag conditions map:`, 'color: orange', tagConditionsMap);
+                            log(`%c[DEBUG] initializeConditionBuilder: Processed tag conditions map:`, 'color: orange', tagConditionsMap);
                             // --- END DEBUG LOG ---
                             const allTags = book.settings.chapterTags || [];
                             if (allTags.length > 0) {
@@ -11003,7 +11011,7 @@
                                     itemDiv.dataset.state = state;
                                     itemDiv.innerHTML = `<span class="page-title">${escapeHtml(tag.name)}</span><div class="condition-box state-${state === 'is' ? 'active' : (state === 'not' ? 'inactive' : 'none')}"><i class="${iconClass}"></i></div>`;
                                     // --- DEBUG LOG ---
-                                    console.log(`%c[DEBUG] initializeConditionBuilder: Rendering tag "${tag.name}" (ID: ${tag.id}) with initial state: ${state}`, 'color: orange');
+                                    log(`%c[DEBUG] initializeConditionBuilder: Rendering tag "${tag.name}" (ID: ${tag.id}) with initial state: ${state}`, 'color: orange');
                                     // --- END DEBUG LOG ---
                                     itemDiv.addEventListener('click', () => {
                                         const currentState = itemDiv.dataset.state;
@@ -11028,7 +11036,7 @@
                             tagSearchInput.oninput = () => {
                                 const term = tagSearchInput.value.toLowerCase();
                                 tagListContainer.querySelectorAll('.plot-thread-page-item').forEach(item => {
-                                    item.style.display = item.querySelector('.page-title').textContent.toLowerCase().includes(term) ? '' : 'none'; // This is correct
+                                    item.style.display = item.querySelector('.page-title').textContent.toLowerCase().includes(term) ? '' : 'none';
                                 });
                             };
                         }
@@ -11056,7 +11064,7 @@
                     }
 
                     function addConditionItem(group, conditionData = {}) {
-                        // If no condition data is provided, it means the user clicked "Add", so we create a default. // This line is correct
+                        // If no condition data is provided, it means the user clicked "Add", so we create a default.
                         // We only proceed if it's a true "add new" click (conditionData is undefined) or if we are populating from existing data (conditionData has a type).
                         if (conditionData.type === undefined && arguments.length > 1) {
                             // This is a population call with an empty object, so we should not add a blank item.
@@ -11070,7 +11078,7 @@
 
                         // Populate type select with ONLY non-page conditions
                         // --- DEBUG LOG ---
-                        console.log(`%c[DEBUG] addConditionItem: Adding item with data:`, 'color: orange', JSON.parse(JSON.stringify(conditionData)));
+                        log(`%c[DEBUG] addConditionItem: Adding item with data:`, 'color: orange', JSON.parse(JSON.stringify(conditionData)));
                         // --- END DEBUG LOG ---
                         const conditionTypes = [
                             { value: 'chapter_is', text: 'Chapter is' },
@@ -11116,7 +11124,7 @@
                     }
 
                     function cleanupUnusedTags() {
-                        if (!book.settings.chapterTags || book.settings.chapterTags.length === 0) return; // This line is correct
+                        if (!book.settings.chapterTags || book.settings.chapterTags.length === 0) return;
 
                         const usedTagIds = new Set();
 
@@ -11135,7 +11143,7 @@
 
                         const originalCount = book.settings.chapterTags.length;
                         book.settings.chapterTags = book.settings.chapterTags.filter(tag => usedTagIds.has(tag.id));
-                        if (originalCount !== book.settings.chapterTags.length) console.log(`Cleaned up ${originalCount - book.settings.chapterTags.length} unused tags.`);
+                        if (originalCount !== book.settings.chapterTags.length) log(`Cleaned up ${originalCount - book.settings.chapterTags.length} unused tags.`);
                     }
 
                     // --- Spotify Auth Functions (from reference) ---
@@ -11363,7 +11371,7 @@
                             if (triggerType === 'keyword' && st.keywords && st.keywords.length > 0) {
                                 const foundKeyword = st.keywords.find(kw => new RegExp(`\\b${kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(input));
                                 if (foundKeyword) {
-                                    console.log(`Soundtrack Keyword Triggered: "${foundKeyword}" for playlist "${st.name}"`);
+                                    log(`Soundtrack Keyword Triggered: "${foundKeyword}" for playlist "${st.name}"`);
                                     shouldTrigger = true;
                                 }
                             }
@@ -11371,14 +11379,14 @@
                             if (triggerType === 'chapter') {
                                 const selectedChapters = st.chapters || (st.chapter && st.chapter !== 'none' ? [st.chapter] : []);
                                 if (selectedChapters.includes(String(input))) {
-                                    console.log(`Soundtrack Chapter Triggered: Chapter ID "${input}" for playlist "${st.name}"`);
+                                    log(`Soundtrack Chapter Triggered: Chapter ID "${input}" for playlist "${st.name}"`);
                                     shouldTrigger = true;
                                 }
                             }
 
                             if (triggerType === 'time' && st.timeOfDay && st.timeOfDay !== 'none') {
                                 if (st.timeOfDay === input) {
-                                    console.log(`Soundtrack Time Triggered: "${input}" for playlist "${st.name}"`);
+                                    log(`Soundtrack Time Triggered: "${input}" for playlist "${st.name}"`);
                                     shouldTrigger = true;
                                 }
                             }
@@ -11516,7 +11524,7 @@
                                 const duration = song.endTime - (song.startTime || 0);
                                 stPlayerNode.endTimeout = setTimeout(() => {
                                     if (stPlayerNode === ytPlayer && isStPlaying) {
-                                        console.log("YouTube track end time reached (timer). Moving to next.");
+                                        log("YouTube track end time reached (timer). Moving to next.");
                                         nextStSong();
                                     }
                                 }, (duration * 1000) + 100); // Small sync buffer
@@ -11668,7 +11676,7 @@
                         } else {
                             activeStSongIndex = (activeStSongIndex + 1) % st.songs.length;
                         }
-                        console.log(`Playlist Looping: playing song index ${activeStSongIndex + 1}/${st.songs.length}`);
+                        log(`Playlist Looping: playing song index ${activeStSongIndex + 1}/${st.songs.length}`);
                         playStSong(st, activeStSongIndex);
                     }
 
@@ -11799,7 +11807,7 @@
                                 keepAliveAudio.loop = true;
                                 keepAliveAudio.volume = 0.01;
                             }
-                            keepAliveAudio.play().catch(e => console.log("Keep-alive auto-play prevented until user interaction."));
+                            keepAliveAudio.play().catch(e => log("Keep-alive auto-play prevented until user interaction."));
                         } else {
                             if (keepAliveAudio) {
                                 keepAliveAudio.pause();
@@ -11809,12 +11817,12 @@
 
                     // --- Initial Setup ---
                     function initializeApp() {
-                        console.log("Initializing app...");
+                        log("Initializing app...");
 
                         if (pipCanvas) {
                             pipCanvas.width = PIP_CANVAS_SIZE;
                             pipCanvas.height = PIP_CANVAS_SIZE;
-                            pipCanvasCtx = pipCanvas.getContext('2d'); // This line is correct
+                            pipCanvasCtx = pipCanvas.getContext('2d');
                         } else {
                             console.error("PiP Canvas element not found during initialization!");
                         }
@@ -11846,9 +11854,9 @@
                             syrinscapePlayerReady = false;
                             currentTimeOfDay = book.currentTimeOfDay;
                             plotBoardView = { ...book.storyPlot.viewTransform };
-                            console.log("Initialized with default empty book.");
+                            log("Initialized with default empty book.");
                         } else {
-                            console.log("Book loaded successfully from local storage.");
+                            log("Book loaded successfully from local storage.");
                             currentListeningMode = book.settings.listeningMode;
                             isCompoundPhrasingEnabled = book.settings.compoundPhrasing;
                             currentKeywordConfidenceThreshold = book.settings.accuracyThreshold;
@@ -11878,7 +11886,7 @@
                         updateFuseIndex();
                         updateChapterKeywordList();
                         renderChapterTabs();
-                        renderPageList(); // This line is correct
+                        renderPageList();
                         renderSoundtrackIcons();
                         updateUIState();
 
@@ -11891,7 +11899,7 @@
                         }
                         if (addSyrinscapeSearchButton) {
                             addSyrinscapeSearchButton.addEventListener('click', () => openSyrinscapeSearchModal('add'));
-                        } // This line is correct
+                        }
                         // (Removed: listener for the deleted sourceVariationSyrinscapeSearch button, B4)
                         if (executeSyrinscapeSearchButton) {
                             executeSyrinscapeSearchButton.addEventListener('click', executeSyrinscapeAPISearch);
@@ -11944,7 +11952,7 @@
                         if (savePlotThreadChangesButton) savePlotThreadChangesButton.addEventListener('click', savePlotThreadMenuChanges);
                         if (deletePlotThreadButton) deletePlotThreadButton.addEventListener('click', deletePlotThreadFromMenu);
                         if (plotThreadTransitionPhrasesInput) plotThreadTransitionPhrasesInput.addEventListener('input', filterPlotThreadMenuSounds);
-                        if (plotThreadSoundSearchInput) plotThreadSoundSearchInput.addEventListener('input', filterPlotThreadMenuSounds); // This line is correct
+                        if (plotThreadSoundSearchInput) plotThreadSoundSearchInput.addEventListener('input', filterPlotThreadMenuSounds);
 
                         // PiP Button Listener
                         if (togglePipButton) {
@@ -11952,7 +11960,7 @@
                         }
 
 
-                        console.log("Storyteller Initialized.");
+                        log("Storyteller Initialized.");
                     }
 
 

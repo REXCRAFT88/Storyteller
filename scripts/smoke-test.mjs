@@ -31,6 +31,9 @@ page.on('pageerror', (e) => logs.push({ type: 'pageerror', text: e.message }));
 
 await page.goto('file://' + resolve(root, 'index.html'), { waitUntil: 'load', timeout: 60000 });
 await page.waitForTimeout(5000);
+// Verbose logs are gated behind a debug flag in production; enable it so the
+// restart-loop assertion below can observe recognition restart attempts.
+await page.evaluate(() => window.storytellerDebug && window.storytellerDebug(true));
 
 const fail = [];
 const probes = await page.evaluate(() => ({
