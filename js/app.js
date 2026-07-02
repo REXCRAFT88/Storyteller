@@ -786,6 +786,15 @@
                     const QUICK_COOLDOWN_MS = 200;
                     let currentSearchTerm = '';
                     let recognitionStarted = false;
+                    // Speech-recognition restart backoff (ANALYSIS.md B1). Prevents the
+                    // unbounded start->error->restart loop when the mic is unavailable or
+                    // the browser's cloud recognition can't be reached (e.g. offline).
+                    let srRestartAttempts = 0;
+                    let srRestartTimer = null;
+                    let srNetworkErrorCount = 0;
+                    const SR_MAX_RESTART_ATTEMPTS = 8;
+                    const SR_RESTART_BASE_MS = 500;
+                    const SR_RESTART_MAX_MS = 30000;
                     const FADE_DURATION = 2.0;
                     const MIN_GAIN = 0.0001;
                     let fuseInstance = null;
@@ -860,6 +869,8 @@
                         recognition.lang = 'en-US';
 
                         recognition.onresult = (event) => {
+                            // A result means recognition is working — clear the failure budget (B1).
+                            if (srRestartAttempts !== 0 || srNetworkErrorCount !== 0) resetSpeechRetryState();
                             let interimTranscript = "";
                             let finalTranscript = "";
 
@@ -939,6 +950,7 @@
                                 attemptRestart = false;
                             } else if (event.error === 'network') {
                                 msg = "Network error during SR.";
+                                srNetworkErrorCount++;
                                 attemptRestart = isListening; // Restart if was listening
                             } else {
                                 // For other errors, attempt restart if it was listening.
@@ -957,30 +969,11 @@
                             if (shouldStop) {
                                 stopListening(true); // Pass true to force UI update and recognitionStarted = false
                             } else if (attemptRestart) {
-                                console.warn("SR error occurred, attempting restart...");
-                                // Capture current state for restart decision
-                                const currentMode = currentListeningMode;
-                                const wasPttActive = pttActive; // If PTT was active, we should try to restart PTT listening
-
-                                isListening = false; // Temporarily set to false
-                                // recognitionStarted remains true if it was already true, indicating intent to listen
-
-                                updateUIState(); // Update UI to show stopped state briefly
-
-                                setTimeout(() => {
-                                    // Re-check if we should still be listening based on the original intent
-                                    const shouldBeListeningNow = (currentMode === 'toggle' && recognitionStarted) ||
-                                        (currentMode === 'push' && wasPttActive && recognitionStarted);
-
-                                    if (shouldBeListeningNow) {
-                                        console.log("Proceeding with SR restart.");
-                                        startListening(); // This will set isListening = true and attempt to start recognition
-                                    } else {
-                                        console.log("Restart aborted as listening state/mode changed or wasn't intended to be started.");
-                                        recognitionStarted = false; // Ensure it's false if not restarting
-                                        updateUIState(); // Final UI update if not restarted
-                                    }
-                                }, 500); // Delay before restart attempt
+                                // Route through the bounded, backing-off restart funnel (B1)
+                                // instead of an unconditional 500ms retry. onend will also
+                                // fire; scheduleRecognitionRestart() is idempotent so the two
+                                // do not double-restart.
+                                scheduleRecognitionRestart();
                             } else if (event.error !== 'aborted') {
                                 // If not stopping, not restarting, and not an abort, ensure consistent state
                                 isListening = false;
@@ -1001,8 +994,8 @@
                                 (currentListeningMode === 'push' && pttActive && recognitionStarted);
 
                             if (shouldBeListening) {
-                                console.log("SR ended but should be listening (based on recognitionStarted and PTT state), restarting...");
-                                startListening(); // This will set isListening = true again
+                                console.log("SR ended but should be listening; scheduling bounded restart...");
+                                scheduleRecognitionRestart(); // bounded + backoff (B1)
                             } else {
                                 console.log("SR ended intentionally or not restarting.");
                                 recognitionStarted = false; // Ensure this is false if not restarting
@@ -1010,7 +1003,7 @@
                             }
                         };
 
-                        recognition.onaudiostart = () => { console.log('Audio capturing started.'); if (isListening) updateUIState(); };
+                        recognition.onaudiostart = () => { console.log('Audio capturing started.'); resetSpeechRetryState(); if (isListening) updateUIState(); };
                         recognition.onaudioend = () => { console.log('Audio capturing ended.'); };
                         recognition.onspeechstart = () => { console.log('Speech detected.'); if (isListening && statusDiv) statusDiv.textContent = 'Speech Detected...'; };
                         recognition.onspeechend = () => { console.log('Speech ended.'); if (isListening && statusDiv) statusDiv.textContent = 'Listening...'; };
@@ -1122,6 +1115,64 @@
                     }
 
                     // --- Core Listening Logic ---
+                    // --- Speech recognition restart backoff (B1) ---
+                    function showPersistentSpeechError(message) {
+                        const banner = document.getElementById('speechErrorBanner');
+                        if (banner) { banner.textContent = message; banner.classList.remove('hidden'); }
+                    }
+                    function clearPersistentSpeechError() {
+                        const banner = document.getElementById('speechErrorBanner');
+                        if (banner) { banner.classList.add('hidden'); banner.textContent = ''; }
+                    }
+                    // Called when recognition is demonstrably working (got audio or a result),
+                    // or when the user manually (re)starts. Resets the failure budget.
+                    function resetSpeechRetryState() {
+                        srRestartAttempts = 0;
+                        srNetworkErrorCount = 0;
+                        if (srRestartTimer) { clearTimeout(srRestartTimer); srRestartTimer = null; }
+                        clearPersistentSpeechError();
+                    }
+                    function userStillWantsToListen() {
+                        return (currentListeningMode === 'toggle' && recognitionStarted) ||
+                            (currentListeningMode === 'push' && pttActive && recognitionStarted);
+                    }
+                    // Single funnel for all automatic restarts (onerror + onend). Idempotent
+                    // (one pending timer at a time), backs off exponentially, and gives up
+                    // after SR_MAX_RESTART_ATTEMPTS with a clear, persistent message.
+                    function scheduleRecognitionRestart() {
+                        if (srRestartTimer) return; // a restart is already pending
+                        if (!userStillWantsToListen()) {
+                            recognitionStarted = false;
+                            isListening = false;
+                            updateUIState();
+                            return;
+                        }
+                        if (srRestartAttempts >= SR_MAX_RESTART_ATTEMPTS) {
+                            recognitionStarted = false;
+                            isListening = false;
+                            updateUIState();
+                            const offline = !navigator.onLine || srNetworkErrorCount >= 2;
+                            showPersistentSpeechError(offline
+                                ? "Speech recognition keeps failing. Chrome's built-in recognition needs an internet connection and a working microphone. Offline recognition (Vosk) is planned — see VOSK_PLAN.md."
+                                : "Speech recognition stopped after repeated failures. Check that a microphone is connected and permitted, then press the mic button to try again.");
+                            return;
+                        }
+                        srRestartAttempts++;
+                        const delay = Math.min(SR_RESTART_BASE_MS * Math.pow(2, srRestartAttempts - 1), SR_RESTART_MAX_MS);
+                        console.warn(`Scheduling SR restart #${srRestartAttempts} of ${SR_MAX_RESTART_ATTEMPTS} in ${delay}ms.`);
+                        isListening = false;
+                        updateUIState();
+                        srRestartTimer = setTimeout(() => {
+                            srRestartTimer = null;
+                            if (userStillWantsToListen()) {
+                                startListening();
+                            } else {
+                                recognitionStarted = false;
+                                updateUIState();
+                            }
+                        }, delay);
+                    }
+
                     function startListening() {
                         if (!recognition) { console.error("SR not available."); return; }
                         if (!initAudioContext()) { showTemporaryMessage("Audio system not ready.", "error"); return; }
@@ -1179,6 +1230,7 @@
                                 console.log("Stop request processed, but was not actively in 'isListening' state. Ensured recognitionStarted is false.");
                             }
                             clearAllCooldowns();
+                            resetSpeechRetryState(); // cancel any pending auto-restart + clear banner (B1)
                             updateUIState();
                             consumedWordsForUtterance.clear();
                             lastInterimWordCount = 0;
@@ -2258,7 +2310,7 @@
                     // --- Event Listeners (Main Buttons & File Inputs) ---
                     toggleListenButton.addEventListener('click', () => {
                         if (currentListeningMode === 'toggle') {
-                            if (isListening) stopListening(true); else startListening();
+                            if (isListening) stopListening(true); else { resetSpeechRetryState(); startListening(); }
                         } else { // Push-to-talk mode
                             showTemporaryMessage("Use Spacebar for Push-to-Talk.", "info");
                         }
@@ -9788,10 +9840,11 @@
                             if (currentListeningMode === 'push') {
                                 if (!isListening) {
                                     pttActive = true;
+                                    resetSpeechRetryState();
                                     startListening();
                                 }
                             } else if (currentListeningMode === 'toggle') {
-                                if (isListening) stopListening(true); else startListening();
+                                if (isListening) stopListening(true); else { resetSpeechRetryState(); startListening(); }
                             }
                             event.preventDefault();
                         }
