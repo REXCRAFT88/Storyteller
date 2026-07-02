@@ -32,21 +32,35 @@
                 // --- YouTube API Setup ---
                 let youtubeApiReady = false;
                 let pendingYTPlays = []; // Queue for plays attempted before API is ready
+                // YouTube calls this global when the IFrame API finishes loading. It runs at
+                // module scope, so it cannot see playSound (which lives in the DOMContentLoaded
+                // closure). It therefore defers draining the queue to a callback the closure
+                // registers once playSound is in scope (B4 — previously threw ReferenceError,
+                // so any YouTube sound queued before the API loaded never played).
                 function onYouTubeIframeAPIReady() {
                     console.log("YouTube IFrame API Ready");
                     youtubeApiReady = true;
-                    // Process any pending plays
-                    if (pendingYTPlays.length > 0) {
-                        console.log(`Processing ${pendingYTPlays.length} pending YouTube plays...`);
-                        pendingYTPlays.forEach(play => playSound(play.page, play.sourceDetailToPlay, play.startedByAutoplay, play.onEndedCallback, play.isCompoundSequence, play.isPlotThreadSound, play.isInternalLoopIteration, play.triggeredByAppendix));
-                        pendingYTPlays = []; // Clear the queue
-                    }
+                    if (typeof window.__ytApiReadyCallback === 'function') window.__ytApiReadyCallback();
                 }
                 const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
                 const firstScriptTag = document.getElementsByTagName('script')[0]; firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
                 // --- Main Script Logic ---
                 document.addEventListener('DOMContentLoaded', () => {
+                    // Drain YouTube plays queued before the IFrame API was ready. Registered
+                    // here so it closes over the closure-scoped playSound (B4). playSound is a
+                    // hoisted function declaration, so it is safe to reference now.
+                    window.__ytApiReadyCallback = () => {
+                        if (pendingYTPlays.length > 0) {
+                            console.log(`Processing ${pendingYTPlays.length} pending YouTube plays...`);
+                            const queued = pendingYTPlays;
+                            pendingYTPlays = [];
+                            queued.forEach(play => playSound(play.page, play.sourceDetailToPlay, play.startedByAutoplay, play.onEndedCallback, play.isCompoundSequence, play.isPlotThreadSound, play.isInternalLoopIteration, play.triggeredByAppendix));
+                        }
+                    };
+                    // If the API became ready before this closure ran, drain now.
+                    if (youtubeApiReady) window.__ytApiReadyCallback();
+
                     // --- Default Empty Book Structure ---
                     function getDefaultBook() {
                         return {
@@ -96,7 +110,7 @@
                     const openAddPageModalButton = document.getElementById('openAddPageModalButton');
                     const addChapterButton = document.getElementById('addChapterButton');
                     const addAppendixEffectButton = document.getElementById('addAppendixEffectButton');
-                    const exportChapterButton = document.getElementById('exportChapterButton'); // This is correct
+                    // exportChapterButton removed: no such element/feature in the current UI (B4)
                     const loadSampleBookButton = document.getElementById('loadSampleBookButton');
                     const burnBookButton = document.getElementById('burnBookButton');
                     const relinkFromDropdownButton = document.getElementById('relinkFromDropdownButton');
@@ -107,8 +121,7 @@
                     // Hidden Inputs
                     const loadFileInput = document.getElementById('loadFileInput');
                     const directoryInput = document.getElementById('directoryInput');
-                    const importChapterInput = document.getElementById('importChapterInput');
-                    const importCollectionsInput = document.getElementById('importCollectionsInput');
+                    // importChapterInput / importCollectionsInput removed: no such inputs in the current UI (B4)
 
                     // UI Inputs & Displays
                     const searchInput = document.getElementById('searchInput');
@@ -264,20 +277,11 @@
                     const editingSourceVariationIndexInput = document.getElementById('editingSourceVariationIndex');
                     const sourceVariationSourceTypeRadios = document.querySelectorAll('input[name="sourceVariationSourceType"]');
                     const sourceVariationNameInput = document.getElementById('sourceVariationName');
-                    const sourceVariationFileInputContainer = document.getElementById('sourceVariationFileInputContainer');
-                    const sourceVariationFileInput = document.getElementById('sourceVariationFile');
-                    const sourceVariationExistingFileSpan = document.getElementById('sourceVariationExistingFile');
-                    const sourceVariationYoutubeInputContainer = document.getElementById('sourceVariationYoutubeInputContainer');
-                    const sourceVariationYoutubeUrlInput = document.getElementById('sourceVariationYoutubeUrl');
+                    // Per-variation source-type editing (file/YouTube/Syrinscape inputs) was
+                    // removed from the variation modal; its orphaned element lookups and the
+                    // code paths that used them have been dropped (B4).
                     const sourceVariationStartTimeInput = document.getElementById('sourceStartTime'); // Corrected, but seems unused in this context
                     const sourceVariationEndTimeInput = document.getElementById('sourceEndTime'); // Corrected, but seems unused in this context
-                    const sourceVariationSyrinscapeInputContainer = document.getElementById('sourceVariationSyrinscapeInputContainer');
-                    const sourceVariationSyrinscapeSearchInput = document.getElementById('sourceVariationSyrinscapeSearch');
-                    const sourceVariationSyrinscapeSearchButton = document.getElementById('sourceVariationSyrinscapeSearchButton');
-                    const sourceVariationSyrinscapeElementIdInput = document.getElementById('sourceVariationSyrinscapeElementId');
-                    const sourceVariationSyrinscapeKindInput = document.getElementById('sourceVariationSyrinscapeKind');
-                    const sourceVariationSyrinscapeSelectedSoundSpan = document.getElementById('sourceVariationSyrinscapeSelectedSound');
-                    const sourceVariationSyrinscapePlayDurationInput = document.getElementById('sourceVariationSyrinscapePlayDuration');
                     const sourceVariationKeywordsInput = document.getElementById('sourceVariationKeywords');
                     const sourceYoutubeSearchButton = document.getElementById('sourceYoutubeSearchButton');
                     const sourceVariationEnableVolumeOverrideCheckbox = document.getElementById('sourceVariationEnableVolumeOverride');
@@ -392,9 +396,8 @@
                     const plotThreadTimeConditionButton = document.getElementById('plotThreadTimeConditionButton');
                     const plotThreadTransitionPhrasesInput = document.getElementById('plotThreadTransitionPhrases');
                     const plotThreadSoundSearchInput = document.getElementById('plotThreadSoundSearchInput'); // For sounds
-                    const plotThreadConditionSearchInput = document.getElementById('plotThreadConditionSearchInput'); // For conditions
                     const plotThreadSoundsListDiv = document.getElementById('plotThreadSoundsList');
-                    const plotThreadConditionsListDiv = document.getElementById('plotThreadConditionsList');
+                    // plotThreadConditionSearchInput / plotThreadConditionsList removed: not in current markup, never used (B4)
                     const plotThreadDisableAutoplayCheckbox = document.getElementById('plotThreadDisableAutoplay');
                     const plotThreadTimeChangeButton = document.getElementById('plotThreadTimeChangeButton');
                     const plotThreadEnableReturnCheckbox = document.getElementById('plotThreadEnableReturn');
@@ -417,8 +420,7 @@
                     const executeYoutubeSearchButton = document.getElementById('executeYoutubeSearchButton');
                     const youtubeSearchLoading = document.getElementById('youtubeSearchLoading');
                     const youtubeSearchResultsUl = document.getElementById('youtubeSearchResults');
-                    const youtubePaginationTop = document.getElementById('youtubePaginationTop');
-                    const youtubePaginationBottom = document.getElementById('youtubePaginationBottom');
+                    // YouTube search pagination was removed; its DOM elements no longer exist (B4).
                     const youtubeSearchError = document.getElementById('youtubeSearchError');
                     const cancelYoutubeSearchButton = document.getElementById('cancelYoutubeSearchButton');
                     const addSelectedYoutubeVideosButton = document.getElementById('addSelectedYoutubeVideosButton');
@@ -429,9 +431,7 @@
                     let currentYtPreviewVideoId = null;
                     let currentlyPlayingYtTile = null;
 
-                    // YouTube Search Pagination
-                    const youtubeNextButtons = [document.getElementById('youtubeNextBtnTop')];
-                    const youtubePrevButtons = [document.getElementById('youtubePrevBtnTop')];
+                    // YouTube Search Pagination (removed; buttons no longer in markup, B4)
                     let ytSearchNextPageToken = null;
                     let ytSearchPrevPageToken = null;
                     let ytSearchPageHistory = [];
@@ -849,9 +849,8 @@
                     if (!SpeechRecognition) {
                         showTemporaryMessage('Speech Recognition API not supported. Try Chrome.', 'error', 5000);
                         // Disable relevant buttons if SR not supported
-                        [toggleListenButton, stopAllSoundsButton, openSettingsModalButton, openGuidebookModalButton, saveButton, openAddPageModalButton, addChapterButton, exportChapterButton, timeOfDayButton, openStoryPlotterButton, togglePipButton, openAppendixModalButton].forEach(el => { if (el) el.disabled = true; });
+                        [toggleListenButton, stopAllSoundsButton, openSettingsModalButton, openGuidebookModalButton, saveButton, openAddPageModalButton, addChapterButton, timeOfDayButton, openStoryPlotterButton, togglePipButton, openAppendixModalButton].forEach(el => { if (el) el.disabled = true; });
                         const loadLabel = loadFileInput?.closest('label'); if (loadLabel) { loadLabel.classList.add('opacity-50', 'cursor-not-allowed'); }
-                        const importLabel = importChapterInput?.closest('label'); if (importLabel) { importLabel.classList.add('opacity-50', 'cursor-not-allowed'); }
                         // Disable settings controls as well
                         settingsListeningModeRadios.forEach(radio => radio.disabled = true);
                         settingsSmartFilteringCheckbox.disabled = true;
@@ -1529,10 +1528,7 @@
                             pageCheckboxes.forEach(cb => cb.checked = false); // Clear first
                             entry.trigger.pages.forEach(pageId => { const checkbox = appendixPageEventTargetList.querySelector(`input[value="${pageId}"]`); if (checkbox) checkbox.checked = true; });
                         } else if (triggerType === 'chapter_has_tag') {
-                            const tagSelect = document.getElementById('appendixTriggerTagSelect');
-                            if (tagSelect) {
-                                tagSelect.value = entry.trigger.tagId || '';
-                            }
+                            // Legacy trigger type; its UI (appendixTriggerTagSelect) was removed. No-op. (B4)
                         } else if (triggerType === 'contextual_phrase') {
                             document.getElementById('appendixContextualEvent').value = entry.trigger.event;
                             document.getElementById('appendixContextualPhrases').value = entry.trigger.phrases.join(', ');
@@ -2325,7 +2321,6 @@
                     });
                     openSaveFileModalButton.addEventListener('click', openSaveFileModal);
                     loadFileInput.addEventListener('change', handleFileLoad);
-                    // exportChapterButton event listener is set in initializeApp after active chapter is known
 
                     relinkFromDropdownButton.addEventListener('click', () => {
                         if (!initAudioContext()) { showTemporaryMessage("Audio system not ready.", "error"); return; }
@@ -2539,28 +2534,7 @@
                             );
                         });
                     }
-                    if (sourceVariationSyrinscapePlayDurationInput) {
-                        sourceVariationSyrinscapePlayDurationInput.addEventListener('input', (event) => {
-                            const duration = event.target.value;
-                            const page = book.pages.find(p => p.id === currentlyEditingPageId);
-                            const sourceIndex = parseInt(editingSourceVariationIndexInput.value, 10);
-                            const isEditingVariation = page && page.sources[sourceIndex];
-                            const selectedType = isEditingVariation ? page.sources[sourceIndex].type : document.querySelector('input[name="sourceVariationSourceType"]:checked')?.value;
-                            const syrinscapeKind = isEditingVariation ? page.sources[sourceIndex].syrinscapeKind : sourceVariationSyrinscapeKindInput.value;
-
-                            // For variations, loop controls are on the main Edit Page modal
-                            evaluateSyrinscapeLoopControls(
-                                selectedType,
-                                syrinscapeKind,
-                                duration,
-                                editLoopSoundCheckbox,
-                                editLoopIndefinitelyCheckbox,
-                                editLoopCountInput,
-                                editLoopOptionsContainer,
-                                editEndPlayKeywordsContainer
-                            );
-                        });
-                    }
+                    // (Removed: input listener for the deleted sourceVariationSyrinscapePlayDuration field, B4)
 
 
                     // --- Create New Page Function (from Modal) ---
@@ -3778,7 +3752,7 @@
                         }
                         if (sourceDetail.type === 'youtube' && !youtubeApiReady) { // Defer playback if YT API isn't ready
                             console.warn(`YouTube API not ready. Queuing play request for Page ID ${page.id} ("${page.title}").`);
-                            pendingYTPlays.push({ page, specificSourceToPlay, startedByAutoplay, onEndedCallback, isCompoundSequence, isPlotThreadSound, isInternalLoopIteration, triggeredByAppendix });
+                            pendingYTPlays.push({ page, sourceDetailToPlay: sourceDetail, startedByAutoplay, onEndedCallback, isCompoundSequence, isPlotThreadSound, isInternalLoopIteration, triggeredByAppendix });
                             return;
                         }
                         if (sourceDetail.type === 'syrinscape' && !syrinscapePlayerReady) {
@@ -9415,16 +9389,7 @@
                                 appendix: Array.isArray(book.appendix) ? book.appendix.map(entry => ({ ...entry, name: entry.name || null })) : []
                             };
                             const jsonString = JSON.stringify(savableBook);
-
-
-                            const __kaBox = document.getElementById('settingKeepAlive') || document.getElementById('settingsEnableBackgroundKeepAlive');
-                            if (__kaBox) {
-                                const keepAliveEnabled = __kaBox.checked;
-                                if (typeof settings !== 'undefined') settings.keepAlive = keepAliveEnabled;
-                                if (typeof toggleBackgroundMode === 'function') toggleBackgroundMode(keepAliveEnabled);
-                            }
-
-
+                            // (Removed keep-alive checkbox read: no such control exists in the UI, B4)
                             localStorage.setItem(LOCAL_STORAGE_KEY, jsonString);
                         } catch (error) {
                             console.error("Error autosaving to local storage:", error);
@@ -10189,20 +10154,9 @@
                             targetLoopOptionsDiv = addLoopOptionsContainer;
                             targetEndKeywordsDiv = addEndPlayKeywordsContainer;
                             targetDurationInput = addSyrinscapePlayDurationInput;
-                        } else if (currentSyrinscapeSearchContext === 'sub-variation') {
-                            sourceVariationSyrinscapeElementIdInput.value = elementId;
-                            sourceVariationSyrinscapeKindInput.value = elementKind;
-                            sourceVariationSyrinscapeSelectedSoundSpan.textContent = `${elementName} (${elementKind})`;
-                            sourceVariationSyrinscapeSelectedSoundSpan.dataset.syrinscapeName = elementName;
-                            sourceVariationSyrinscapeSelectedSoundSpan.dataset.syrinscapeKind = elementKind;
-                            // For variations, loop controls are on the main Edit Page modal
-                            targetLoopCb = editLoopSoundCheckbox;
-                            targetIndefCb = editLoopIndefinitelyCheckbox;
-                            targetCountIn = editLoopCountInput;
-                            targetLoopOptionsDiv = editLoopOptionsContainer;
-                            targetEndKeywordsDiv = editEndPlayKeywordsContainer;
-                            targetDurationInput = sourceVariationSyrinscapePlayDurationInput;
                         }
+                        // (Removed dead 'sub-variation' branch: the variation modal's
+                        //  Syrinscape source inputs were deleted from the markup, B4)
 
                         if (targetLoopCb) { // Ensure controls exist before trying to evaluate
                             evaluateSyrinscapeLoopControls(
@@ -10549,9 +10503,7 @@
                         // ytSearchNextPageToken = nextPageToken;
                         // ytSearchPrevPageToken = prevPageToken;
 
-                        if (youtubeSearchResultsUl.children.length > 0 && youtubeSearchResultsUl.children[0].tagName === 'LI') {
-                        } else {
-                            youtubePaginationTop.classList.add('hidden');
+                        if (!(youtubeSearchResultsUl.children.length > 0 && youtubeSearchResultsUl.children[0].tagName === 'LI')) {
                             youtubeSearchResultsUl.innerHTML = '<li class="text-center text-gray-400 italic">No embeddable videos found for this query.</li>';
                         }
 
@@ -11310,7 +11262,7 @@
                                     const gainNode = audioContext.createGain();
                                     gainNode.gain.value = finalVol; 
                                     source.connect(gainNode);
-                                    gainNode.connect(masterGainNode);
+                                    gainNode.connect(audioContext.destination); // was undefined masterGainNode (B4)
 
                                     const sTime = song.startTime || 0;
                                     const eTime = (song.endTime && song.endTime > sTime) ? song.endTime : buffer.duration;
@@ -11768,9 +11720,7 @@
                         if (addSyrinscapeSearchButton) {
                             addSyrinscapeSearchButton.addEventListener('click', () => openSyrinscapeSearchModal('add'));
                         } // This line is correct
-                        if (sourceVariationSyrinscapeSearchButton) { // This line is correct
-                            sourceVariationSyrinscapeSearchButton.addEventListener('click', () => openSyrinscapeSearchModal('variation'));
-                        }
+                        // (Removed: listener for the deleted sourceVariationSyrinscapeSearch button, B4)
                         if (executeSyrinscapeSearchButton) {
                             executeSyrinscapeSearchButton.addEventListener('click', executeSyrinscapeAPISearch);
                         }
