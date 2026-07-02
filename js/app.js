@@ -1049,6 +1049,19 @@
                     }
 
                     // --- Message Box ---
+                    // Escape user-controlled strings before interpolating them into innerHTML.
+                    // Books are shared as .story files, so a title like <img src=x onerror=...>
+                    // would otherwise run arbitrary script in the importer's browser (B6).
+                    function escapeHtml(value) {
+                        if (value === null || value === undefined) return '';
+                        return String(value)
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#39;');
+                    }
+
                     function showTemporaryMessage(message, type = 'info', duration = 3000) {
                         messageBox.textContent = message;
                         messageBox.className = ''; // Clear existing classes
@@ -1571,7 +1584,7 @@
                             label.title = page.title;
                             label.innerHTML = `
                         <input type="checkbox" name="appendixEventTargetPages" value="${page.id}">
-                        <span class="ml-2 truncate">${page.title}</span>
+                        <span class="ml-2 truncate">${escapeHtml(page.title)}</span>
                     `;
                             appendixPageEventTargetList.appendChild(label);
                         });
@@ -1586,7 +1599,7 @@
                             label.title = page.title;
                             label.innerHTML = `
                         <input type="checkbox" name="appendixContextualTargetPages" value="${page.id}">
-                        <span class="ml-2 truncate">${page.title}</span>
+                        <span class="ml-2 truncate">${escapeHtml(page.title)}</span>
                     `;
                             appendixContextualPageTargetList.appendChild(label);
                         });
@@ -1726,7 +1739,7 @@
                             if (entry.trigger.type === 'phrase') {
                                 const phrasesToShow = entry.trigger.phrases.slice(0, 2).join('", "');
                                 const ellipsis = entry.trigger.phrases.length > 2 ? '...' : '';
-                                const entryName = entry.name ? `<strong class="text-stone-200">${entry.name}</strong><br>` : '';
+                                const entryName = entry.name ? `<strong class="text-stone-200">${escapeHtml(entry.name)}</strong><br>` : '';
                                 triggerText = `${entryName}<strong>Phrase:</strong> "${phrasesToShow}${ellipsis}"`;
                             } else if (entry.trigger.type === 'page_event') {
                                 const pageNames = entry.trigger.pages
@@ -1894,9 +1907,9 @@
                         <div class="chapter-checkbox-list mt-2 appendix-page-list">
                             ${book.pages.length > 0
                                     ? book.pages.sort((a, b) => a.title.localeCompare(b.title)).map(page => `
-                                    <label title="${page.title}">
+                                    <label title="${escapeHtml(page.title)}">
                                         <input type="checkbox" name="appendixEffectPages_${id}" value="${page.id}">
-                                        <span class="ml-2 truncate">${page.title}</span> </label> `).join('') : '<span class="text-xs text-gray-400 italic">No pages in book.</span>'
+                                        <span class="ml-2 truncate">${escapeHtml(page.title)}</span> </label> `).join('') : '<span class="text-xs text-gray-400 italic">No pages in book.</span>'
                                 }
                         </div>
                         <div class="mt-2 space-y-1">
@@ -1972,7 +1985,7 @@
                                             const li = document.createElement('li'); li.className = 'flex justify-between items-center p-1 bg-stone-700 rounded my-1 gap-2';
                                             li.dataset.pageId = page.id;
                                             li.innerHTML = `
-                                        <span class="flex-grow">${page.title}</span>
+                                        <span class="flex-grow">${escapeHtml(page.title)}</span>
                                         <div class="flex-shrink-0 flex items-center gap-2"> // This line is correct
                                             <button type="button" class="appendix-reorder-btn move-up-btn" title="Move Up" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
                                             <button type="button" class="appendix-reorder-btn move-down-btn" title="Move Down" ${index === selectedIds.length - 1 ? 'disabled' : ''}>&darr;</button>
@@ -2090,7 +2103,7 @@
                                 const stSelect = paramsContainer.querySelector('.appendix-st-select');
                                 stSelect.innerHTML = '<option value="">-- Select --</option>';
                                 (book.soundtracks || []).forEach(st => {
-                                    stSelect.innerHTML += '<option value="' + st.id + '">' + st.name + '</option>';
+                                    stSelect.innerHTML += '<option value="' + st.id + '">' + escapeHtml(st.name) + '</option>';
                                 });
                                 if (params && params.soundtrackId) stSelect.value = params.soundtrackId;
                                 targetContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2">Target: Global Context (Audio System)</p>';
@@ -2142,7 +2155,7 @@
                             <label for="appendixChapterTarget_${effectId}" class="block text-sm font-medium mb-1">Target Chapter:</label>
                             ${isConditionTrigger ? `<p class="text-xs text-gray-400 mb-2">Warning: Using 'Change Chapter' in a reversible Condition trigger can cause rapid, unintended chapter switching if not designed carefully.</p>` : ''}
                             <select id="appendixChapterTarget_${effectId}">
-                                ${book.chapters.sort((a, b) => a.name.localeCompare(b.name)).map(ch => `<option value="${ch.id}">${ch.name}</option>`).join('')}
+                                ${book.chapters.sort((a, b) => a.name.localeCompare(b.name)).map(ch => `<option value="${ch.id}">${escapeHtml(ch.name)}</option>`).join('')}
                             </select>
                         `;
                                 break;
@@ -4457,7 +4470,7 @@
                         <div class="flex justify-between items-center">
                             <div class="collection-title-container" data-action="toggle-collapse">
                                 <i class="fas ${collapseIcon} fa-fw text-sm"></i>
-                                <span class="collection-title">${collection.name}</span>
+                                <span class="collection-title">${escapeHtml(collection.name)}</span>
                                 <span class="collection-page-count">(${pages.size} / ${collection.pageIds.length} pages)</span>
                                 ${tagsHtml}
                             </div>
@@ -4588,8 +4601,9 @@
                             ));
 
                         if (missingFileSources.length > 0 && !hasPlayableSource && firstSource.type === 'file') {
-                            const missingNames = missingFileSources.map(s => s.name || s.fileName).slice(0, 2).join(', ');
-                            displaySource = `<span class="missing-file-indicator" title="Missing: ${missingFileSources.map(s => s.name || s.fileName).join(', ')}">(Missing: ${missingNames}${missingFileSources.length > 2 ? '...' : ''})</span>`;
+                            const missingNames = escapeHtml(missingFileSources.map(s => s.name || s.fileName).slice(0, 2).join(', '));
+                            const missingTitle = escapeHtml(missingFileSources.map(s => s.name || s.fileName).join(', '));
+                            displaySource = `<span class="missing-file-indicator" title="Missing: ${missingTitle}">(Missing: ${missingNames}${missingFileSources.length > 2 ? '...' : ''})</span>`;
                         } else if (firstSource.fileName || firstSource.name) {
                             const name = firstSource.name || firstSource.fileName;
                             const truncatedName = name.length > 35 ? name.substring(0, 32) + '...' : name;
@@ -4620,7 +4634,7 @@
                         }
 
                         const removeChapterButtonHtml = (!activeChapter.isIndex && activeChapter.pageIds.includes(page.id)) ?
-                            `<button class="action-button remove-from-chapter-button" title="Remove from Chapter '${activeChapter.name}'"><i class="fas fa-book-open fa-fw"></i></button>` : '';
+                            `<button class="action-button remove-from-chapter-button" title="Remove from Chapter '${escapeHtml(activeChapter.name)}'"><i class="fas fa-book-open fa-fw"></i></button>` : '';
 
                         let triggerDisplay = '';
                         const keywordsText = (page.keywords || []).join(', ');
@@ -4629,11 +4643,11 @@
 
                         if (page.primaryKey) {
                             const pkDisplay = page.primaryKey.length > 50 ? page.primaryKey.substring(0, 47) + '...' : page.primaryKey;
-                            triggerDisplay += `<span class="text-primary-key inline-block mr-1 keywords-display" title="Primary Key(s): ${page.primaryKey}"><i class="fas fa-key mr-1 fa-fw"></i> ${pkDisplay}</span>`;
+                            triggerDisplay += `<span class="text-primary-key inline-block mr-1 keywords-display" title="Primary Key(s): ${escapeHtml(page.primaryKey)}"><i class="fas fa-key mr-1 fa-fw"></i> ${escapeHtml(pkDisplay)}</span>`;
                             if (hasPhrases) triggerDisplay += ' <span class="text-gray-500 mr-1"><i class="fas fa-arrow-right fa-fw"></i></span> ';
                         }
                         if (hasPhrases) {
-                            triggerDisplay += `<span class="text-yellow-500 inline-block keywords-display" title="Phrases: ${phrasesText}"><i class="fas fa-quote-left mr-1 fa-fw"></i> ${phrasesText}</span>`;
+                            triggerDisplay += `<span class="text-yellow-500 inline-block keywords-display" title="Phrases: ${escapeHtml(phrasesText)}"><i class="fas fa-quote-left mr-1 fa-fw"></i> ${escapeHtml(phrasesText)}</span>`;
                         } else if (!page.primaryKey) {
                             triggerDisplay = `<i class="fas fa-ban text-gray-500 mr-1 fa-fw" title="No Triggers"></i> No Triggers`;
                         }
@@ -4679,7 +4693,7 @@
                             <div class="page-item-main-content"> <div class="page-item-title-row">
                                     <div class="page-item-title-container">
                                         ${starCheckboxHtml}
-                                        <span class="page-item-title">${page.title}</span>
+                                        <span class="page-item-title">${escapeHtml(page.title)}</span>
                                         ${timeOfDayIconHtml}
                                         ${sourceCountText}${fadeInfo}
                                     </div>
@@ -4694,7 +4708,7 @@
                             </div>
                             <div class="page-item-grid-content"> <div class="page-item-grid-title-container">
                                     ${starCheckboxHtml}
-                                    <span class="page-item-grid-title">${page.title}</span>
+                                    <span class="page-item-grid-title">${escapeHtml(page.title)}</span>
                                     ${timeOfDayIconHtml}
                                 </div>
                                 <div class="page-item-grid-actions">                                    
@@ -5932,7 +5946,7 @@
                             const tabButton = document.createElement('button');
                             // If it's the index tab, make it icon-only. Otherwise, show the name.
                             tabButton.className = chapter.isIndex ? 'flex-grow text-center' : 'flex-grow text-center';
-                            tabButton.innerHTML = `<span class="tab-title">${chapter.name}</span>`;
+                            tabButton.innerHTML = `<span class="tab-title">${escapeHtml(chapter.name)}</span>`;
                             tabButton.title = chapter.name;
                             tabButton.onclick = () => {
                                 let shouldTriggerAutoplay = false;
@@ -9108,7 +9122,7 @@
                             itemDiv.dataset.pageId = page.id;
                             const isChecked = soundPageIds.has(page.id);
                             itemDiv.innerHTML = `
-                        <span class="page-title">${page.title}</span>
+                        <span class="page-title">${escapeHtml(page.title)}</span>
                         <input type="checkbox" class="plot-thread-sound-checkbox" ${isChecked ? 'checked' : ''}>
                     `;
                             itemDiv.addEventListener('click', (e) => {
@@ -10808,7 +10822,7 @@
                             if (state === 'active') iconClass = 'fas fa-play';
                             else if (state === 'inactive') iconClass = 'fas fa-stop';
                             itemDiv.dataset.state = state;
-                            itemDiv.innerHTML = `<span class="page-title">${page.title}</span><div class="condition-box state-${state}"><i class="${iconClass}"></i></div>`;
+                            itemDiv.innerHTML = `<span class="page-title">${escapeHtml(page.title)}</span><div class="condition-box state-${state}"><i class="${iconClass}"></i></div>`;
                             itemDiv.addEventListener('click', () => cyclePlotThreadConditionState(itemDiv));
                             pageListContainer.appendChild(itemDiv);
                         });
@@ -10844,7 +10858,7 @@
                                     if (state === 'is') iconClass = 'fas fa-check';
                                     else if (state === 'not') iconClass = 'fas fa-times';
                                     itemDiv.dataset.state = state;
-                                    itemDiv.innerHTML = `<span class="page-title">${tag.name}</span><div class="condition-box state-${state === 'is' ? 'active' : (state === 'not' ? 'inactive' : 'none')}"><i class="${iconClass}"></i></div>`;
+                                    itemDiv.innerHTML = `<span class="page-title">${escapeHtml(tag.name)}</span><div class="condition-box state-${state === 'is' ? 'active' : (state === 'not' ? 'inactive' : 'none')}"><i class="${iconClass}"></i></div>`;
                                     // --- DEBUG LOG ---
                                     console.log(`%c[DEBUG] initializeConditionBuilder: Rendering tag "${tag.name}" (ID: ${tag.id}) with initial state: ${state}`, 'color: orange');
                                     // --- END DEBUG LOG ---
@@ -11129,7 +11143,7 @@
                         (book.soundtracks || []).forEach(st => {
                             const iconDiv = document.createElement('div');
                             iconDiv.className = 'soundtrack-icon' + (activeSoundtrackId === st.id ? ' active' : '');
-                            iconDiv.innerHTML = '<i class="' + (st.icon || 'fas fa-music') + '"></i><span class="st-name-label hidden min-[1100px]:block ml-2 text-sm font-semibold truncate">' + st.name + '</span><div class="tooltip min-[1100px]:hidden">' + st.name + '</div>';
+                            iconDiv.innerHTML = '<i class="' + escapeHtml(st.icon || 'fas fa-music') + '"></i><span class="st-name-label hidden min-[1100px]:block ml-2 text-sm font-semibold truncate">' + escapeHtml(st.name) + '</span><div class="tooltip min-[1100px]:hidden">' + escapeHtml(st.name) + '</div>';
                             iconDiv.onclick = () => { toggleSoundtrack(st.id); };
                             container.appendChild(iconDiv);
                         });
@@ -11522,7 +11536,7 @@
                         (book.soundtracks || []).forEach(st => {
                             const li = document.createElement('li');
                             li.className = 'flex justify-between items-center p-2 border-b border-stone-700 hover:bg-black/20';
-                            li.innerHTML = `<span class="text-sm font-semibold text-accent-gold-light"><i class="${st.icon} mr-2"></i>${st.name} (${st.songs ? st.songs.length : 0} songs)</span>
+                            li.innerHTML = `<span class="text-sm font-semibold text-accent-gold-light"><i class="${escapeHtml(st.icon)} mr-2"></i>${escapeHtml(st.name)} (${st.songs ? st.songs.length : 0} songs)</span>
             <div class="flex gap-2">
                 <button class="text-accent-blue hover:text-white btn-edit-st" data-id="${st.id}"><i class="fas fa-edit"></i></button>
                 <button class="text-red-400 hover:text-red-500 btn-del-st" data-id="${st.id}"><i class="fas fa-trash"></i></button>
@@ -11557,7 +11571,7 @@
                         const addedChIds = new Set();
                         book.chapters.forEach(ch => {
                             if (!addedChIds.has(ch.id)) {
-                                chSelect.innerHTML += `<option value="${ch.id}">${ch.name}</option>`;
+                                chSelect.innerHTML += `<option value="${ch.id}">${escapeHtml(ch.name)}</option>`;
                                 addedChIds.add(ch.id);
                             }
                         });
@@ -11581,7 +11595,7 @@
                             const li = document.createElement('li');
                             li.className = 'flex justify-between items-center p-2 text-sm border-b border-stone-800';
                             const songTypeBadge = song.type === 'youtube' ? '<i class="fab fa-youtube text-red-500 ml-2"></i>' : '<i class="fas fa-file-audio text-blue-400 ml-2"></i>';
-                            li.innerHTML = `<span><span class="text-gray-500 mr-2">${i + 1}.</span>${song.name} ${songTypeBadge}</span>
+                            li.innerHTML = `<span><span class="text-gray-500 mr-2">${i + 1}.</span>${escapeHtml(song.name)} ${songTypeBadge}</span>
             <div class="flex gap-2">
                 <button class="text-accent-blue" onclick="window.editStSong(${i})"><i class="fas fa-edit"></i></button>
                 <button class="text-red-400" onclick="window.deleteStSong(${i})"><i class="fas fa-trash"></i></button>
