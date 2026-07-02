@@ -11001,6 +11001,13 @@
                     }
 
                     async function redirectToSpotifyLogin() {
+                        // Spotify OAuth needs a real http(s) origin for the redirect URI. Opened
+                        // as a local file, window.location.origin is "null" and the callback can
+                        // never work, so fail clearly instead of bouncing to a broken redirect (B8).
+                        if (window.location.protocol === 'file:') {
+                            showTemporaryMessage("Spotify requires the hosted version of Storyteller — it can't authenticate when the page is opened as a local file.", "error", 6000);
+                            return;
+                        }
                         const verifier = generateCodeVerifier(128);
                         const challenge = await generateCodeChallenge(verifier);
 
@@ -11097,6 +11104,10 @@
                         } else {
                             spotifyLoginContainer.classList.remove('hidden');
                             spotifyLogoutContainer.classList.add('hidden');
+                            if (window.location.protocol === 'file:' && spotifyLoginButton) {
+                                spotifyLoginButton.classList.add('opacity-50');
+                                spotifyLoginButton.title = "Unavailable on file:// — use the hosted version of Storyteller to connect Spotify.";
+                            }
                         }
                     }
 
