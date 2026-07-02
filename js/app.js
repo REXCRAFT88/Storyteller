@@ -1186,6 +1186,31 @@
                             .replace(/'/g, '&#39;');
                     }
 
+                    // Structural validation for imported .story files (3.4). Catches malformed
+                    // or hostile inputs early with a clear message, and documents the expected
+                    // book shape. Returns { ok } or { ok:false, error }.
+                    function validateBook(obj) {
+                        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+                            return { ok: false, error: 'File is not a Storyteller book object.' };
+                        }
+                        if ('pages' in obj) {
+                            if (!Array.isArray(obj.pages)) return { ok: false, error: '"pages" must be a list.' };
+                            for (const p of obj.pages) {
+                                if (!p || typeof p !== 'object') return { ok: false, error: 'A page entry is not an object.' };
+                                if (p.id === undefined || p.id === null) return { ok: false, error: 'A page is missing an id.' };
+                                if (p.title !== undefined && typeof p.title !== 'string') return { ok: false, error: 'A page title is not text.' };
+                                if (p.sources !== undefined && !Array.isArray(p.sources)) return { ok: false, error: 'A page\'s sources are not a list.' };
+                            }
+                        }
+                        for (const key of ['chapters', 'collections', 'soundtracks', 'appendix']) {
+                            if (key in obj && !Array.isArray(obj[key])) return { ok: false, error: `"${key}" must be a list.` };
+                        }
+                        if ('settings' in obj && (typeof obj.settings !== 'object' || Array.isArray(obj.settings))) {
+                            return { ok: false, error: '"settings" must be an object.' };
+                        }
+                        return { ok: true };
+                    }
+
                     function showTemporaryMessage(message, type = 'info', duration = 3000) {
                         messageBox.textContent = message;
                         messageBox.className = ''; // Clear existing classes
@@ -5589,6 +5614,11 @@
                                 const loadedData = JSON.parse(e.target.result);
                                 if (!loadedData || typeof loadedData !== 'object') {
                                     throw new Error("Invalid file format.");
+                                }
+                                const validation = validateBook(loadedData);
+                                if (!validation.ok) {
+                                    showTemporaryMessage(`Could not load book: ${validation.error}`, "error", 6000);
+                                    return;
                                 }
 
                                 const contents = [];
