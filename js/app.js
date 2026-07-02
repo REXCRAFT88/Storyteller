@@ -1,7 +1,11 @@
                 // --- Constants ---
                 // v25.8: Syrinscape loop with duration fix, Autoplay on time change fix
                 const YT_RECENT_SEARCHES_KEY = 'storytellerYoutubeRecentSearches';
-                const LOCAL_STORAGE_KEY = 'storytellerBookData_v25.8'; // Incremented version
+                // Fixed autosave key so version bumps never orphan a user's book (ANALYSIS.md B2).
+                // The schema version now lives *inside* the JSON, not in the key.
+                const LOCAL_STORAGE_KEY = 'storytellerBookData';
+                const LEGACY_KEY_PREFIX = 'storytellerBookData_v';
+                const SCHEMA_VERSION = 26; // integer; bump when the book shape changes, add a migration below
                 const INTERIM_WORD_BLOCK_SIZE = 6; // Increased from 4 to 6
                 const SCORE_TIE_THRESHOLD = 0.2;
                 // --- Spotify Constants ---
@@ -9318,6 +9322,7 @@
                     function saveToLocalStorage() {
                         try {
                             const savableBook = {
+                                schemaVersion: SCHEMA_VERSION,
                                 nextPageId: book.nextPageId ?? 0,
                                 nextChapterId: book.nextChapterId ?? 1,
                                 nextTagId: book.nextTagId ?? 0,
@@ -9427,9 +9432,38 @@
                         }
                     }
 
+                    // Returns the best available saved book JSON string, migrating from any
+                    // older version-suffixed key (storytellerBookData_vXX.Y) if the fixed key
+                    // is empty. The legacy key is preserved as a backup (B2).
+                    function readSavedBookRaw() {
+                        const current = localStorage.getItem(LOCAL_STORAGE_KEY);
+                        if (current) return current;
+
+                        let bestKey = null, bestVersion = -Infinity;
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && key.startsWith(LEGACY_KEY_PREFIX)) {
+                                const v = parseFloat(key.slice(LEGACY_KEY_PREFIX.length));
+                                if (!isNaN(v) && v >= bestVersion) { bestVersion = v; bestKey = key; }
+                            }
+                        }
+                        if (!bestKey) return null;
+
+                        const legacy = localStorage.getItem(bestKey);
+                        if (legacy) {
+                            console.log(`Migrating book from legacy key "${bestKey}" -> "${LOCAL_STORAGE_KEY}".`);
+                            try {
+                                localStorage.setItem(LOCAL_STORAGE_KEY, legacy); // adopt under the fixed key; keep legacy as backup
+                            } catch (e) {
+                                console.error("Could not write migrated book to fixed key:", e);
+                            }
+                        }
+                        return legacy;
+                    }
+
                     function loadFromLocalStorage() {
                         console.log("Attempting to load from local storage...");
-                        const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                        const savedData = readSavedBookRaw();
                         if (!savedData) {
                             console.log("No data found in local storage.");
                             try {
