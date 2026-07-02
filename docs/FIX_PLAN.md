@@ -15,7 +15,14 @@
 - ✅ **1.5 (B6)** XSS closed: `escapeHtml()` applied at all book-string `innerHTML` sinks; verified with payloads in every field.
 - ✅ **1.7 (B8)** `file://` Spotify redirect handled gracefully. **B7** was already fixed in current code (soundtrack list uses `data-id`).
 
-**Remaining (not yet done): Phase 2 (vendor CDNs / offline shell), Phase 3 (modularize `app.js`, render hot-path, dead-code sweep), Phase 4 (distribution).** Note Phase 2 vendoring needs network access to the CDNs to fetch the libraries, which was blocked in the analysis/execution sandbox. The ~15 remaining ESLint `no-undef` findings (implicit globals, `typeof`-guarded optional functions) are catalogued for the Phase 3 cleanup.
+**Phase 3 is largely complete:**
+
+- ✅ **3.3** Render hot-path: `updatePageItem(pageId)` re-renders only the changed page item instead of rebuilding the whole list on every sound start/stop; O(n²) master-volume reverse-lookup replaced with `Object.entries`.
+- ✅ **3.4** `validateBook()` rejects malformed `.story` imports; book shape documented in `docs/SCHEMA.md`.
+- ✅ **3.5** Cleanup: gated `log()` (boot console silent by default; 309 `console.log`→`log`), 129 AI-residue/changelog comments stripped, dead variables removed.
+- ⏳ **3.1 / 3.2 (deferred):** Splitting `app.js` into ES modules and breaking up the giant functions is the one piece that **cannot ship as-is** — `<script type="module">` is blocked by CORS on `file://`, and the app's whole distribution model is "open the HTML file." A real module split therefore requires the bundler from Phase 2/4 (Vite/esbuild) so the modules compile to a single classic script. Do 3.1/3.2 **together with** the Phase 2 build step, not before it.
+
+**Remaining: Phase 2 (vendor CDNs / offline shell — needs CDN access that the sandbox blocked), Phase 4 (distribution), and 3.1/3.2 (with the build step).** The ~15 remaining ESLint `no-undef` findings (implicit globals, `typeof`-guarded optional functions like `renderSoundtrackMenu`) are catalogued for that pass.
 
 ## Ground rules for the executing agent
 
