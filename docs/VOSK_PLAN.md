@@ -2,6 +2,27 @@
 
 *Goal: stop depending on the browser's built-in Web Speech API (Chrome-only, cloud-backed, fails offline) by adding an in-browser, fully offline recognition engine based on Vosk — while keeping the existing engine as an option.*
 
+## ✅ Implementation status (2026-07-03)
+
+**Implemented and verified** on branch `claude/website-analysis-vosk-plan-l5gxkh`:
+
+- vosk-browser 0.0.8 (Apache-2.0) vendored at `vendor/vosk/vosk.js` + an AudioWorklet capture processor.
+- Shared `handleTranscript()` seam; the Web Speech `onresult` body now flows through it, and so does Vosk.
+- `voskSpeech` engine: lazy-loads the library, loads a model from IndexedDB cache or a URL, captures mic via `getUserMedia` → AudioWorklet → grammar-constrained `KaldiRecognizer`, and routes partial/final results to `handleTranscript`.
+- Engine routing via `resolveActiveEngine()` (auto/browser/vosk); Firefox/Safari are no longer dead-ends.
+- Settings → **Offline Speech (Vosk)**: engine picker, focused-vocabulary toggle, model status, download-with-progress, sideload-from-file, remove.
+- Robust model loading (both `load`-invalid and `error` events + a 120s timeout surface a clear banner); Vosk gated off `file://` with guidance.
+- Publishing: `npm run serve` (zero-dep http server), GitHub Pages workflow, README with model-setup instructions.
+
+**Verified in headless Chromium over http:** the library loads, the WASM worker spawns and runs the model loader end-to-end, the download/sideload flow streams and caches the archive in IndexedDB, a bad model surfaces "model load error" and resets cleanly, and the Web Speech path is unchanged.
+
+**Not verified here:** live transcription with a *real* model — the analysis/execution sandbox blocks every Vosk model host, so a real ~40 MB model couldn't be fetched. Everything around recognition is proven; feed a real model (via the Settings download/sideload) to exercise actual speech-to-text.
+
+The remaining items below (grammar tuning §4, engine auto-fallback polish §5, and the test matrix §7) are partially in place and can be refined once a real model is available.
+
+---
+
+
 ## 1. Why, and why Vosk
 
 Today's recognition (`index.html` lines 6003–6186) uses `webkitSpeechRecognition`, which in Chrome streams audio to Google servers. Consequences: no offline use (currently an infinite error loop — `ANALYSIS.md` B1), Chrome/Edge only (no Firefox), privacy exposure (a full D&D session's narration goes to Google), and rate/availability limits outside the app's control.
