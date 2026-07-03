@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "serve": "node scripts/serve.mjs",
     "check:ids": "node scripts/check-dom-ids.mjs",
     "lint": "eslint js/**/*.js",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\"",
