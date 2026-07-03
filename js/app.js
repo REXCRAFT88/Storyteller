@@ -274,7 +274,16 @@
                             else throw new Error('No Vosk model installed. Add one under Settings → Offline Speech.');
                             setStatus('loading-model');
                             try {
-                                model = await window.Vosk.createModel(url);
+                                // Construct the Model directly so we can react to both the
+                                // 'load' (result:false) and 'error' events, and time out a hung
+                                // worker, instead of createModel's load-only path.
+                                const m = new window.Vosk.Model(url);
+                                await new Promise((resolve, reject) => {
+                                    const to = setTimeout(() => reject(new Error('loading the model timed out — is it a valid Vosk model .tar.gz?')), 120000);
+                                    m.on('load', (msg) => { clearTimeout(to); msg && msg.result ? resolve() : reject(new Error('the model archive did not contain a valid Vosk model')); });
+                                    m.on('error', (msg) => { clearTimeout(to); reject(new Error(msg && msg.error ? msg.error : 'model load error')); });
+                                });
+                                model = m;
                             } finally {
                                 if (revoke) URL.revokeObjectURL(url);
                             }
@@ -461,6 +470,15 @@
                     const settingsAutoplayOnClickRadios = document.querySelectorAll('input[name="settingsAutoplayOnClick"]');
                     const settingsYoutubeApiKeysInput = document.getElementById('settingsYoutubeApiKeys');
                     const settingsSyrinscapeAuthTokenInput = document.getElementById('settingsSyrinscapeAuthToken');
+                    const settingsSpeechEngineRadios = document.querySelectorAll('input[name="settingsSpeechEngine"]');
+                    const settingsVoskGrammarCheckbox = document.getElementById('settingsVoskGrammar');
+                    const settingsVoskModelUrlInput = document.getElementById('settingsVoskModelUrl');
+                    const voskModelStatus = document.getElementById('voskModelStatus');
+                    const voskDownloadButton = document.getElementById('voskDownloadButton');
+                    const voskDownloadProgress = document.getElementById('voskDownloadProgress');
+                    const voskDownloadBar = document.getElementById('voskDownloadBar');
+                    const voskModelFileInput = document.getElementById('voskModelFileInput');
+                    const voskDeleteModelButton = document.getElementById('voskDeleteModelButton');
                     const initializeSyrinscapeButton = document.getElementById('initializeSyrinscapeButton');
                     const saveSettingsButton = document.getElementById('saveSettingsButton');
                     const settingsSpotifyClientIdInput = document.getElementById('settingsSpotifyClientId');
@@ -1504,8 +1522,8 @@
                         isListening = true;
                         recognitionStarted = true;
                         if (transcriptDisplay) transcriptDisplay.textContent = '';
-                        if (statusDiv) statusDiv.textContent = 'Loading offline model…';
                         updateUIState();
+                        if (statusDiv) statusDiv.textContent = 'Loading offline model…'; // after updateUIState so it isn't overwritten
                         try {
                             await voskSpeech.start();
                             if (isListening && statusDiv) statusDiv.textContent = 'Listening… (offline)';
@@ -1513,7 +1531,8 @@
                             console.error('Vosk start failed:', err);
                             isListening = false; recognitionStarted = false;
                             updateUIState();
-                            showPersistentSpeechError(`Offline speech unavailable: ${err.message}`);
+                            const msg = (err && err.message) ? err.message : 'the model could not be loaded';
+                            showPersistentSpeechError(`Offline speech unavailable: ${msg}`);
                         }
                     }
 
@@ -1673,6 +1692,13 @@
                         settingsSyrinscapeAuthTokenInput.value = book.settings.syrinscapeAuthToken || '';
                         settingsYoutubeApiKeysInput.value = (book.settings.youtubeApiKeys || []).join(', ');
 
+                        // Offline speech (Vosk) settings
+                        const engineMode = book.settings.speechEngine || 'auto';
+                        settingsSpeechEngineRadios.forEach(r => { r.checked = (r.value === engineMode); });
+                        if (settingsVoskGrammarCheckbox) settingsVoskGrammarCheckbox.checked = book.settings.voskGrammar !== false;
+                        if (settingsVoskModelUrlInput) settingsVoskModelUrlInput.value = book.settings.voskModelUrl || '';
+                        refreshVoskModelStatus();
+
                         // Spotify settings
                         settingsSpotifyClientIdInput.value = book.settings.spotifyClientId || '';
                         updateSpotifyLoginUI();
@@ -1680,6 +1706,28 @@
 
                         modalOverlay.style.display = 'block';
                         settingsModal.style.display = 'flex';
+                    }
+
+                    // Reflect current Vosk model + environment state in the settings panel.
+                    async function refreshVoskModelStatus() {
+                        if (!voskModelStatus) return;
+                        if (window.location.protocol === 'file:') {
+                            voskModelStatus.textContent = 'Offline speech needs the served/hosted version (not a file:// page). See the README.';
+                            return;
+                        }
+                        try {
+                            const info = await voskSpeech.modelInfo();
+                            if (info) {
+                                const mb = info.size ? ` (${(info.size / 1048576).toFixed(0)} MB)` : '';
+                                voskModelStatus.textContent = `Model installed: ${info.name || 'model'}${mb}`;
+                            } else if (book.settings.voskModelUrl) {
+                                voskModelStatus.textContent = `Model will load from URL on first use.`;
+                            } else {
+                                voskModelStatus.textContent = 'No model installed — download or choose one below.';
+                            }
+                        } catch (e) {
+                            voskModelStatus.textContent = 'Model status unavailable.';
+                        }
                     }
 
                     function closeSettingsModal() {
@@ -1709,6 +1757,10 @@
                         book.settings.syrinscapeAuthToken = settingsSyrinscapeAuthTokenInput.value.trim() || null;
                         book.settings.youtubeApiKeys = settingsYoutubeApiKeysInput.value.trim().split(',').map(k => k.trim()).filter(Boolean);
                         book.settings.spotifyClientId = settingsSpotifyClientIdInput.value.trim() || null;
+                        // Offline speech (Vosk)
+                        book.settings.speechEngine = document.querySelector('input[name="settingsSpeechEngine"]:checked')?.value || 'auto';
+                        if (settingsVoskGrammarCheckbox) book.settings.voskGrammar = settingsVoskGrammarCheckbox.checked;
+                        if (settingsVoskModelUrlInput) book.settings.voskModelUrl = settingsVoskModelUrlInput.value.trim() || null;
 
                         const newKeywordConfidenceValue = parseFloat(settingsAccuracyThresholdInput.value) / 100;
                         book.settings.accuracyThreshold = isNaN(newKeywordConfidenceValue) ? 0.80 : Math.max(0.5, Math.min(1, newKeywordConfidenceValue));
@@ -1768,6 +1820,62 @@
                     openSettingsModalButton.addEventListener('click', openSettingsModal);
                     cancelSettingsButton.addEventListener('click', closeSettingsModal);
                     saveSettingsButton.addEventListener('click', saveSettings);
+
+                    // --- Offline speech (Vosk) model management wiring ---
+                    if (voskDownloadButton) {
+                        voskDownloadButton.addEventListener('click', async () => {
+                            const url = settingsVoskModelUrlInput.value.trim();
+                            if (!url) { showTemporaryMessage('Enter a model URL first.', 'error'); return; }
+                            voskDownloadButton.disabled = true;
+                            voskDownloadProgress.classList.remove('hidden');
+                            voskDownloadBar.style.width = '0%';
+                            try {
+                                const size = await voskSpeech.downloadModel(url, (frac) => {
+                                    voskDownloadBar.style.width = `${Math.round((frac || 0) * 100)}%`;
+                                    if (voskModelStatus) voskModelStatus.textContent = frac != null ? `Downloading… ${Math.round(frac * 100)}%` : 'Downloading…';
+                                });
+                                book.settings.voskModelUrl = null; // now cached locally
+                                if (settingsVoskModelUrlInput) settingsVoskModelUrlInput.value = '';
+                                saveToLocalStorage();
+                                showTemporaryMessage(`Model downloaded (${(size / 1048576).toFixed(0)} MB).`, 'success', 5000);
+                            } catch (err) {
+                                console.error('Vosk model download failed:', err);
+                                showTemporaryMessage(`Download failed: ${err.message}`, 'error', 6000);
+                            } finally {
+                                voskDownloadButton.disabled = false;
+                                voskDownloadProgress.classList.add('hidden');
+                                refreshVoskModelStatus();
+                            }
+                        });
+                    }
+                    if (voskModelFileInput) {
+                        voskModelFileInput.addEventListener('change', async (e) => {
+                            const file = e.target.files && e.target.files[0];
+                            if (!file) return;
+                            if (voskModelStatus) voskModelStatus.textContent = 'Saving model…';
+                            try {
+                                await voskSpeech.installFromBlob(file, file.name);
+                                book.settings.voskModelUrl = null;
+                                if (settingsVoskModelUrlInput) settingsVoskModelUrlInput.value = '';
+                                saveToLocalStorage();
+                                showTemporaryMessage(`Model "${file.name}" installed.`, 'success', 5000);
+                            } catch (err) {
+                                console.error('Vosk model install failed:', err);
+                                showTemporaryMessage(`Could not install model: ${err.message}`, 'error', 6000);
+                            } finally {
+                                voskModelFileInput.value = '';
+                                refreshVoskModelStatus();
+                            }
+                        });
+                    }
+                    if (voskDeleteModelButton) {
+                        voskDeleteModelButton.addEventListener('click', async () => {
+                            try { await voskSpeech.deleteModel(); showTemporaryMessage('Model removed.', 'info'); }
+                            catch (err) { showTemporaryMessage(`Could not remove model: ${err.message}`, 'error'); }
+                            refreshVoskModelStatus();
+                        });
+                    }
+
                     settingsAccuracyThresholdInput.addEventListener('input', (e) => {
                         const value = parseFloat(e.target.value) / 100;;
                         settingsAccuracyValueSpan.textContent = value.toFixed(2);

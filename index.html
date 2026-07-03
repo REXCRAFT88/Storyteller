@@ -289,6 +289,50 @@
                                 chapter's 'Autoplay Pages on Enter'. Voice transitions always trigger autoplay.</p>
                         </div>
                         <div class="border-t border-stone-700 pt-4">
+                            <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Offline Speech
+                                (Vosk)</h4>
+                            <p class="text-xs text-gray-400 mb-2">Recognize speech fully on your device — works offline
+                                and in every browser (Firefox/Safari included). Requires the served/hosted version (not a
+                                <code>file://</code> page) and a one-time model download.</p>
+                            <label class="block text-sm font-medium mb-1">Recognition engine:</label>
+                            <div class="flex flex-col gap-1 mb-3 text-sm">
+                                <label class="flex items-center gap-2"><input type="radio" name="settingsSpeechEngine"
+                                        value="auto"> Auto — browser when online, Vosk otherwise (recommended)</label>
+                                <label class="flex items-center gap-2"><input type="radio" name="settingsSpeechEngine"
+                                        value="browser"> Browser (online, Chrome/Edge)</label>
+                                <label class="flex items-center gap-2"><input type="radio" name="settingsSpeechEngine"
+                                        value="vosk"> Offline (Vosk)</label>
+                            </div>
+                            <label class="flex items-center gap-2 text-sm mb-3">
+                                <input type="checkbox" id="settingsVoskGrammar">
+                                <span>Focused vocabulary — constrain Vosk to your book's trigger words (more
+                                    accurate)</span>
+                            </label>
+                            <div id="voskModelStatus" class="text-xs mb-2 px-2 py-1 rounded bg-black/20 border border-stone-700">
+                                Model: checking…</div>
+                            <label for="settingsVoskModelUrl" class="block text-sm font-medium mb-1">Model URL
+                                (.tar.gz):</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="settingsVoskModelUrl"
+                                    placeholder="https://…/vosk-model-small-en-us-0.15.tar.gz" class="flex-grow">
+                                <button id="voskDownloadButton" class="btn-rpg-sm flex-shrink-0">Download</button>
+                            </div>
+                            <div id="voskDownloadProgress" class="hidden w-full bg-black/40 rounded h-2 mt-2 overflow-hidden">
+                                <div id="voskDownloadBar" class="h-2 bg-green-600" style="width:0%"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2">Or load a model file you downloaded yourself:</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <label class="btn-rpg-sm cursor-pointer">Choose model file…<input type="file"
+                                        id="voskModelFileInput" accept=".tar.gz,.tgz,.gz,.zip" class="hidden"></label>
+                                <button id="voskDeleteModelButton" class="btn-rpg-sm">Remove model</button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2">Get a model from the <a
+                                    href="https://alphacephei.com/vosk/models" target="_blank" rel="noopener noreferrer"
+                                    class="syrinscape-auth-token-link">Vosk models page</a> (e.g.
+                                <code>vosk-model-small-en-us-0.15</code>, ~40&nbsp;MB). See the README for hosting tips.
+                            </p>
+                        </div>
+                        <div class="border-t border-stone-700 pt-4">
                             <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Syrinscape Settings
                             </h4>
                             <div>
