@@ -2951,6 +2951,33 @@
                         saveToLocalStorage(); // Persist master volume change
                     });
 
+                    // --- Range Slider Golden Fill ---
+                    // The gold portion of a range slider reflects its value via the --range-fill
+                    // CSS variable. The media-preview scrub bars have their own styling and are skipped.
+                    function updateRangeFill(el) {
+                        if (!el || el.type !== 'range') return;
+                        if (el.classList.contains('media-preview-scrub-bar') ||
+                            el.classList.contains('media-preview-start-bar') ||
+                            el.classList.contains('media-preview-end-bar')) return;
+                        const min = parseFloat(el.min);
+                        const max = parseFloat(el.max);
+                        const lo = isNaN(min) ? 0 : min;
+                        const hi = isNaN(max) ? 100 : max;
+                        const val = parseFloat(el.value);
+                        const pct = (hi > lo && !isNaN(val)) ? ((val - lo) / (hi - lo)) * 100 : 100;
+                        el.style.setProperty('--range-fill', Math.max(0, Math.min(100, pct)) + '%');
+                    }
+                    function initAllRangeFills() {
+                        document.querySelectorAll('input[type=range]').forEach(updateRangeFill);
+                    }
+                    // Delegated: any range slider the user drags updates its fill immediately,
+                    // including sliders created after load (soundtrack, modals, etc.).
+                    document.addEventListener('input', (e) => {
+                        if (e.target && e.target.matches && e.target.matches('input[type=range]')) updateRangeFill(e.target);
+                    });
+                    // Keep fills in sync when values are set programmatically (load, restore, appendix).
+                    document.addEventListener('storyteller:refresh-range-fills', initAllRangeFills);
+
 
                     // --- Add Page Modal Listeners ---
                     openAddPageModalButton.addEventListener('click', openAddPageModal);
@@ -4065,9 +4092,14 @@
                         });
                         if (stoppedSoundThisCheck) return;
 
-                        // 9. Find Match(es) for individual page triggering
+                        // 9. Find Match(es) for individual page triggering.
+                        // We collect every match in the utterance first, then play them in the
+                        // order the trigger words appeared in the spoken phrase. Multiple matches
+                        // play sequentially (each starts when the previous ends) instead of all at
+                        // once, so a compound phrase narrates in order rather than layering.
                         let keepSearching = true;
                         const pageIdsPlayedThisUtterance = new Set(); // Prevent re-playing the same page in one utterance
+                        const matchesToPlay = [];
 
                         while (keepSearching) {
                             // Deactivate look-behind if it's expired
@@ -4081,7 +4113,7 @@
                             const bestMatch = findBestMatch(text, relevantPageIds, wordsToExclude, pageIdsPlayedThisUtterance, 'multi_match_loop');
 
                             if (bestMatch) {
-                                log(`Multi-match loop: Found match "${bestMatch.page.title}". Playing.`);
+                                log(`Multi-match loop: Found match "${bestMatch.page.title}".`);
                                 pageIdsPlayedThisUtterance.add(bestMatch.page.id); // Add to exclusion list for this utterance
 
                                 const sourceToPlay = findPlayableSourceVariation(bestMatch.page, false, textForVariationCheck);
@@ -4100,13 +4132,13 @@
                                         log(`Look-behind context activated with PKs: [${primaryKeys.join(', ')}]`);
                                     }
 
-                                    playSound(bestMatch.page, sourceToPlay, false, () => {
-                                        if (bestMatch.page.nextPageId !== null) {
-                                            triggerNextPage(bestMatch.page.nextPageId);
-                                        }
-                                    });
-                                    const cooldownDuration = SMART_COOLDOWN_MS;
-                                    setSoundCooldown(bestMatch.page.id, cooldownDuration);
+                                    // Position = earliest trigger-word index, so we can order by
+                                    // where the phrase actually mentioned this page.
+                                    const indices = bestMatch.matchDetails.map(d => d.index).filter(i => i >= 0);
+                                    const position = indices.length ? Math.min(...indices) : Number.MAX_SAFE_INTEGER;
+                                    matchesToPlay.push({ page: bestMatch.page, sourceToPlay, position });
+
+                                    setSoundCooldown(bestMatch.page.id, SMART_COOLDOWN_MS);
                                 } else {
                                     console.warn(`Match found for "${bestMatch.page.title}" but no playable source. Stopping search for this utterance.`);
                                     keepSearching = false;
@@ -4114,6 +4146,35 @@
                             } else {
                                 keepSearching = false; // No more matches found, exit the loop.
                             }
+                        }
+
+                        // Order matches by their position in the spoken phrase and play them.
+                        matchesToPlay.sort((a, b) => a.position - b.position);
+                        const triggerNextForPage = (page) => {
+                            if (page.nextPageId !== null && page.nextPageId !== undefined) triggerNextPage(page.nextPageId);
+                        };
+                        if (matchesToPlay.length === 1) {
+                            const m = matchesToPlay[0];
+                            playSound(m.page, m.sourceToPlay, false, () => triggerNextForPage(m.page));
+                        } else if (matchesToPlay.length > 1) {
+                            log(`Playing ${matchesToPlay.length} compound matches in spoken order: ${matchesToPlay.map(m => m.page.title).join(' -> ')}`);
+                            // Safety cap so a looping / very long sound (or a missed end event)
+                            // can't permanently stall the rest of the sequence.
+                            const COMPOUND_SEQUENCE_MAX_WAIT_MS = 15000;
+                            let stepIndex = 0;
+                            const playNextMatch = () => {
+                                if (stepIndex >= matchesToPlay.length) return;
+                                const m = matchesToPlay[stepIndex];
+                                stepIndex++;
+                                let advanced = false;
+                                const advance = () => { if (advanced) return; advanced = true; playNextMatch(); };
+                                playSound(m.page, m.sourceToPlay, false, () => {
+                                    triggerNextForPage(m.page);
+                                    advance();
+                                }, true, false); // isCompoundSequence = true
+                                setTimeout(advance, COMPOUND_SEQUENCE_MAX_WAIT_MS);
+                            };
+                            playNextMatch();
                         }
 
                         // 10. Soundtrack Keywords Check
@@ -6142,6 +6203,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -8893,6 +8955,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -10225,6 +10288,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -12244,6 +12308,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -12265,6 +12330,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -12360,6 +12426,8 @@
                             togglePipButton.addEventListener('click', togglePictureInPicture);
                         }
 
+                        // Paint the golden fill on all sliders now that their initial values are set.
+                        if (typeof initAllRangeFills === 'function') initAllRangeFills();
 
                         log("Storyteller Initialized.");
                     }
@@ -12403,7 +12471,19 @@
                                         let title = 'Unknown Sound';
                                         if (typeof book !== 'undefined' && book && book.pages) {
                                             const p = book.pages.find(page => page.id == pageId);
-                                            if (p) title = p.title;
+                                            if (p) {
+                                                title = p.title;
+                                                // Append the playing variation's name so identically-titled
+                                                // pages are distinguishable and the GM sees which variation is live.
+                                                const detail = sd.sourceDetail;
+                                                if (detail && Array.isArray(p.sources)) {
+                                                    const variation = p.sources.find(v => v.sources && (v.sources.includes(detail) ||
+                                                        (detail.id && v.sources.some(s => s.id === detail.id))));
+                                                    if (variation && variation.name && p.sources.length > 1) {
+                                                        title = `${p.title} — ${variation.name}`;
+                                                    }
+                                                }
+                                            }
                                         }
                                         longSounds.push({ id: parseInt(pageId, 10), title: title, isSt: false });
                                     }
