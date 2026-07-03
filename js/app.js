@@ -2951,6 +2951,33 @@
                         saveToLocalStorage(); // Persist master volume change
                     });
 
+                    // --- Range Slider Golden Fill ---
+                    // The gold portion of a range slider reflects its value via the --range-fill
+                    // CSS variable. The media-preview scrub bars have their own styling and are skipped.
+                    function updateRangeFill(el) {
+                        if (!el || el.type !== 'range') return;
+                        if (el.classList.contains('media-preview-scrub-bar') ||
+                            el.classList.contains('media-preview-start-bar') ||
+                            el.classList.contains('media-preview-end-bar')) return;
+                        const min = parseFloat(el.min);
+                        const max = parseFloat(el.max);
+                        const lo = isNaN(min) ? 0 : min;
+                        const hi = isNaN(max) ? 100 : max;
+                        const val = parseFloat(el.value);
+                        const pct = (hi > lo && !isNaN(val)) ? ((val - lo) / (hi - lo)) * 100 : 100;
+                        el.style.setProperty('--range-fill', Math.max(0, Math.min(100, pct)) + '%');
+                    }
+                    function initAllRangeFills() {
+                        document.querySelectorAll('input[type=range]').forEach(updateRangeFill);
+                    }
+                    // Delegated: any range slider the user drags updates its fill immediately,
+                    // including sliders created after load (soundtrack, modals, etc.).
+                    document.addEventListener('input', (e) => {
+                        if (e.target && e.target.matches && e.target.matches('input[type=range]')) updateRangeFill(e.target);
+                    });
+                    // Keep fills in sync when values are set programmatically (load, restore, appendix).
+                    document.addEventListener('storyteller:refresh-range-fills', initAllRangeFills);
+
 
                     // --- Add Page Modal Listeners ---
                     openAddPageModalButton.addEventListener('click', openAddPageModal);
@@ -6142,6 +6169,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -8893,6 +8921,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -10225,6 +10254,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -12244,6 +12274,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -12265,6 +12296,7 @@
                             currentMasterVolume = book.settings.masterVolume;
                             masterVolumeSlider.value = currentMasterVolume;
                             masterVolumeValueSpan.textContent = `${currentMasterVolume}`;
+                            if (typeof updateRangeFill === 'function') updateRangeFill(masterVolumeSlider);
                             stopPhrases = book.settings.stopPhrases;
                             customEnterPhrases = book.settings.customEnterPhrases;
                             customExitPhrases = book.settings.customExitPhrases;
@@ -12360,6 +12392,8 @@
                             togglePipButton.addEventListener('click', togglePictureInPicture);
                         }
 
+                        // Paint the golden fill on all sliders now that their initial values are set.
+                        if (typeof initAllRangeFills === 'function') initAllRangeFills();
 
                         log("Storyteller Initialized.");
                     }
@@ -12403,7 +12437,19 @@
                                         let title = 'Unknown Sound';
                                         if (typeof book !== 'undefined' && book && book.pages) {
                                             const p = book.pages.find(page => page.id == pageId);
-                                            if (p) title = p.title;
+                                            if (p) {
+                                                title = p.title;
+                                                // Append the playing variation's name so identically-titled
+                                                // pages are distinguishable and the GM sees which variation is live.
+                                                const detail = sd.sourceDetail;
+                                                if (detail && Array.isArray(p.sources)) {
+                                                    const variation = p.sources.find(v => v.sources && (v.sources.includes(detail) ||
+                                                        (detail.id && v.sources.some(s => s.id === detail.id))));
+                                                    if (variation && variation.name && p.sources.length > 1) {
+                                                        title = `${p.title} — ${variation.name}`;
+                                                    }
+                                                }
+                                            }
                                         }
                                         longSounds.push({ id: parseInt(pageId, 10), title: title, isSt: false });
                                     }
