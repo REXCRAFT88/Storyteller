@@ -1,0 +1,18 @@
+{
+  "name": "storyteller",
+  "version": "25.8.0",
+  "description": "Voice-controlled soundboard for tabletop RPG narration.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node scripts/serve.mjs",
+    "check:ids": "node scripts/check-dom-ids.mjs",
+    "lint": "eslint js/**/*.js",
+    "format": "prettier --write \"**/*.{js,css,html,json,md}\"",
+    "test:smoke": "node scripts/smoke-test.mjs"
+  },
+  "devDependencies": {
+    "eslint": "^9.13.0",
+    "prettier": "^3.3.3"
+  }
+}
