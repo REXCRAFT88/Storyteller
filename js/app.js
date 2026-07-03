@@ -187,6 +187,172 @@
                         }
                     }
 
+                    // --- Offline speech engine (Vosk / WASM) — see docs/VOSK_PLAN.md ---------
+                    // Runs recognition fully in the browser via vosk-browser (Apache-2.0,
+                    // vendored at vendor/vosk/vosk.js). Needs an http(s) origin (Web Workers +
+                    // WASM don't run from file://) and a downloaded model. The library and model
+                    // load lazily, only when the Vosk engine is actually used.
+                    const voskSpeech = (() => {
+                        const DB_NAME = 'storytellerVosk';
+                        const STORE = 'models';
+                        const MODEL_KEY = 'active-model';
+                        let dbPromise = null;
+                        let libLoading = null;
+                        let model = null;            // loaded Vosk Model
+                        let recognizer = null;
+                        let stream = null, vCtx = null, srcNode = null, workletNode = null;
+                        let running = false;
+                        let statusCb = () => {};
+
+                        function openDb() {
+                            if (dbPromise) return dbPromise;
+                            dbPromise = new Promise((resolve, reject) => {
+                                if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+                                const req = indexedDB.open(DB_NAME, 1);
+                                req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE); };
+                                req.onsuccess = () => resolve(req.result);
+                                req.onerror = () => reject(req.error);
+                            });
+                            return dbPromise;
+                        }
+                        function dbGet(key) {
+                            return openDb().then(db => new Promise((res, rej) => {
+                                const t = db.transaction(STORE, 'readonly'); const rq = t.objectStore(STORE).get(key);
+                                t.oncomplete = () => res(rq.result); t.onerror = () => rej(t.error);
+                            }));
+                        }
+                        function dbPut(key, val) {
+                            return openDb().then(db => new Promise((res, rej) => {
+                                const t = db.transaction(STORE, 'readwrite'); t.objectStore(STORE).put(val, key);
+                                t.oncomplete = () => res(); t.onerror = () => rej(t.error);
+                            }));
+                        }
+                        function dbDel(key) {
+                            return openDb().then(db => new Promise((res, rej) => {
+                                const t = db.transaction(STORE, 'readwrite'); t.objectStore(STORE).delete(key);
+                                t.oncomplete = () => res(); t.onerror = () => rej(t.error);
+                            }));
+                        }
+
+                        function setStatus(s, detail) { statusCb(s, detail); }
+
+                        function ensureLib() {
+                            if (window.Vosk) return Promise.resolve();
+                            if (libLoading) return libLoading;
+                            libLoading = new Promise((resolve, reject) => {
+                                const s = document.createElement('script');
+                                s.src = 'vendor/vosk/vosk.js';
+                                s.async = true;
+                                s.onload = () => (window.Vosk ? resolve() : reject(new Error('vosk.js loaded but window.Vosk missing')));
+                                s.onerror = () => reject(new Error('Failed to load vendor/vosk/vosk.js'));
+                                document.head.appendChild(s);
+                            });
+                            return libLoading;
+                        }
+
+                        // Build a focused grammar from everything the app listens for, so the
+                        // recognizer is constrained to the book's vocabulary (much better
+                        // trigger accuracy than open dictation). "[unk]" catches everything else.
+                        function buildGrammar() {
+                            const words = new Set();
+                            const addPhrase = (p) => String(p || '').toLowerCase().split(/\s+/).forEach(w => { const t = w.replace(/[^a-z0-9'-]/g, ''); if (t) words.add(t); });
+                            (keywordListForFuse || []).forEach(k => addPhrase(k.keyword));
+                            (book.pages || []).forEach(p => { if (p.primaryKey) addPhrase(p.primaryKey.replace(/,/g, ' ')); (p.phrases || []).forEach(addPhrase); });
+                            [stopPhrases, customEnterPhrases, customExitPhrases, daytimeTransitionPhrases, nighttimeTransitionPhrases].forEach(arr => (arr || []).forEach(addPhrase));
+                            (book.chapters || []).forEach(ch => (ch.chapterKeywords || []).forEach(addPhrase));
+                            if (words.size === 0) return null;
+                            return JSON.stringify([[...words].join(' '), '[unk]']);
+                        }
+
+                        async function loadModel() {
+                            if (model) return model;
+                            await ensureLib();
+                            const rec = await dbGet(MODEL_KEY);
+                            let url, revoke = false;
+                            if (rec && rec.blob) { url = URL.createObjectURL(rec.blob); revoke = true; }
+                            else if (book.settings.voskModelUrl) { url = book.settings.voskModelUrl; }
+                            else throw new Error('No Vosk model installed. Add one under Settings → Offline Speech.');
+                            setStatus('loading-model');
+                            try {
+                                model = await window.Vosk.createModel(url);
+                            } finally {
+                                if (revoke) URL.revokeObjectURL(url);
+                            }
+                            setStatus('model-ready');
+                            return model;
+                        }
+
+                        async function start() {
+                            if (running) return;
+                            await loadModel();
+                            stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+                            vCtx = new (window.AudioContext || window.webkitAudioContext)();
+                            if (vCtx.state === 'suspended') await vCtx.resume();
+                            await vCtx.audioWorklet.addModule('vendor/vosk/vosk-worklet.js');
+                            const sampleRate = vCtx.sampleRate;
+                            const grammar = (book.settings.voskGrammar !== false) ? buildGrammar() : null;
+                            recognizer = grammar ? new model.KaldiRecognizer(sampleRate, grammar) : new model.KaldiRecognizer(sampleRate);
+                            recognizer.on('result', (m) => { const t = m.result && m.result.text; if (t && t.trim()) handleTranscript(t, ''); });
+                            recognizer.on('partialresult', (m) => { const t = m.result && m.result.partial; if (t && t.trim()) handleTranscript('', t); });
+                            srcNode = vCtx.createMediaStreamSource(stream);
+                            workletNode = new AudioWorkletNode(vCtx, 'vosk-capture-processor');
+                            workletNode.port.onmessage = (e) => { if (recognizer) { try { recognizer.acceptWaveformFloat(e.data, sampleRate); } catch (err) { /* ignore transient */ } } };
+                            srcNode.connect(workletNode); // note: not connected to destination (no playback of mic)
+                            running = true;
+                            setStatus('listening');
+                        }
+
+                        function stop() {
+                            running = false;
+                            if (workletNode) { try { workletNode.port.onmessage = null; workletNode.disconnect(); } catch (e) { /* noop */ } workletNode = null; }
+                            if (srcNode) { try { srcNode.disconnect(); } catch (e) { /* noop */ } srcNode = null; }
+                            if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+                            if (recognizer) { try { recognizer.remove(); } catch (e) { /* noop */ } recognizer = null; }
+                            if (vCtx) { try { vCtx.close(); } catch (e) { /* noop */ } vCtx = null; }
+                            setStatus('stopped');
+                        }
+
+                        return {
+                            available: () => !!window.indexedDB,
+                            isRunning: () => running,
+                            onStatus: (cb) => { statusCb = cb || (() => {}); },
+                            ensureLib,
+                            start,
+                            stop,
+                            buildGrammar,
+                            async hasModel() {
+                                if (book.settings.voskModelUrl) return true;
+                                try { const r = await dbGet(MODEL_KEY); return !!(r && r.blob); } catch (e) { return false; }
+                            },
+                            async modelInfo() { try { const r = await dbGet(MODEL_KEY); return r ? { name: r.name, size: r.blob ? r.blob.size : 0, savedAt: r.savedAt } : null; } catch (e) { return null; } },
+                            async installFromBlob(blob, name) {
+                                await dbPut(MODEL_KEY, { blob, name: name || 'model', savedAt: Date.now() });
+                                model = null; // force reload next start
+                            },
+                            async downloadModel(url, onProgress) {
+                                const resp = await fetch(url);
+                                if (!resp.ok) throw new Error(`Download failed (${resp.status})`);
+                                const total = Number(resp.headers.get('content-length')) || 0;
+                                if (resp.body && resp.body.getReader && onProgress) {
+                                    const reader = resp.body.getReader(); const chunks = []; let received = 0;
+                                    for (;;) {
+                                        const { done, value } = await reader.read();
+                                        if (done) break;
+                                        chunks.push(value); received += value.length;
+                                        onProgress(total ? received / total : null, received, total);
+                                    }
+                                    const blob = new Blob(chunks);
+                                    await this.installFromBlob(blob, url.split('/').pop());
+                                    return blob.size;
+                                }
+                                const blob = await resp.blob();
+                                await this.installFromBlob(blob, url.split('/').pop());
+                                return blob.size;
+                            },
+                            async deleteModel() { await dbDel(MODEL_KEY); model = null; },
+                        };
+                    })();
+
                     // --- Default Empty Book Structure ---
                     function getDefaultBook() {
                         return {
@@ -215,6 +381,9 @@
                                 syrinscapeAuthToken: null,
                                 appendix: [],
                                 chapterTags: [],
+                                speechEngine: 'auto',   // auto | browser | vosk (offline)
+                                voskModelUrl: null,     // optional http(s) URL to a model .tar.gz
+                                voskGrammar: true,       // constrain Vosk to the book's vocabulary
                             },
                             storyPlot: {
                                 nodes: [],
@@ -968,27 +1137,50 @@
                     let plotThreadPreviewLine = null;
                     let currentlySelectedPlotThreadId = null;
 
+                    // Shared transcript processing for every speech engine (Web Speech and
+                    // Vosk). Engines emit final and/or interim text; the interim-word-block
+                    // batching, consumed-word tracking, transcript display, and keyword
+                    // matching all live here so a new engine only has to produce text.
+                    function handleTranscript(finalTranscript, interimTranscript) {
+                        if (finalTranscript) {
+                            const lowerFinal = finalTranscript.trim().toLowerCase();
+                            log('Final Transcript:', lowerFinal);
+                            if (transcriptDisplay) transcriptDisplay.textContent = `"${finalTranscript.trim()}"`;
+                            const finalWords = lowerFinal.split(/\s+/).filter(Boolean);
+                            const unconsumedFinalText = finalWords.filter(word => !consumedWordsForUtterance.has(word)).join(' ');
+                            if (unconsumedFinalText) {
+                                log('Processing unconsumed final text:', unconsumedFinalText);
+                                checkForKeywords(unconsumedFinalText, book, false, consumedWordsForUtterance);
+                            } else {
+                                log('All words in final transcript were already consumed by interim results.');
+                            }
+                            consumedWordsForUtterance.clear();
+                            lastInterimWordCount = 0;
+                            return;
+                        }
+                        if (interimTranscript) {
+                            const lowerInterim = interimTranscript.trim().toLowerCase();
+                            const currentWords = lowerInterim.split(/\s+/).filter(Boolean);
+                            const currentWordCount = currentWords.length;
+                            if (transcriptDisplay) transcriptDisplay.textContent = `"${interimTranscript.trim()}..."`;
+                            if (currentWordCount >= lastInterimWordCount + INTERIM_WORD_BLOCK_SIZE) {
+                                const textToCheck = currentWords.filter(word => !consumedWordsForUtterance.has(word)).join(' ');
+                                if (textToCheck) {
+                                    log(`Interim check at ${currentWordCount} words. Processing unconsumed text:`, textToCheck);
+                                    checkForKeywords(textToCheck, book, true, consumedWordsForUtterance);
+                                }
+                                lastInterimWordCount = currentWordCount;
+                            }
+                        }
+                    }
+
                     // --- Web Speech API Setup ---
                     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                     if (!SpeechRecognition) {
-                        showTemporaryMessage('Speech Recognition API not supported. Try Chrome.', 'error', 5000);
-                        // Disable relevant buttons if SR not supported
-                        [toggleListenButton, stopAllSoundsButton, openSettingsModalButton, openGuidebookModalButton, saveButton, openAddPageModalButton, addChapterButton, timeOfDayButton, openStoryPlotterButton, togglePipButton, openAppendixModalButton].forEach(el => { if (el) el.disabled = true; });
-                        const loadLabel = loadFileInput?.closest('label'); if (loadLabel) { loadLabel.classList.add('opacity-50', 'cursor-not-allowed'); }
-                        // Disable settings controls as well
-                        settingsListeningModeRadios.forEach(radio => radio.disabled = true);
-                        settingsSmartFilteringCheckbox.disabled = true;
-                        settingsCompoundPhrasingCheckbox.disabled = true;
-                        settingsAccuracyThresholdInput.disabled = true;
-                        settingsStopAudioModeRadios.forEach(radio => radio.disabled = true);
-                        settingsStopPhrasesInput.disabled = true;
-                        settingsCustomEnterPhrasesInput.disabled = true;
-                        settingsCustomExitPhrasesInput.disabled = true;
-                        settingsDaytimePhrasesInput.disabled = true;
-                        settingsNighttimePhrasesInput.disabled = true;
-                        settingsAutoplayOnClickRadios.forEach(radio => radio.disabled = true);
-                        settingsSyrinscapeAuthTokenInput.disabled = true;
-                        initializeSyrinscapeButton.disabled = true;
+                        // The browser has no Web Speech API (Firefox/Safari). The app is still
+                        // fully usable with the offline Vosk engine, so we no longer disable
+                        // everything — just point the user at Settings → Offline Speech.
+                        showTemporaryMessage("This browser has no built-in speech recognition. Set up the Offline (Vosk) engine in Settings → Offline Speech to use voice control.", 'info', 7000);
                     } else {
                         recognition = new SpeechRecognition();
                         recognition.continuous = true; // Keep listening even after a pause
@@ -1000,58 +1192,12 @@
                             if (srRestartAttempts !== 0 || srNetworkErrorCount !== 0) resetSpeechRetryState();
                             let interimTranscript = "";
                             let finalTranscript = "";
-
                             for (let i = event.resultIndex; i < event.results.length; ++i) {
                                 const transcriptPart = event.results[i][0].transcript;
-                                if (event.results[i].isFinal) {
-                                    finalTranscript += transcriptPart;
-                                } else {
-                                    interimTranscript += transcriptPart;
-                                }
+                                if (event.results[i].isFinal) finalTranscript += transcriptPart;
+                                else interimTranscript += transcriptPart;
                             }
-
-                            // Process final transcript first, as it's the most accurate.
-                            if (finalTranscript) {
-                                const lowerFinal = finalTranscript.trim().toLowerCase();
-                                log('Final Transcript:', lowerFinal);
-                                if (transcriptDisplay) transcriptDisplay.textContent = `"${finalTranscript.trim()}"`;
-
-                                // Create a string with only the unconsumed words for the final check.
-                                const finalWords = lowerFinal.split(/\s+/).filter(Boolean);
-                                const unconsumedFinalText = finalWords.filter(word => !consumedWordsForUtterance.has(word)).join(' ');
-
-                                if (unconsumedFinalText) {
-                                    log('Processing unconsumed final text:', unconsumedFinalText);
-                                    checkForKeywords(unconsumedFinalText, book, false, consumedWordsForUtterance);
-                                } else {
-                                    log('All words in final transcript were already consumed by interim results.');
-                                }
-
-                                consumedWordsForUtterance.clear(); // Clear consumed words for the next full utterance.
-                                lastInterimWordCount = 0; // Reset for the next utterance.
-                                return;
-                            }
-
-                            // Process interim transcript if no final one.
-                            if (interimTranscript) {
-                                const lowerInterim = interimTranscript.trim().toLowerCase();
-                                const currentWords = lowerInterim.split(/\s+/).filter(Boolean);
-                                const currentWordCount = currentWords.length;
-                                if (transcriptDisplay) transcriptDisplay.textContent = `"${interimTranscript.trim()}..."`;
-
-                                // Check if we have a new block of words to process
-                                if (currentWordCount >= lastInterimWordCount + INTERIM_WORD_BLOCK_SIZE) {
-                                    // Create a string of all unconsumed words from the *entire* transcript so far.
-                                    const textToCheck = currentWords.filter(word => !consumedWordsForUtterance.has(word)).join(' ');
-                                    if (textToCheck) {
-                                        log(`Interim check at ${currentWordCount} words. Processing unconsumed text:`, textToCheck);
-                                        // Pass only the unconsumed text to avoid re-evaluating triggered parts.
-                                        // The delay logic is now handled inside checkForKeywords
-                                        checkForKeywords(textToCheck, book, true, consumedWordsForUtterance);
-                                    }
-                                    lastInterimWordCount = currentWordCount;
-                                }
-                            }
+                            handleTranscript(finalTranscript, interimTranscript);
                         };
 
                         recognition.onerror = (event) => {
@@ -1338,11 +1484,46 @@
                         }, delay);
                     }
 
+                    // Decide which engine a start request should use.
+                    function resolveActiveEngine() {
+                        const mode = (book.settings && book.settings.speechEngine) || 'auto';
+                        if (mode === 'vosk') return 'vosk';
+                        if (mode === 'browser') return 'browser';
+                        // auto: prefer the browser engine when it exists and we're online
+                        // (it needs Google's servers); otherwise fall back to Vosk.
+                        if (recognition && navigator.onLine) return 'browser';
+                        return 'vosk';
+                    }
+
+                    async function startVoskListening() {
+                        if (window.location.protocol === 'file:') {
+                            showPersistentSpeechError("Offline (Vosk) speech needs the served/hosted version — it can't run from a local file:// page. See the README for how to serve Storyteller.");
+                            isListening = false; recognitionStarted = false; updateUIState();
+                            return;
+                        }
+                        isListening = true;
+                        recognitionStarted = true;
+                        if (transcriptDisplay) transcriptDisplay.textContent = '';
+                        if (statusDiv) statusDiv.textContent = 'Loading offline model…';
+                        updateUIState();
+                        try {
+                            await voskSpeech.start();
+                            if (isListening && statusDiv) statusDiv.textContent = 'Listening… (offline)';
+                        } catch (err) {
+                            console.error('Vosk start failed:', err);
+                            isListening = false; recognitionStarted = false;
+                            updateUIState();
+                            showPersistentSpeechError(`Offline speech unavailable: ${err.message}`);
+                        }
+                    }
+
                     function startListening() {
-                        if (!recognition) { console.error("SR not available."); return; }
                         if (!initAudioContext()) { showTemporaryMessage("Audio system not ready.", "error"); return; }
                         if (isListening) { log("Already listening or starting."); return; }
 
+                        if (resolveActiveEngine() === 'vosk') { startVoskListening(); return; }
+
+                        if (!recognition) { showTemporaryMessage("Browser speech recognition isn't available here. Enable the Offline (Vosk) engine in Settings → Offline Speech.", "error", 6000); return; }
                         log("Attempting to start listening...");
                         if (transcriptDisplay) transcriptDisplay.textContent = ''; // Clear previous transcript
                         isListening = true;
@@ -1370,7 +1551,24 @@
                     }
 
                     function stopListening(forceStopAndUIUpdate = false) {
-                        if (!recognition) { console.error("SR not available."); return; }
+                        // Offline (Vosk) engine path — no browser SpeechRecognition object.
+                        if (voskSpeech.isRunning()) {
+                            voskSpeech.stop();
+                            isListening = false; pttActive = false; recognitionStarted = false;
+                            clearAllCooldowns();
+                            resetSpeechRetryState();
+                            updateUIState();
+                            consumedWordsForUtterance.clear();
+                            lastInterimWordCount = 0;
+                            if (transcriptDisplay) transcriptDisplay.textContent = '';
+                            return;
+                        }
+                        if (!recognition) {
+                            // Nothing running and no browser engine: just normalize UI state.
+                            isListening = false; pttActive = false; recognitionStarted = false;
+                            updateUIState();
+                            return;
+                        }
 
                         // Only proceed if recognition was started or if we're forcing an update
                         if (recognitionStarted || forceStopAndUIUpdate) {
