@@ -2547,8 +2547,30 @@
                         };
 
                         const createChapterSelector = (container, id) => {
-                            // This function remains the same as it's only used for volume effects
-                            // ... (omitted for brevity, no changes needed here)
+                            const selectableChapters = book.chapters.filter(ch => !ch.isIndex).sort((a, b) => a.name.localeCompare(b.name));
+                            const selectedChapterIds = (effectData.target?.chapters || []).map(cId => String(cId));
+                            container.innerHTML = `
+                        <label class="block text-sm font-medium mb-1">Target Chapters:</label>
+                        <input type="search" class="appendix-chapter-search-input text-sm !py-1 mt-1" placeholder="Search chapters...">
+                        <div class="chapter-checkbox-list mt-2 appendix-chapter-list">
+                            ${selectableChapters.length > 0
+                                    ? selectableChapters.map(ch => `
+                                    <label title="${escapeHtml(ch.name)}">
+                                        <input type="checkbox" class="appendix-chapter-checkbox" name="appendixEffectChapters_${id}" value="${ch.id}" ${selectedChapterIds.includes(String(ch.id)) ? 'checked' : ''}>
+                                        <span class="ml-2 truncate">${escapeHtml(ch.name)}</span>
+                                    </label>`).join('')
+                                    : '<span class="text-xs text-gray-400 italic">No chapters in book.</span>'
+                                }
+                        </div>
+                    `;
+                            const searchInput = container.querySelector('.appendix-chapter-search-input');
+                            const chapterList = container.querySelector('.appendix-chapter-list');
+                            searchInput.addEventListener('input', () => {
+                                const term = searchInput.value.toLowerCase();
+                                chapterList.querySelectorAll('label').forEach(label => {
+                                    label.style.display = label.textContent.toLowerCase().includes(term) ? 'block' : 'none';
+                                });
+                            });
                         };
 
                         switch (effectType) {
@@ -2560,7 +2582,7 @@
                                 (book.soundtracks || []).forEach(st => {
                                     stSelect.innerHTML += '<option value="' + st.id + '">' + escapeHtml(st.name) + '</option>';
                                 });
-                                if (params && params.soundtrackId) stSelect.value = params.soundtrackId;
+                                if (effectData.params && effectData.params.soundtrackId) stSelect.value = effectData.params.soundtrackId;
                                 targetContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2">Target: Global Context (Audio System)</p>';
                                 break;
                             case 'stop_soundtrack':
@@ -2573,13 +2595,6 @@
                                 createPageSelector(targetContainer, effectId);
                                 break;
 
-
-                            case 'play_soundtrack':
-                                const stSel = paramsContainer.querySelector('.appendix-st-select');
-                                if (stSel) params.soundtrackId = stSel.value;
-                                break;
-                            case 'stop_soundtrack':
-                                break;
                             case 'increase_volume':
                             case 'decrease_volume':
                                 paramsContainer.innerHTML = `
@@ -2597,12 +2612,19 @@
                         `;
                                 const targetTypeSelect = targetContainer.querySelector('.appendix-volume-target-type');
                                 const targetSelectorDiv = targetContainer.querySelector('.appendix-volume-target-selector');
-                                targetTypeSelect.addEventListener('change', (e) => {
-                                    if (e.target.value === 'pages') createPageSelector(targetSelectorDiv, effectId);
-                                    else if (e.target.value === 'chapters') createChapterSelector(targetSelectorDiv, effectId);
+                                const renderVolumeTarget = (type) => {
+                                    if (type === 'pages') createPageSelector(targetSelectorDiv, effectId);
+                                    else if (type === 'chapters') createChapterSelector(targetSelectorDiv, effectId);
                                     else targetSelectorDiv.innerHTML = '';
-                                });
-                                createPageSelector(targetSelectorDiv, effectId);
+                                };
+                                targetTypeSelect.addEventListener('change', (e) => renderVolumeTarget(e.target.value));
+                                // Restore saved amount + target type when editing.
+                                if (typeof effectData.params?.amount === 'number') {
+                                    const volInput = paramsContainer.querySelector('.appendix-volume-modifier');
+                                    if (volInput) volInput.value = effectData.params.amount;
+                                }
+                                targetTypeSelect.value = effectData.target?.targetType || 'pages';
+                                renderVolumeTarget(targetTypeSelect.value);
                                 break;
 
                             case 'change_chapter':
@@ -2613,6 +2635,11 @@
                                 ${book.chapters.sort((a, b) => a.name.localeCompare(b.name)).map(ch => `<option value="${ch.id}">${escapeHtml(ch.name)}</option>`).join('')}
                             </select>
                         `;
+                                // Restore selected chapter when editing.
+                                if (effectData.params?.chapterId) {
+                                    const chapterSelect = paramsContainer.querySelector(`#appendixChapterTarget_${effectId}`);
+                                    if (chapterSelect) chapterSelect.value = effectData.params.chapterId;
+                                }
                                 break;
 
                             case 'set_time':
@@ -2622,13 +2649,18 @@
                                 <label><input type="radio" name="appendixTimeSet_${effectId}" value="day" checked> <i class="fas fa-sun day"></i> Day</label>
                                 <label><input type="radio" name="appendixTimeSet_${effectId}" value="night"> <i class="fas fa-moon night"></i> Night</label>
                             </div>`;
+                                // Restore selected time when editing.
+                                if (effectData.params?.time) {
+                                    const timeRadio = paramsContainer.querySelector(`input[name="appendixTimeSet_${effectId}"][value="${effectData.params.time}"]`);
+                                    if (timeRadio) timeRadio.checked = true;
+                                }
                                 break;
 
                             case 'toggle_time':
                                 // No parameters or targets needed for a global time toggle
                                 paramsContainer.innerHTML = '<p class="text-xs text-gray-400 italic">This effect will toggle the time of day between Day and Night.</p>';
                                 break;
-                            case 'transition_variation':
+                            case 'transition_variation': {
                                 paramsContainer.innerHTML = `
                             <div class="flex flex-col gap-2">
                                 <label class="block text-sm font-medium">Page:</label>
@@ -2662,14 +2694,6 @@
                                     if (effectData.params?.toVariationId) toSelect.value = effectData.params.toVariationId;
                                 };
 
-                            case 'set_page_title':
-                                paramsContainer.innerHTML = `
-                            <div class="flex flex-col gap-2">
-                                <label class="block text-sm font-medium">Page to Rename:</label>
-                                <select class="appendix-page-target-select"></select>
-                                <label class="block text-sm font-medium">New Title:</label>
-                                <input type="text" class="appendix-new-title-input" placeholder="Enter new title...">
-                            </div>`;
                                 pageSelect.addEventListener('change', () => populateVariationSelects(pageSelect.value));
 
                                 // Set initial state if editing
@@ -2678,6 +2702,26 @@
                                     populateVariationSelects(effectData.params.pageId);
                                 }
                                 break;
+                            }
+
+                            case 'set_page_title': {
+                                paramsContainer.innerHTML = `
+                            <div class="flex flex-col gap-2">
+                                <label class="block text-sm font-medium">Page to Rename:</label>
+                                <select class="appendix-page-target-select"></select>
+                                <label class="block text-sm font-medium">New Title:</label>
+                                <input type="text" class="appendix-new-title-input" placeholder="Enter new title...">
+                            </div>`;
+                                const titlePageSelect = paramsContainer.querySelector('.appendix-page-target-select');
+                                const newTitleInput = paramsContainer.querySelector('.appendix-new-title-input');
+                                titlePageSelect.add(new Option('-- Select a Page --', ''));
+                                book.pages.slice().sort((a, b) => a.title.localeCompare(b.title)).forEach(p => titlePageSelect.add(new Option(p.title, p.id)));
+
+                                // Restore selection if editing
+                                if (effectData.params?.pageId) titlePageSelect.value = effectData.params.pageId;
+                                if (newTitleInput && effectData.params?.newTitle) newTitleInput.value = effectData.params.newTitle;
+                                break;
+                            }
                         }
                     }
 
@@ -2688,6 +2732,10 @@
                         const params = {};
 
                         switch (effectType) {
+                            case 'play_soundtrack':
+                                const stSel = paramsContainer.querySelector('.appendix-st-select');
+                                if (stSel) params.soundtrackId = stSel.value;
+                                break;
                             case 'transition_variation':
                                 const pageSelect = paramsContainer.querySelector('.appendix-transition-page-select');
                                 const fromSelect = paramsContainer.querySelector('.appendix-transition-from-select');
@@ -2759,6 +2807,14 @@
                             }
                         }
                         if (volTargetTypeSelect) effect.target.targetType = volTargetTypeSelect.value;
+
+                        // Gather chapter targets for chapter-scoped volume effects.
+                        const chapterItems = appendixEffectTargetContainer.querySelectorAll('.appendix-chapter-list .appendix-chapter-checkbox');
+                        if (chapterItems.length > 0) {
+                            effect.target.chapters = Array.from(chapterItems)
+                                .filter(cb => cb.checked)
+                                .map(cb => cb.value);
+                        }
 
                         if (isEditing) {
                             currentAppendixEffects[parseInt(editingIndex, 10)] = effect;
@@ -5230,17 +5286,6 @@
                     function triggerAppendixPageEvent(pageId, eventType) {
                         if (!book.appendix || book.appendix.length === 0) return;
 
-                        for (const entry of book.appendix) {
-                            if (entry.trigger.type === 'page_event' && entry.trigger.event === eventType && entry.trigger.pages.includes(pageId)) {
-                                log(`Appendix Page Event Triggered: Page ${pageId} ${eventType}`);
-                                executeAppendixEntry(entry);
-                            }
-                        }
-                    }
-
-                    function triggerAppendixPageEvent(pageId, eventType) {
-                        if (!book.appendix || book.appendix.length === 0) return;
-
                         const pageIdInt = parseInt(pageId, 10);
 
                         for (const entry of book.appendix) {
@@ -5311,26 +5356,33 @@
                         return conditions;
                     }
 
-                    function checkAppendixConditions(conditions) {
-                        if (!conditions || conditions.length === 0) return true;
-
-                        // Separate chapter conditions from others.
-                        return conditions.every(cond => {
-                            switch (cond.type) {
-                                case 'page_active':
-                                    return activeSounds.hasOwnProperty(cond.params.pageId);
-                                case 'page_inactive':
-                                    return !activeSounds.hasOwnProperty(cond.params.pageId);
-                                case 'time_is':
-                                    return currentTimeOfDay === cond.params.time;
-                                default:
-                                    return true; // Unknown/unhandled condition type is considered met
-                            }
-                        });
-                    }
-
+                    // Evaluates all "condition"-type appendix triggers. Uses edge detection so an
+                    // entry's effects fire once when its conditions become true, and (when
+                    // reverseOnExit is set) the inverse effects fire once when they become false.
+                    // The current active/inactive state per entry is tracked in appendixConditionStates.
                     function evaluateAppendixStateTriggers() {
                         if (!book.appendix || book.appendix.length === 0) return;
+
+                        book.appendix.forEach(entry => {
+                            if (entry.trigger?.type !== 'condition') return;
+
+                            const conditionsMet = checkAppendixConditions(entry.trigger.conditions || []);
+                            const wasActive = appendixConditionStates[entry.id]?.isActive || false;
+
+                            if (conditionsMet && !wasActive) {
+                                // Rising edge: update state first so re-entrant calls (effects can change
+                                // chapter/time/sounds) don't re-fire this entry.
+                                appendixConditionStates[entry.id] = { isActive: true };
+                                log(`Appendix Condition Trigger ACTIVATED: entry ${entry.id} (${entry.name || 'Unnamed'})`);
+                                executeAppendixEntry(entry);
+                            } else if (!conditionsMet && wasActive) {
+                                appendixConditionStates[entry.id] = { isActive: false };
+                                if (entry.trigger.reverseOnExit) {
+                                    log(`Appendix Condition Trigger DEACTIVATED (reversing): entry ${entry.id}`);
+                                    executeAppendixEntry(entry, true);
+                                }
+                            }
+                        });
                     }
 
 
@@ -5358,31 +5410,21 @@
                             }).filter(Boolean) // Filter out nulls
                             : entry.effects;
 
-                        if (isReversal) {
-                            // For reversals, especially volume, we need to clear any existing modifiers
-                            // from this entry before applying the reversed effect.
-                            const pageIdsToReset = new Set();
-                            effectsToExecute.forEach(reversedEffect => {
-                                // We only care about page-specific modifiers here.
-                                if (reversedEffect.target?.targetType === 'pages' && reversedEffect.target?.pages) {
-                                    reversedEffect.target.pages.forEach(pId => pageIdsToReset.add(pId));
-                                }
-                            });
-                            pageIdsToReset.forEach(pId => {
-                                log(`Reversal: Clearing volume modifier for page ID ${pId} from entry ${entry.id}`);
-                                if (volumeModifiers[pId] !== undefined) {
-                                    delete volumeModifiers[pId];
-                                }
-                            });
-                        }
+                        // Note: reversal of a volume change is handled purely by applying the inverse
+                        // effect (increase <-> decrease), which cleanly returns the modifier to its
+                        // prior value. Pre-clearing the modifier here would over-correct, so we don't.
 
                         effectsToExecute.forEach(effect => {
                             let targetPageIds = new Set();
                             let targetChapterIds = new Set();
 
-                            // Determine target pages
+                            // Determine target pages. effect.target.pages entries are {pageId, variationId}
+                            // objects (see saveAppendixEffect), so normalize to numeric page ids here.
                             if (effect.target?.pages && Array.isArray(effect.target.pages)) {
-                                effect.target.pages.forEach(id => targetPageIds.add(id));
+                                effect.target.pages.forEach(p => {
+                                    const id = (p && typeof p === 'object') ? p.pageId : p;
+                                    if (id !== undefined && id !== null) targetPageIds.add(id);
+                                });
                             }
                             if (effect.target?.affectAll) {
                                 book.pages.forEach(p => targetPageIds.add(p.id));
@@ -5488,22 +5530,38 @@
                                         masterVolumeSlider.value = newVolume;
                                         masterVolumeSlider.dispatchEvent(new Event('input')); // This triggers all adjustments
                                     } else if (targetType === 'pages') {
-                                        // For both 'pages' and 'chapters', targetPageIds is already correctly populated.
                                         // We apply the modifier to the volumeModifiers object.
                                         targetPageIds.forEach(pageId => {
                                             volumeModifiers[pageId] = (volumeModifiers[pageId] || 0) + amount;
                                             // Immediately adjust if the sound is already playing
                                             adjustCurrentlyPlayingVolumes([pageId]);
                                         });
-                                    } else if (targetType === 'chapters') { /* Chapter-wide volume modifiers can be complex, leaving as future implementation */ }
+                                    } else if (targetType === 'chapters') {
+                                        // Expand the selected chapters to their member pages and apply the
+                                        // modifier to each.
+                                        const chapterPageIds = new Set();
+                                        (effect.target.chapters || []).forEach(cId => {
+                                            const chapter = book.chapters.find(ch => String(ch.id) === String(cId));
+                                            (chapter?.pageIds || []).forEach(pid => chapterPageIds.add(pid));
+                                        });
+                                        chapterPageIds.forEach(pageId => {
+                                            volumeModifiers[pageId] = (volumeModifiers[pageId] || 0) + amount;
+                                        });
+                                        adjustCurrentlyPlayingVolumes([...chapterPageIds]);
+                                    }
                                     break;
 
                                 case 'reset_volume':
-                                    targetPageIds.forEach(id => delete volumeModifiers[id]);
-                                    if (effect.target.affectAll) volumeModifiers = {};
-                                    const idsToRestart = Object.keys(activeSounds).map(id => parseInt(id, 10)).filter(id => targetPageIds.has(id));
-                                    idsToRestart.forEach(id => {
-                                    });
+                                    if (effect.target.affectAll) {
+                                        const affectedIds = Object.keys(volumeModifiers).map(id => parseInt(id, 10));
+                                        volumeModifiers = {};
+                                        // Re-apply so any currently-playing sounds return to their base volume.
+                                        adjustCurrentlyPlayingVolumes(affectedIds);
+                                    } else {
+                                        const affectedIds = [...targetPageIds];
+                                        affectedIds.forEach(id => delete volumeModifiers[id]);
+                                        adjustCurrentlyPlayingVolumes(affectedIds);
+                                    }
                                     break;
 
                                 case 'change_chapter':
@@ -5517,7 +5575,12 @@
                                 case 'set_page_title':
                                     if (effect.params.pageId && effect.params.newTitle) {
                                         const pageToRename = book.pages.find(p => p.id == effect.params.pageId);
-                                        if (pageToRename) pageToRename.title = effect.params.newTitle;
+                                        if (pageToRename) {
+                                            pageToRename.title = effect.params.newTitle;
+                                            // Reflect the rename in the UI and keyword matching immediately.
+                                            if (typeof updateFuseIndex === 'function') updateFuseIndex();
+                                            renderPageList();
+                                        }
                                     }
                                     break;
                                 case 'toggle_time':
@@ -9041,7 +9104,9 @@
                                 case 'tag_is':
                                     return activeChapterTags.has(cond.params.tagId);
                                 case 'tag_not':
-                                    return !activeChapterTags.has(parseInt(cond.params.tagId, 10));
+                                    // Tag ids are strings (e.g. "tag_0"); parseInt would yield NaN and
+                                    // make this condition always true. Compare the id directly.
+                                    return !activeChapterTags.has(cond.params.tagId);
                                 default:
                                     return true; // Unknown/unhandled condition type is considered met
                             }
