@@ -4092,9 +4092,14 @@
                         });
                         if (stoppedSoundThisCheck) return;
 
-                        // 9. Find Match(es) for individual page triggering
+                        // 9. Find Match(es) for individual page triggering.
+                        // We collect every match in the utterance first, then play them in the
+                        // order the trigger words appeared in the spoken phrase. Multiple matches
+                        // play sequentially (each starts when the previous ends) instead of all at
+                        // once, so a compound phrase narrates in order rather than layering.
                         let keepSearching = true;
                         const pageIdsPlayedThisUtterance = new Set(); // Prevent re-playing the same page in one utterance
+                        const matchesToPlay = [];
 
                         while (keepSearching) {
                             // Deactivate look-behind if it's expired
@@ -4108,7 +4113,7 @@
                             const bestMatch = findBestMatch(text, relevantPageIds, wordsToExclude, pageIdsPlayedThisUtterance, 'multi_match_loop');
 
                             if (bestMatch) {
-                                log(`Multi-match loop: Found match "${bestMatch.page.title}". Playing.`);
+                                log(`Multi-match loop: Found match "${bestMatch.page.title}".`);
                                 pageIdsPlayedThisUtterance.add(bestMatch.page.id); // Add to exclusion list for this utterance
 
                                 const sourceToPlay = findPlayableSourceVariation(bestMatch.page, false, textForVariationCheck);
@@ -4127,13 +4132,13 @@
                                         log(`Look-behind context activated with PKs: [${primaryKeys.join(', ')}]`);
                                     }
 
-                                    playSound(bestMatch.page, sourceToPlay, false, () => {
-                                        if (bestMatch.page.nextPageId !== null) {
-                                            triggerNextPage(bestMatch.page.nextPageId);
-                                        }
-                                    });
-                                    const cooldownDuration = SMART_COOLDOWN_MS;
-                                    setSoundCooldown(bestMatch.page.id, cooldownDuration);
+                                    // Position = earliest trigger-word index, so we can order by
+                                    // where the phrase actually mentioned this page.
+                                    const indices = bestMatch.matchDetails.map(d => d.index).filter(i => i >= 0);
+                                    const position = indices.length ? Math.min(...indices) : Number.MAX_SAFE_INTEGER;
+                                    matchesToPlay.push({ page: bestMatch.page, sourceToPlay, position });
+
+                                    setSoundCooldown(bestMatch.page.id, SMART_COOLDOWN_MS);
                                 } else {
                                     console.warn(`Match found for "${bestMatch.page.title}" but no playable source. Stopping search for this utterance.`);
                                     keepSearching = false;
@@ -4141,6 +4146,35 @@
                             } else {
                                 keepSearching = false; // No more matches found, exit the loop.
                             }
+                        }
+
+                        // Order matches by their position in the spoken phrase and play them.
+                        matchesToPlay.sort((a, b) => a.position - b.position);
+                        const triggerNextForPage = (page) => {
+                            if (page.nextPageId !== null && page.nextPageId !== undefined) triggerNextPage(page.nextPageId);
+                        };
+                        if (matchesToPlay.length === 1) {
+                            const m = matchesToPlay[0];
+                            playSound(m.page, m.sourceToPlay, false, () => triggerNextForPage(m.page));
+                        } else if (matchesToPlay.length > 1) {
+                            log(`Playing ${matchesToPlay.length} compound matches in spoken order: ${matchesToPlay.map(m => m.page.title).join(' -> ')}`);
+                            // Safety cap so a looping / very long sound (or a missed end event)
+                            // can't permanently stall the rest of the sequence.
+                            const COMPOUND_SEQUENCE_MAX_WAIT_MS = 15000;
+                            let stepIndex = 0;
+                            const playNextMatch = () => {
+                                if (stepIndex >= matchesToPlay.length) return;
+                                const m = matchesToPlay[stepIndex];
+                                stepIndex++;
+                                let advanced = false;
+                                const advance = () => { if (advanced) return; advanced = true; playNextMatch(); };
+                                playSound(m.page, m.sourceToPlay, false, () => {
+                                    triggerNextForPage(m.page);
+                                    advance();
+                                }, true, false); // isCompoundSequence = true
+                                setTimeout(advance, COMPOUND_SEQUENCE_MAX_WAIT_MS);
+                            };
+                            playNextMatch();
                         }
 
                         // 10. Soundtrack Keywords Check
