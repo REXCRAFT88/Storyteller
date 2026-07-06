@@ -1712,6 +1712,8 @@
                     // --- Settings Modal Functions ---
                     function openSettingsModal() {
                         log("Opening Settings modal.");
+                        // Always start on the first tab.
+                        if (typeof activateSettingsTab === 'function') activateSettingsTab('speech');
                         // Populate settings from the 'book.settings' object
                         settingsListeningModeRadios.forEach(radio => {
                             radio.checked = (radio.value === book.settings.listeningMode);
@@ -3042,6 +3044,22 @@
                             showTemporaryMessage('Debug log downloaded.', 'success');
                         });
                     }
+
+                    // --- Settings modal tabs ---
+                    function activateSettingsTab(tabName) {
+                        document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+                            btn.classList.toggle('active', btn.dataset.settingsTab === tabName);
+                        });
+                        document.querySelectorAll('.settings-tab-panel').forEach(panel => {
+                            panel.classList.toggle('active', panel.dataset.settingsPanel === tabName);
+                        });
+                        // Scroll the modal body back to the top when switching tabs.
+                        const body = document.querySelector('#settingsModal .modal-body');
+                        if (body) body.scrollTop = 0;
+                    }
+                    document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+                        btn.addEventListener('click', () => activateSettingsTab(btn.dataset.settingsTab));
+                    });
 
 
                     // --- Add Page Modal Listeners ---

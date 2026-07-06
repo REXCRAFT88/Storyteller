@@ -164,236 +164,279 @@
             <div id="settingsModal" class="modal">
                 <div class="modal-body">
                     <h3 class="modal-title"><i class="fas fa-gear mr-2"></i>Settings</h3>
-                    <div class="modal-content space-y-4">
-                        <div>
-                            <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Listening Mode
-                                (Spacebar Control)</h4>
-                            <div class="flex items-center space-x-6 listening-mode-options">
-                                <label title="Press Spacebar to toggle listening on/off"> <input type="radio"
-                                        name="settingsListeningMode" value="toggle" checked> <span
-                                        class="ml-2 text-sm">Toggle</span> </label>
-                                <label title="Hold Spacebar to listen"> <input type="radio" name="settingsListeningMode"
-                                        value="push"> <span class="ml-2 text-sm">Push-to-Talk</span> </label>
-                            </div>
+                    <div class="modal-content">
+                        <div class="settings-tabs" role="tablist">
+                            <button type="button" class="settings-tab-btn active" data-settings-tab="speech"><i
+                                    class="fas fa-microphone mr-1"></i> Speech</button>
+                            <button type="button" class="settings-tab-btn" data-settings-tab="audio"><i
+                                    class="fas fa-volume-high mr-1"></i> Audio</button>
+                            <button type="button" class="settings-tab-btn" data-settings-tab="integrations"><i
+                                    class="fas fa-plug mr-1"></i> Integrations</button>
+                            <button type="button" class="settings-tab-btn" data-settings-tab="advanced"><i
+                                    class="fas fa-screwdriver-wrench mr-1"></i> Advanced</button>
                         </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <label class="flex items-center justify-between cursor-pointer">
-                                <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Enable Look-Behind
-                                    with Conjunction</span>
-                                <div class="rpg-toggle-switch"><input type="checkbox"
-                                        id="settingsCompoundPhrasingCheckbox"><span class="slider"></span></div>
-                            </label>
-                            <p class="text-xs text-gray-400 mt-1">Allows chaining triggers. If a phrase ends with "and",
-                                "but", etc., the next phrase can use the first phrase's Primary Key(s) to trigger
-                                another sound.</p>
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <label class="flex items-center justify-between cursor-pointer">
-                                <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Debug Logging</span>
-                                <div class="rpg-toggle-switch"><input type="checkbox" id="settingsDebugLogging"><span
-                                        class="slider"></span></div>
-                            </label>
-                            <p class="text-xs text-gray-400 mt-1">Records detailed matching &amp; playback logs. Turn it
-                                on, reproduce the problem, then download the log to share for troubleshooting.</p>
-                            <button id="downloadDebugLogButton" type="button" class="btn-rpg-sm mt-2"><i
-                                    class="fas fa-download mr-1"></i> Download Debug Log</button>
-                        </div>
-                        <div id="accuracyThresholdContainer" class="border-t border-stone-700 pt-4">
-                            <label for="settingsAccuracyThreshold" class="block text-sm font-medium mb-1">Minimum
-                                Confidence (Keywords & Primary Keys):</label>
-                            <div class="flex items-center space-x-2"> <span
-                                    class="text-xs text-gray-400 w-12 text-left">Loose (0.5)</span> <input type="range"
-                                    id="settingsAccuracyThreshold" min="50" max="100" step="1" value="80"
-                                    class="w-full"> <span class="text-xs text-gray-400 w-12 text-right">Strict
-                                    (1.0)</span> <span id="settingsAccuracyValue"
-                                    class="text-sm w-10 text-right">0.80</span> </div>
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <label class="flex items-center justify-between cursor-pointer">
-                                <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Master Volume
-                                    Affects Soundtracks</span>
-                                <div class="rpg-toggle-switch"><input type="checkbox"
-                                        id="settingsMasterVolSoundtracksCheckbox" checked><span class="slider"></span>
-                                </div>
-                            </label>
-                            <p class="text-xs text-gray-400 mt-1">If enabled, the global Master Volume slider will also
-                                scale the volume of background Soundtracks.</p>
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <span class="block text-sm font-semibold text-[var(--accent-gold-light)] mb-2">Audio
-                                Handling on Chapter Change:</span>
-                            <div class="space-y-2">
-                                <label class="flex items-center space-x-2 cursor-pointer"> <input type="radio"
-                                        name="settingsStopAudioMode" value="all" checked> <span class="text-sm">Stop All
-                                        Audio</span> </label>
-                                <p class="text-xs text-gray-400 ml-6">Stops all currently playing sounds when changing
-                                    chapters.</p>
-                                <label class="flex items-center space-x-2 cursor-pointer"> <input type="radio"
-                                        name="settingsStopAudioMode" value="autoplay"> <span class="text-sm">Stop Only
-                                        Autoplay/Leave/Plotter Sounds</span> </label>
-                                <p class="text-xs text-gray-400 ml-6">Only stops sounds started automatically by chapter
-                                    enter/exit actions or plot threads. Manually played sounds continue (may switch
-                                    variation).</p>
-                                <label class="flex items-center space-x-2 cursor-pointer"> <input type="radio"
-                                        name="settingsStopAudioMode" value="smart"> <span class="text-sm">Smart Continue
-                                        (Keep Starred/Shared)</span> </label>
-                                <p class="text-xs text-gray-400 ml-6">Stops sounds unless they are Starred OR exist in
-                                    both chapters. Continuing sounds may switch variation based on the new chapter/time.
-                                </p>
-                                <label class="flex items-center space-x-2 cursor-pointer"> <input type="radio"
-                                        name="settingsStopAudioMode" value="indexContinue"> <span class="text-sm">Smart
-                                        Continue + Keep All for Index</span> </label>
-                                <p class="text-xs text-gray-400 ml-6">Uses Smart Continue logic, but *never* stops
-                                    sounds when transitioning *to* Index. Sounds may switch variation.</p>
-                            </div>
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <label for="settingsStopPhrases" class="block text-sm font-medium mb-1">Stop Phrases
-                                (comma-separated):</label>
-                            <input type="text" id="settingsStopPhrases" placeholder="e.g., stop everything, silence all"
-                                title="Phrases that will stop all currently playing sounds (like Ctrl+Q)">
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <label for="settingsCustomEnterPhrases" class="block text-sm font-medium mb-1">Custom
-                                Chapter Enter Phrases (comma-separated):</label>
-                            <input type="text" id="settingsCustomEnterPhrases" placeholder="e.g., next scene, moving on"
-                                title="User-defined phrases that trigger chapter transitions (followed by chapter keyword)">
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <label for="settingsCustomExitPhrases" class="block text-sm font-medium mb-1">Custom Chapter
-                                Exit Phrases (comma-separated):</label>
-                            <input type="text" id="settingsCustomExitPhrases" placeholder="e.g., run from, escape"
-                                title="User-defined phrases that stop sounds in the active chapter and move to another (e.g., 'run from the cave')">
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <label for="settingsDaytimePhrases" class="block text-sm font-medium mb-1">Daytime
-                                Transition Phrases (comma-separated):</label>
-                            <input type="text" id="settingsDaytimePhrases"
-                                placeholder="e.g., the sun rises, morning comes"
-                                title="Phrases that will switch the time of day to 'Day'">
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <label for="settingsNighttimePhrases" class="block text-sm font-medium mb-1">Nighttime
-                                Transition Phrases (comma-separated):</label>
-                            <input type="text" id="settingsNighttimePhrases"
-                                placeholder="e.g., the sun sets, night falls"
-                                title="Phrases that will switch the time of day to 'Night'">
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <span class="block text-sm font-semibold text-[var(--accent-gold-light)] mb-2">Autoplay on
-                                Chapter Tab Click:</span>
-                            <div class="space-y-2">
-                                <label class="flex items-center space-x-2 cursor-pointer">
-                                    <input type="radio" name="settingsAutoplayOnClick" value="on" checked>
-                                    <span class="text-sm">On (Always trigger autoplay)</span>
-                                </label>
-                                <label class="flex items-center space-x-2 cursor-pointer">
-                                    <input type="radio" name="settingsAutoplayOnClick" value="listening">
-                                    <span class="text-sm">Only While Listening</span>
-                                </label>
-                                <label class="flex items-center space-x-2 cursor-pointer">
-                                    <input type="radio" name="settingsAutoplayOnClick" value="off">
-                                    <span class="text-sm">Off (Never trigger autoplay)</span>
-                                </label>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-1">Controls if clicking a chapter tab triggers that
-                                chapter's 'Autoplay Pages on Enter'. Voice transitions always trigger autoplay.</p>
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Offline Speech
-                                (Vosk)</h4>
-                            <p class="text-xs text-gray-400 mb-2">Recognize speech fully on your device — works offline
-                                and in every browser (Firefox/Safari included). Requires the served/hosted version (not a
-                                <code>file://</code> page) and a one-time model download.</p>
-                            <label class="block text-sm font-medium mb-1">Recognition engine:</label>
-                            <div class="flex flex-col gap-1 mb-3 text-sm">
-                                <label class="flex items-center gap-2"><input type="radio" name="settingsSpeechEngine"
-                                        value="auto"> Auto — browser when online, Vosk otherwise (recommended)</label>
-                                <label class="flex items-center gap-2"><input type="radio" name="settingsSpeechEngine"
-                                        value="browser"> Browser (online, Chrome/Edge)</label>
-                                <label class="flex items-center gap-2"><input type="radio" name="settingsSpeechEngine"
-                                        value="vosk"> Offline (Vosk)</label>
-                            </div>
-                            <label class="flex items-center gap-2 text-sm mb-3">
-                                <input type="checkbox" id="settingsVoskGrammar">
-                                <span>Focused vocabulary — constrain Vosk to your book's trigger words (more
-                                    accurate)</span>
-                            </label>
-                            <div id="voskModelStatus" class="text-xs mb-2 px-2 py-1 rounded bg-black/20 border border-stone-700">
-                                Model: checking…</div>
-                            <label for="settingsVoskModelUrl" class="block text-sm font-medium mb-1">Model URL
-                                (.tar.gz):</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="settingsVoskModelUrl"
-                                    placeholder="https://…/vosk-model-small-en-us-0.15.tar.gz" class="flex-grow">
-                                <button id="voskDownloadButton" class="btn-rpg-sm flex-shrink-0">Download</button>
-                            </div>
-                            <div id="voskDownloadProgress" class="hidden w-full bg-black/40 rounded h-2 mt-2 overflow-hidden">
-                                <div id="voskDownloadBar" class="h-2 bg-green-600" style="width:0%"></div>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-2">Or load a model file you downloaded yourself:</p>
-                            <div class="flex items-center gap-2 mt-1">
-                                <label class="btn-rpg-sm cursor-pointer">Choose model file…<input type="file"
-                                        id="voskModelFileInput" accept=".tar.gz,.tgz,.gz,.zip" class="hidden"></label>
-                                <button id="voskDeleteModelButton" class="btn-rpg-sm">Remove model</button>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-2">Get a model from the <a
-                                    href="https://alphacephei.com/vosk/models" target="_blank" rel="noopener noreferrer"
-                                    class="syrinscape-auth-token-link">Vosk models page</a> (e.g.
-                                <code>vosk-model-small-en-us-0.15</code>, ~40&nbsp;MB). See the README for hosting tips.
-                            </p>
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Syrinscape Settings
-                            </h4>
+
+                        <!-- ===================== SPEECH TAB ===================== -->
+                        <div class="settings-tab-panel active space-y-4" data-settings-panel="speech">
                             <div>
-                                <label for="settingsSyrinscapeAuthToken"
-                                    class="block text-sm font-medium mb-1">Syrinscape Auth Token:</label>
-                                <input type="text" id="settingsSyrinscapeAuthToken"
-                                    placeholder="Paste your Syrinscape auth token here">
-                                <p class="text-xs text-gray-400 mt-1">
-                                    Get your token from the <a href="https://syrinscape.com/account/auth-token/"
-                                        target="_blank" rel="noopener noreferrer"
-                                        class="syrinscape-auth-token-link">Syrinscape Auth Token page</a>. Required to
-                                    use Syrinscape sounds.
+                                <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Listening Mode
+                                    (Spacebar Control)</h4>
+                                <div class="flex items-center space-x-6 listening-mode-options">
+                                    <label title="Press Spacebar to toggle listening on/off"> <input type="radio"
+                                            name="settingsListeningMode" value="toggle" checked> <span
+                                            class="ml-2 text-sm">Toggle</span> </label>
+                                    <label title="Hold Spacebar to listen"> <input type="radio" name="settingsListeningMode"
+                                            value="push"> <span class="ml-2 text-sm">Push-to-Talk</span> </label>
+                                </div>
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label class="flex items-center justify-between cursor-pointer">
+                                    <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Enable Look-Behind
+                                        with Conjunction</span>
+                                    <div class="rpg-toggle-switch"><input type="checkbox"
+                                            id="settingsCompoundPhrasingCheckbox"><span class="slider"></span></div>
+                                </label>
+                                <p class="text-xs text-gray-400 mt-1">Allows chaining triggers. If a phrase ends with "and",
+                                    "but", etc., the next phrase can use the first phrase's Primary Key(s) to trigger
+                                    another sound.</p>
+                            </div>
+                            <div id="accuracyThresholdContainer" class="border-t border-stone-700 pt-4">
+                                <label for="settingsAccuracyThreshold" class="block text-sm font-medium mb-1">Minimum
+                                    Confidence (Keywords & Primary Keys):</label>
+                                <div class="flex items-center space-x-2"> <span
+                                        class="text-xs text-gray-400 w-12 text-left">Loose (0.5)</span> <input type="range"
+                                        id="settingsAccuracyThreshold" min="50" max="100" step="1" value="80"
+                                        class="w-full"> <span class="text-xs text-gray-400 w-12 text-right">Strict
+                                        (1.0)</span> <span id="settingsAccuracyValue"
+                                        class="text-sm w-10 text-right">0.80</span> </div>
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label for="settingsStopPhrases" class="block text-sm font-medium mb-1">Stop Phrases
+                                    (comma-separated):</label>
+                                <input type="text" id="settingsStopPhrases" placeholder="e.g., stop everything, silence all"
+                                    title="Phrases that will stop all currently playing sounds (like Ctrl+Q)">
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label for="settingsCustomEnterPhrases" class="block text-sm font-medium mb-1">Custom
+                                    Chapter Enter Phrases (comma-separated):</label>
+                                <input type="text" id="settingsCustomEnterPhrases" placeholder="e.g., next scene, moving on"
+                                    title="User-defined phrases that trigger chapter transitions (followed by chapter keyword)">
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label for="settingsCustomExitPhrases" class="block text-sm font-medium mb-1">Custom Chapter
+                                    Exit Phrases (comma-separated):</label>
+                                <input type="text" id="settingsCustomExitPhrases" placeholder="e.g., run from, escape"
+                                    title="User-defined phrases that stop sounds in the active chapter and move to another (e.g., 'run from the cave')">
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label for="settingsDaytimePhrases" class="block text-sm font-medium mb-1">Daytime
+                                    Transition Phrases (comma-separated):</label>
+                                <input type="text" id="settingsDaytimePhrases"
+                                    placeholder="e.g., the sun rises, morning comes"
+                                    title="Phrases that will switch the time of day to 'Day'">
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label for="settingsNighttimePhrases" class="block text-sm font-medium mb-1">Nighttime
+                                    Transition Phrases (comma-separated):</label>
+                                <input type="text" id="settingsNighttimePhrases"
+                                    placeholder="e.g., the sun sets, night falls"
+                                    title="Phrases that will switch the time of day to 'Night'">
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <span class="block text-sm font-semibold text-[var(--accent-gold-light)] mb-2">Autoplay on
+                                    Chapter Tab Click:</span>
+                                <div class="space-y-2">
+                                    <label class="flex items-center space-x-2 cursor-pointer">
+                                        <input type="radio" name="settingsAutoplayOnClick" value="on" checked>
+                                        <span class="text-sm">On (Always trigger autoplay)</span>
+                                    </label>
+                                    <label class="flex items-center space-x-2 cursor-pointer">
+                                        <input type="radio" name="settingsAutoplayOnClick" value="listening">
+                                        <span class="text-sm">Only While Listening</span>
+                                    </label>
+                                    <label class="flex items-center space-x-2 cursor-pointer">
+                                        <input type="radio" name="settingsAutoplayOnClick" value="off">
+                                        <span class="text-sm">Off (Never trigger autoplay)</span>
+                                    </label>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">Controls if clicking a chapter tab triggers that
+                                    chapter's 'Autoplay Pages on Enter'. Voice transitions always trigger autoplay.</p>
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Offline Speech
+                                    (Vosk)</h4>
+                                <p class="text-xs text-gray-400 mb-2">Recognize speech fully on your device — works offline
+                                    and in every browser (Firefox/Safari included). Requires the served/hosted version (not a
+                                    <code>file://</code> page) and a one-time model download.</p>
+                                <label class="block text-sm font-medium mb-1">Recognition engine:</label>
+                                <div class="flex flex-col gap-1 mb-3 text-sm">
+                                    <label class="flex items-center gap-2"><input type="radio" name="settingsSpeechEngine"
+                                            value="auto"> Auto — browser when online, Vosk otherwise (recommended)</label>
+                                    <label class="flex items-center gap-2"><input type="radio" name="settingsSpeechEngine"
+                                            value="browser"> Browser (online, Chrome/Edge)</label>
+                                    <label class="flex items-center gap-2"><input type="radio" name="settingsSpeechEngine"
+                                            value="vosk"> Offline (Vosk)</label>
+                                </div>
+                                <label class="flex items-center gap-2 text-sm mb-3">
+                                    <input type="checkbox" id="settingsVoskGrammar">
+                                    <span>Focused vocabulary — constrain Vosk to your book's trigger words (more
+                                        accurate)</span>
+                                </label>
+                                <div id="voskModelStatus" class="text-xs mb-2 px-2 py-1 rounded bg-black/20 border border-stone-700">
+                                    Model: checking…</div>
+                                <label for="settingsVoskModelUrl" class="block text-sm font-medium mb-1">Model URL
+                                    (.tar.gz):</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="settingsVoskModelUrl"
+                                        placeholder="https://…/vosk-model-small-en-us-0.15.tar.gz" class="flex-grow">
+                                    <button id="voskDownloadButton" class="btn-rpg-sm flex-shrink-0">Download</button>
+                                </div>
+                                <div id="voskDownloadProgress" class="hidden w-full bg-black/40 rounded h-2 mt-2 overflow-hidden">
+                                    <div id="voskDownloadBar" class="h-2 bg-green-600" style="width:0%"></div>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-2">Or load a model file you downloaded yourself:</p>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <label class="btn-rpg-sm cursor-pointer">Choose model file…<input type="file"
+                                            id="voskModelFileInput" accept=".tar.gz,.tgz,.gz,.zip" class="hidden"></label>
+                                    <button id="voskDeleteModelButton" class="btn-rpg-sm">Remove model</button>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-2">Get a model from the <a
+                                        href="https://alphacephei.com/vosk/models" target="_blank" rel="noopener noreferrer"
+                                        class="syrinscape-auth-token-link">Vosk models page</a> (e.g.
+                                    <code>vosk-model-small-en-us-0.15</code>, ~40&nbsp;MB). See the README for hosting tips.
                                 </p>
                             </div>
-                            <button id="initializeSyrinscapeButton" class="btn-rpg-sm mt-3">Initialize Syrinscape
-                                Player</button>
                         </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">YouTube Settings
-                            </h4>
-                            <label for="settingsYoutubeApiKeys" class="block text-sm font-medium mb-1">YouTube API Keys
-                                (comma-separated):</label>
-                            <textarea id="settingsYoutubeApiKeys"
-                                placeholder="Paste one or more YouTube Data API v3 keys here" rows="2"></textarea>
-                            <p class="text-xs text-gray-400 mt-1">
-                                A YouTube API key is required for the search feature. Follow the <a
-                                    href="https://developers.google.com/youtube/v3/getting-started" target="_blank"
-                                    rel="noopener noreferrer" class="syrinscape-auth-token-link">official Google
-                                    guide</a> to get a key.
-                            </p>
-                        </div>
-                        <div class="border-t border-stone-700 pt-4">
-                            <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Spotify Settings
-                            </h4>
-                            <div id="spotifyLoginContainer">
-                                <p class="text-xs text-gray-400 mb-2">Login to Spotify to use Spotify tracks as a sound
-                                    source. A Premium account is required for playback control.</p>
-                                <div>
-                                    <label for="settingsSpotifyClientId" class="block text-sm font-medium mb-1">Spotify
-                                        Client ID (Optional Override):</label>
-                                    <input type="text" id="settingsSpotifyClientId"
-                                        placeholder="Default ID is used if empty">
-                                </div>
-                                <button id="spotifyLoginButton" class="btn-rpg-sm mt-3"><i
-                                        class="fab fa-spotify mr-2"></i>Login with Spotify</button>
+
+                        <!-- ===================== AUDIO TAB ===================== -->
+                        <div class="settings-tab-panel space-y-4" data-settings-panel="audio">
+                            <div>
+                                <label class="flex items-center justify-between cursor-pointer">
+                                    <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Master Volume
+                                        Affects Soundtracks</span>
+                                    <div class="rpg-toggle-switch"><input type="checkbox"
+                                            id="settingsMasterVolSoundtracksCheckbox" checked><span class="slider"></span>
+                                    </div>
+                                </label>
+                                <p class="text-xs text-gray-400 mt-1">If enabled, the global Master Volume slider will also
+                                    scale the volume of background Soundtracks.</p>
                             </div>
-                            <div id="spotifyLogoutContainer" class="hidden">
-                                <p id="spotifyUserStatus" class="text-sm text-green-400 mb-3">Logged in to Spotify.</p>
-                                <button id="spotifyLogoutButton" class="btn-rpg-sm btn-danger-sm">Logout from
-                                    Spotify</button>
+                            <div class="border-t border-stone-700 pt-4">
+                                <span class="block text-sm font-semibold text-[var(--accent-gold-light)] mb-2">Audio
+                                    Handling on Chapter Change:</span>
+                                <div class="space-y-2">
+                                    <label class="flex items-center space-x-2 cursor-pointer"> <input type="radio"
+                                            name="settingsStopAudioMode" value="all" checked> <span class="text-sm">Stop All
+                                            Audio</span> </label>
+                                    <p class="text-xs text-gray-400 ml-6">Stops all currently playing sounds when changing
+                                        chapters.</p>
+                                    <label class="flex items-center space-x-2 cursor-pointer"> <input type="radio"
+                                            name="settingsStopAudioMode" value="autoplay"> <span class="text-sm">Stop Only
+                                            Autoplay/Leave/Plotter Sounds</span> </label>
+                                    <p class="text-xs text-gray-400 ml-6">Only stops sounds started automatically by chapter
+                                        enter/exit actions or plot threads. Manually played sounds continue (may switch
+                                        variation).</p>
+                                    <label class="flex items-center space-x-2 cursor-pointer"> <input type="radio"
+                                            name="settingsStopAudioMode" value="smart"> <span class="text-sm">Smart Continue
+                                            (Keep Starred/Shared)</span> </label>
+                                    <p class="text-xs text-gray-400 ml-6">Stops sounds unless they are Starred OR exist in
+                                        both chapters. Continuing sounds may switch variation based on the new chapter/time.
+                                    </p>
+                                    <label class="flex items-center space-x-2 cursor-pointer"> <input type="radio"
+                                            name="settingsStopAudioMode" value="indexContinue"> <span class="text-sm">Smart
+                                            Continue + Keep All for Index</span> </label>
+                                    <p class="text-xs text-gray-400 ml-6">Uses Smart Continue logic, but *never* stops
+                                        sounds when transitioning *to* Index. Sounds may switch variation.</p>
+                                </div>
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label class="flex items-center justify-between cursor-pointer">
+                                    <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Crossfade
+                                        Transitions</span>
+                                    <div class="rpg-toggle-switch"><input type="checkbox"
+                                            id="settingsCrossfadeEnabled"><span class="slider"></span></div>
+                                </label>
+                                <p class="text-xs text-gray-400 mt-1">Smoothly fade sounds in and out on chapter/time
+                                    changes, variation switches, and Stop All instead of hard cuts.</p>
+                                <div id="crossfadeDurationContainer" class="hidden mt-2">
+                                    <label for="settingsCrossfadeDuration" class="block text-sm font-medium mb-1">Fade
+                                        Duration: <span id="settingsCrossfadeDurationValue"
+                                            class="text-[var(--accent-gold-light)] font-bold">1.5</span>s</label>
+                                    <input type="range" id="settingsCrossfadeDuration" min="0" max="5" step="0.5"
+                                        value="1.5" class="w-full">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ===================== INTEGRATIONS TAB ===================== -->
+                        <div class="settings-tab-panel space-y-4" data-settings-panel="integrations">
+                            <div>
+                                <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Syrinscape Settings
+                                </h4>
+                                <div>
+                                    <label for="settingsSyrinscapeAuthToken"
+                                        class="block text-sm font-medium mb-1">Syrinscape Auth Token:</label>
+                                    <input type="text" id="settingsSyrinscapeAuthToken"
+                                        placeholder="Paste your Syrinscape auth token here">
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        Get your token from the <a href="https://syrinscape.com/account/auth-token/"
+                                            target="_blank" rel="noopener noreferrer"
+                                            class="syrinscape-auth-token-link">Syrinscape Auth Token page</a>. Required to
+                                        use Syrinscape sounds.
+                                    </p>
+                                </div>
+                                <button id="initializeSyrinscapeButton" class="btn-rpg-sm mt-3">Initialize Syrinscape
+                                    Player</button>
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">YouTube Settings
+                                </h4>
+                                <label for="settingsYoutubeApiKeys" class="block text-sm font-medium mb-1">YouTube API Keys
+                                    (comma-separated):</label>
+                                <textarea id="settingsYoutubeApiKeys"
+                                    placeholder="Paste one or more YouTube Data API v3 keys here" rows="2"></textarea>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    A YouTube API key is required for the search feature. Follow the <a
+                                        href="https://developers.google.com/youtube/v3/getting-started" target="_blank"
+                                        rel="noopener noreferrer" class="syrinscape-auth-token-link">official Google
+                                        guide</a> to get a key.
+                                </p>
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Spotify Settings
+                                </h4>
+                                <div id="spotifyLoginContainer">
+                                    <p class="text-xs text-gray-400 mb-2">Login to Spotify to use Spotify tracks as a sound
+                                        source. A Premium account is required for playback control.</p>
+                                    <div>
+                                        <label for="settingsSpotifyClientId" class="block text-sm font-medium mb-1">Spotify
+                                            Client ID (Optional Override):</label>
+                                        <input type="text" id="settingsSpotifyClientId"
+                                            placeholder="Default ID is used if empty">
+                                    </div>
+                                    <button id="spotifyLoginButton" class="btn-rpg-sm mt-3"><i
+                                            class="fab fa-spotify mr-2"></i>Login with Spotify</button>
+                                </div>
+                                <div id="spotifyLogoutContainer" class="hidden">
+                                    <p id="spotifyUserStatus" class="text-sm text-green-400 mb-3">Logged in to Spotify.</p>
+                                    <button id="spotifyLogoutButton" class="btn-rpg-sm btn-danger-sm">Logout from
+                                        Spotify</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ===================== ADVANCED TAB ===================== -->
+                        <div class="settings-tab-panel space-y-4" data-settings-panel="advanced">
+                            <div>
+                                <label class="flex items-center justify-between cursor-pointer">
+                                    <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Debug Logging</span>
+                                    <div class="rpg-toggle-switch"><input type="checkbox" id="settingsDebugLogging"><span
+                                            class="slider"></span></div>
+                                </label>
+                                <p class="text-xs text-gray-400 mt-1">Records detailed matching &amp; playback logs. Turn it
+                                    on, reproduce the problem, then download the log to share for troubleshooting.</p>
+                                <button id="downloadDebugLogButton" type="button" class="btn-rpg-sm mt-2"><i
+                                        class="fas fa-download mr-1"></i> Download Debug Log</button>
                             </div>
                         </div>
                     </div>

@@ -1893,6 +1893,54 @@
             transform: translateY(-1px);
         }
 
+        /* --- Settings modal tabs --- */
+        .settings-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            border-bottom: 2px solid var(--border-stone);
+            margin-bottom: 1rem;
+            position: sticky;
+            top: 0;
+            background-color: var(--bg-secondary);
+            z-index: 2;
+            padding-top: 2px;
+        }
+
+        .settings-tab-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-secondary, #a8a29e);
+            font-family: 'Cinzel', serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 0.5rem 0.9rem;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+            margin-bottom: -2px;
+            white-space: nowrap;
+        }
+
+        .settings-tab-btn:hover {
+            color: var(--accent-gold-light);
+            background-color: rgba(255, 255, 255, 0.04);
+        }
+
+        .settings-tab-btn.active {
+            color: var(--accent-gold-light);
+            border-bottom-color: var(--accent-gold-light);
+        }
+
+        .settings-tab-panel {
+            display: none;
+        }
+
+        .settings-tab-panel.active {
+            display: block;
+        }
+
         /* --- Modals Common Styles --- */
         #modalOverlay {
             position: fixed;
