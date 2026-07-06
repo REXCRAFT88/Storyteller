@@ -893,6 +893,23 @@
                     // Effective master-volume fraction (0–1) folding in the duck. All gain math uses this.
                     function masterFrac() { return (currentMasterVolume / 100) * duckFactor; }
                     let quickVolumeSaveTimer = null; // debounce for the per-page live volume slider (2.2)
+                    // Page reorder drag state (3.2): armed by the grip handle so a handle-drag reorders
+                    // while a normal drag keeps the move-to-chapter / make-collection behavior.
+                    let pageReorderArmed = false;
+                    let draggedReorderPageId = null;
+                    function reorderPageInList(draggedId, targetId, insertAfter) {
+                        const activeCh = book.chapters.find(c => c.id == book.activeChapterId);
+                        const arr = (activeCh && !activeCh.isIndex) ? activeCh.pageIds : book.pages;
+                        const idOf = (x) => (x && typeof x === 'object') ? x.id : x;
+                        const fromIdx = arr.findIndex(x => idOf(x) === draggedId);
+                        if (fromIdx === -1) { showTemporaryMessage('Can only reorder pages that belong to this chapter.', 'info'); return; }
+                        const [moved] = arr.splice(fromIdx, 1);
+                        let toIdx = arr.findIndex(x => idOf(x) === targetId);
+                        if (toIdx === -1) { arr.splice(fromIdx, 0, moved); return; } // target not in this list; abort
+                        arr.splice(insertAfter ? toIdx + 1 : toIdx, 0, moved);
+                        saveToLocalStorage();
+                        renderPageList();
+                    }
 
                     // Flag to indicate that autoplay is being triggered due to a time-of-day change.  When set, the
                     // playAutoplayPages function will perform special logic to determine which pages should be
@@ -5819,6 +5836,16 @@
 
                         li.addEventListener('dragover', (e) => {
                             e.preventDefault();
+                            if (draggedReorderPageId != null) {
+                                // Reorder mode: show an insertion indicator before/after this item.
+                                if (draggedReorderPageId === page.id) return;
+                                e.dataTransfer.dropEffect = 'move';
+                                const rect = li.getBoundingClientRect();
+                                const after = e.clientY > rect.top + rect.height / 2;
+                                li.classList.toggle('reorder-target-after', after);
+                                li.classList.toggle('reorder-target-before', !after);
+                                return;
+                            }
                             const draggedPageId = e.dataTransfer.getData('text/plain');
                             // Only show collection drop indicator if dragging a DIFFERENT page
                             if (draggedPageId && draggedPageId != page.id) {
@@ -5826,14 +5853,19 @@
                                 li.classList.add('drag-over-for-collection');
                             }
                         });
-                        li.addEventListener('dragleave', () => li.classList.remove('drag-over-for-collection'));
+                        li.addEventListener('dragleave', () => li.classList.remove('drag-over-for-collection', 'reorder-target-before', 'reorder-target-after'));
                         li.addEventListener('drop', (e) => {
                             e.preventDefault();
                             e.stopPropagation(); // Prevent chapter drop handler
                             li.classList.remove('drag-over-for-collection');
+                            if (draggedReorderPageId != null) {
+                                // Reorder within the current chapter's page order.
+                                const after = li.classList.contains('reorder-target-after');
+                                li.classList.remove('reorder-target-before', 'reorder-target-after');
+                                if (draggedReorderPageId !== page.id) reorderPageInList(draggedReorderPageId, page.id, after);
+                                return;
+                            }
                             const draggedPageIdStr = e.dataTransfer.getData('text/plain');
-
-
                             const targetPageId = page.id;
                             if (draggedPageIdStr && draggedPageIdStr != targetPageId) {
                                 createCollectionFromPages(parseInt(draggedPageIdStr, 10), targetPageId);
@@ -5955,6 +5987,7 @@
                         li.innerHTML = `
                             <div class="page-item-main-content"> <div class="page-item-title-row">
                                     <div class="page-item-title-container">
+                                        <span class="page-drag-handle" title="Drag to reorder within this chapter"><i class="fas fa-grip-vertical"></i></span>
                                         ${starCheckboxHtml}
                                         <span class="page-item-title">${escapeHtml(page.title)}</span>
                                         ${page.hotkey ? `<span class="hotkey-badge" title="Hotkey: ${escapeHtml(page.hotkey)}">${escapeHtml(page.hotkey)}</span>` : ''}
@@ -5994,13 +6027,21 @@
                             </div>
                             `;
 
+                        // A drag started from the grip handle reorders within the chapter; a drag
+                        // from anywhere else keeps the existing move-to-chapter / make-collection behavior.
+                        const dragHandle = li.querySelector('.page-drag-handle');
+                        if (dragHandle) dragHandle.addEventListener('mousedown', () => { pageReorderArmed = true; });
                         li.addEventListener('dragstart', (e) => {
-                            // if (isTimeRestricted) { e.preventDefault(); return; } // Allow dragging even if restricted
-                            e.dataTransfer.setData('text/plain', page.id);
-                            e.dataTransfer.effectAllowed = 'move';
+                            if (e.dataTransfer) { e.dataTransfer.setData('text/plain', page.id); e.dataTransfer.effectAllowed = 'move'; }
                             li.classList.add('dragging');
+                            if (pageReorderArmed) { draggedReorderPageId = page.id; li.classList.add('reordering'); }
                         });
-                        li.addEventListener('dragend', () => { li.classList.remove('dragging'); });
+                        li.addEventListener('dragend', () => {
+                            li.classList.remove('dragging'); li.classList.remove('reordering');
+                            pageReorderArmed = false; draggedReorderPageId = null;
+                            document.querySelectorAll('.page-item.reorder-target-before, .page-item.reorder-target-after')
+                                .forEach(el => el.classList.remove('reorder-target-before', 'reorder-target-after'));
+                        });
 
                         li.querySelectorAll('.delete-button').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deletePageFromBook(page.id); }));
                         li.querySelectorAll('.edit-button').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); openEditPageModal(page.id); }));

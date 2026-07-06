@@ -1893,6 +1893,37 @@
             transform: translateY(-1px);
         }
 
+        /* --- Page reorder drag handle (3.2) --- */
+        .page-drag-handle {
+            cursor: grab;
+            color: var(--text-secondary, #78716c);
+            padding: 0 4px;
+            opacity: 0.5;
+            transition: opacity 0.15s, color 0.15s;
+            flex-shrink: 0;
+        }
+
+        .page-item:hover .page-drag-handle {
+            opacity: 1;
+            color: var(--accent-gold-light, #D6C06D);
+        }
+
+        .page-drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .page-item.reorder-target-before {
+            box-shadow: inset 0 3px 0 0 var(--accent-gold-light, #D6C06D);
+        }
+
+        .page-item.reorder-target-after {
+            box-shadow: inset 0 -3px 0 0 var(--accent-gold-light, #D6C06D);
+        }
+
+        .page-item.reordering {
+            opacity: 0.5;
+        }
+
         /* --- Per-page live volume (2.2) --- */
         .page-quick-volume-row {
             display: flex;
