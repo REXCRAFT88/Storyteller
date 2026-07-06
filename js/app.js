@@ -1489,6 +1489,46 @@
                         }, duration);
                     }
 
+                    // --- Undo for destructive actions (Phase 1.3) ---------------------------
+                    // Deletes no longer prompt; they perform immediately and register a restore
+                    // function. An 8s snackbar (and Ctrl+Z) reverses the most recent delete.
+                    const undoStack = [];
+                    const UNDO_STACK_MAX = 10;
+                    let undoToastTimeoutId = null;
+                    function registerUndo(description, restoreFn) {
+                        undoStack.push({ description, restoreFn });
+                        if (undoStack.length > UNDO_STACK_MAX) undoStack.shift();
+                        showUndoToast(description, () => performUndo());
+                    }
+                    function performUndo() {
+                        const action = undoStack.pop();
+                        if (!action) { showTemporaryMessage('Nothing to undo.', 'info'); return; }
+                        try {
+                            action.restoreFn();
+                            showTemporaryMessage(`Restored: ${action.description}`, 'success');
+                        } catch (e) {
+                            console.error('Undo failed:', e);
+                            showTemporaryMessage('Undo failed — see console.', 'error');
+                        }
+                        hideUndoToast();
+                    }
+                    function showUndoToast(message, undoFn) {
+                        const toast = document.getElementById('undoToast');
+                        const msg = document.getElementById('undoToastMessage');
+                        const btn = document.getElementById('undoToastButton');
+                        if (!toast || !msg || !btn) return;
+                        msg.textContent = message;
+                        toast.classList.remove('hidden');
+                        btn.onclick = () => { undoFn(); };
+                        if (undoToastTimeoutId) clearTimeout(undoToastTimeoutId);
+                        undoToastTimeoutId = setTimeout(hideUndoToast, 8000);
+                    }
+                    function hideUndoToast() {
+                        const toast = document.getElementById('undoToast');
+                        if (toast) toast.classList.add('hidden');
+                        if (undoToastTimeoutId) { clearTimeout(undoToastTimeoutId); undoToastTimeoutId = null; }
+                    }
+
                     // --- YouTube Title Fetcher ---
                     function getYouTubeVideoTitle(videoId) {
                         return new Promise((resolve, reject) => {
@@ -2348,15 +2388,16 @@
                         }
 
                         const entry = book.appendix[entryIndex];
-                        const triggerText = entry.trigger.type === 'phrase' ? `the phrase trigger "${entry.trigger.phrases[0]}..."` : `the page event trigger`;
-
-                        if (!confirm(`Are you sure you want to delete ${triggerText}? This cannot be undone.`)) return;
 
                         book.appendix.splice(entryIndex, 1);
                         saveToLocalStorage();
                         renderAppendixList();
-                        showTemporaryMessage("Appendix entry deleted.", "success");
                         log(`Deleted appendix entry ID: ${entryId}`);
+                        registerUndo(`Deleted appendix "${entry.name || 'entry'}"`, () => {
+                            book.appendix.splice(Math.min(entryIndex, book.appendix.length), 0, entry);
+                            saveToLocalStorage();
+                            renderAppendixList();
+                        });
                     }
 
                     function renderAppendixEffectsList() {
@@ -6080,8 +6121,21 @@
                         const deletedPage = book.pages[pageIndex];
                         const deletedTitle = deletedPage.title;
 
-                        // User confirmation for deletion
-                        if (!confirm(`Are you sure you want to permanently delete page "${deletedTitle}" from the book? This cannot be undone.`)) return;
+                        // Capture every place this page is referenced so an undo can fully restore it.
+                        // The page object itself is kept by reference (its sources hold non-clonable AudioBuffers).
+                        const undoData = {
+                            page: deletedPage,
+                            index: pageIndex,
+                            collectionIds: (book.collections || []).filter(c => (c.pageIds || []).includes(pageId)).map(c => c.id),
+                            chapterMemberships: book.chapters.map(ch => ({
+                                id: ch.id,
+                                pageIdx: (ch.pageIds || []).indexOf(pageId),
+                                inAuto: (ch.autoPlayPageIds || []).includes(pageId),
+                                inLeave: (ch.leaveSoundPageIds || []).includes(pageId)
+                            })).filter(m => m.pageIdx > -1 || m.inAuto || m.inLeave),
+                            threadIds: (book.storyPlot.threads || []).filter(t => (t.soundPageIds || []).includes(pageId)).map(t => t.id),
+                            nextPageRefs: book.pages.filter(p => p.nextPageId === pageId).map(p => p.id)
+                        };
 
                         log(`Deleting Page ID: ${pageId} ("${deletedTitle}")`);
                         stopSingleSound(pageId); // Stop sound if playing
@@ -6145,7 +6199,33 @@
                         updateChapterKeywordList(); // Update chapter keywords
                         saveToLocalStorage(); // Persist changes
                         renderPageList(); // Re-render the page list
-                        showTemporaryMessage(`Page "${deletedTitle}" deleted.${chainsBroken > 0 ? ` (${chainsBroken} chain link(s) cleared.)` : ''}`, 'info');
+
+                        registerUndo(`Deleted page "${deletedTitle}"`, () => {
+                            book.pages.splice(Math.min(undoData.index, book.pages.length), 0, undoData.page);
+                            undoData.collectionIds.forEach(cid => {
+                                const c = (book.collections || []).find(c => c.id === cid);
+                                if (c && !(c.pageIds || []).includes(pageId)) c.pageIds.push(pageId);
+                            });
+                            undoData.chapterMemberships.forEach(m => {
+                                const ch = book.chapters.find(c => c.id === m.id);
+                                if (!ch) return;
+                                if (m.pageIdx > -1 && !ch.pageIds.includes(pageId)) ch.pageIds.splice(Math.min(m.pageIdx, ch.pageIds.length), 0, pageId);
+                                if (m.inAuto) { ch.autoPlayPageIds = ch.autoPlayPageIds || []; if (!ch.autoPlayPageIds.includes(pageId)) ch.autoPlayPageIds.push(pageId); }
+                                if (m.inLeave) { ch.leaveSoundPageIds = ch.leaveSoundPageIds || []; if (!ch.leaveSoundPageIds.includes(pageId)) ch.leaveSoundPageIds.push(pageId); }
+                            });
+                            undoData.threadIds.forEach(tid => {
+                                const t = (book.storyPlot.threads || []).find(t => t.id === tid);
+                                if (t) { t.soundPageIds = t.soundPageIds || []; if (!t.soundPageIds.includes(pageId)) t.soundPageIds.push(pageId); }
+                            });
+                            undoData.nextPageRefs.forEach(pid => {
+                                const p = book.pages.find(p => p.id === pid);
+                                if (p) p.nextPageId = pageId;
+                            });
+                            updateFuseIndex();
+                            updateChapterKeywordList();
+                            saveToLocalStorage();
+                            renderPageList();
+                        });
                     }
 
                     // --- Remove Page from Current Chapter ---
@@ -6655,6 +6735,7 @@
                                 if (importChoices.appendix === 'overwrite') {
                                     book.appendix = [];
                                 }
+                                if (!Array.isArray(book.appendix)) book.appendix = []; // Guard: merge/add into an uninitialized appendix
                                 (loadedData.appendix || []).forEach(item => {
                                     const existingAppendixIndex = (book.appendix || []).findIndex(a => a.name && a.name.toLowerCase() === item.name.toLowerCase());
                                     if (existingAppendixIndex > -1 && importChoices.appendix === 'merge') {
@@ -7097,24 +7178,29 @@
                             showTemporaryMessage("Cannot delete Index chapter.", "error");
                             return;
                         }
-                        if (!confirm(`Delete chapter "${chapterToDelete.name}"? Pages within this chapter will NOT be deleted from the book but will be unassigned from this chapter.`)) return;
-
                         log(`Deleting chapter: "${chapterToDelete.name}" (ID: ${chapterId})`);
 
-                        // Remove this chapterId from any page source variations that were specifically assigned to it
+                        const wasActive = book.activeChapterId === chapterId;
+                        // Record source variations that pointed at this chapter so undo can re-add it.
+                        const affectedSources = [];
                         book.pages.forEach(page => {
                             page.sources.forEach(source => {
                                 if (Array.isArray(source.chapterIds)) {
                                     const index = source.chapterIds.indexOf(chapterId);
-                                    if (index > -1) source.chapterIds.splice(index, 1);
-                                    if (source.chapterIds.length === 0) source.chapterIds = null; // If no chapters left, make it general
+                                    if (index > -1) {
+                                        affectedSources.push({ source, atIndex: index });
+                                        source.chapterIds.splice(index, 1);
+                                        if (source.chapterIds.length === 0) source.chapterIds = null; // If no chapters left, make it general
+                                    }
                                 }
                             });
                         });
 
-                        // Remove chapter node and connected threads from story plotter
+                        // Remove chapter node and connected threads from story plotter (kept for undo)
                         const nodesToDelete = book.storyPlot.nodes.filter(node => node.chapterId === chapterId);
                         const nodeIdsToDelete = nodesToDelete.map(node => node.id);
+                        const threadsToDelete = book.storyPlot.threads.filter(thread =>
+                            nodeIdsToDelete.includes(thread.fromNodeId) || nodeIdsToDelete.includes(thread.toNodeId));
 
                         book.storyPlot.nodes = book.storyPlot.nodes.filter(node => node.chapterId !== chapterId);
                         book.storyPlot.threads = book.storyPlot.threads.filter(thread =>
@@ -7126,11 +7212,25 @@
                         updateChapterKeywordList(); // Update list
                         saveToLocalStorage();
 
-                        if (book.activeChapterId === chapterId) { // If deleted chapter was active
+                        if (wasActive) { // If deleted chapter was active
                             setActiveChapter('index', false, 'deletion_fallback'); // Switch to Index
                         } else {
                             renderChapterTabs(); // Just re-render tabs
                         }
+
+                        registerUndo(`Deleted chapter "${chapterToDelete.name}"`, () => {
+                            book.chapters.splice(Math.min(chapterIndex, book.chapters.length), 0, chapterToDelete);
+                            affectedSources.forEach(({ source, atIndex }) => {
+                                if (!Array.isArray(source.chapterIds)) source.chapterIds = [];
+                                if (!source.chapterIds.includes(chapterId)) source.chapterIds.splice(Math.min(atIndex, source.chapterIds.length), 0, chapterId);
+                            });
+                            nodesToDelete.forEach(n => { if (!book.storyPlot.nodes.some(x => x.id === n.id)) book.storyPlot.nodes.push(n); });
+                            threadsToDelete.forEach(t => { if (!book.storyPlot.threads.some(x => x.id === t.id)) book.storyPlot.threads.push(t); });
+                            updateChapterKeywordList();
+                            saveToLocalStorage();
+                            renderChapterTabs();
+                            if (storyPlotterModal.style.display === 'flex') renderPlotBoard();
+                        });
                         // If plotter is open, re-render it
                         if (storyPlotterModal.style.display === 'flex') {
                             renderPlotBoard();
@@ -7532,10 +7632,17 @@
                     }
 
                     function deleteCollection(collectionId) {
-                        if (!confirm("Are you sure you want to delete this collection? The pages inside will become uncollected.")) return;
-                        book.collections = (book.collections || []).filter(c => c.id !== collectionId);
+                        const idx = (book.collections || []).findIndex(c => c.id === collectionId);
+                        if (idx === -1) return;
+                        const removed = book.collections[idx];
+                        book.collections.splice(idx, 1);
                         saveToLocalStorage();
                         renderPageList();
+                        registerUndo(`Deleted collection "${removed.name || 'collection'}"`, () => {
+                            book.collections.splice(Math.min(idx, book.collections.length), 0, removed);
+                            saveToLocalStorage();
+                            renderPageList();
+                        });
                     }
 
                     function openEditCollectionModal(collectionId) {
@@ -10735,6 +10842,8 @@
                                 event.preventDefault(); const loadLabel = document.querySelector('label[title*="Load a book file"]'); if (loadLabel) loadLabel.click(); showTemporaryMessage("Load Book from File (Shortcut)", "info", 1500);
                             } else if ((event.ctrlKey || event.metaKey) && event.key === 'q') {
                                 event.preventDefault(); stopAllSoundsButton.click(); showTemporaryMessage("All Sounds Stopped (Shortcut)", "info", 1500);
+                            } else if ((event.ctrlKey || event.metaKey) && (event.key === 'z' || event.key === 'Z')) {
+                                event.preventDefault(); performUndo();
                             }
                         }
                     });
@@ -12449,13 +12558,19 @@
 
                             li.querySelector('.btn-edit-st').onclick = () => openEditSoundtrack(st);
                             li.querySelector('.btn-del-st').onclick = () => {
-                                if (confirm('Delete playlist?')) {
-                                    book.soundtracks = book.soundtracks.filter(s => s.id !== st.id);
-                                    if (activeSoundtrackId === st.id) stopSoundtrack();
+                                const idx = book.soundtracks.findIndex(s => s.id === st.id);
+                                if (idx === -1) return;
+                                const removed = book.soundtracks[idx];
+                                book.soundtracks.splice(idx, 1);
+                                if (activeSoundtrackId === st.id) stopSoundtrack();
+                                renderManifestList();
+                                document.getElementById('editSoundtrackContainer').classList.add('hidden');
+                                saveToLocalStorage();
+                                registerUndo(`Deleted playlist "${removed.name || 'playlist'}"`, () => {
+                                    book.soundtracks.splice(Math.min(idx, book.soundtracks.length), 0, removed);
                                     renderManifestList();
-                                    document.getElementById('editSoundtrackContainer').classList.add('hidden');
                                     saveToLocalStorage();
-                                }
+                                });
                             };
                         });
                     }

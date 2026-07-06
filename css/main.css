@@ -1893,6 +1893,47 @@
             transform: translateY(-1px);
         }
 
+        /* --- Undo snackbar --- */
+        #undoToast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--bg-tertiary, #292524);
+            border: 1px solid var(--accent-gold-dark, #B8860B);
+            color: var(--text-primary, #e7e5e4);
+            padding: 10px 14px;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+            font-size: 0.85rem;
+            max-width: 90vw;
+        }
+
+        #undoToast.hidden {
+            display: none;
+        }
+
+        #undoToastButton {
+            background: transparent;
+            border: 1px solid var(--accent-gold-light, #D6C06D);
+            color: var(--accent-gold-light, #D6C06D);
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.15s, color 0.15s;
+        }
+
+        #undoToastButton:hover {
+            background-color: var(--accent-gold-light, #D6C06D);
+            color: var(--bg-tertiary, #292524);
+        }
+
         /* --- Settings modal tabs --- */
         .settings-tabs {
             display: flex;
