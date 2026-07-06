@@ -117,6 +117,58 @@
                     // reproduce the issue, then download the captured log.
                     try { if (localStorage.getItem('storyteller_debug_logging') === '1') DEBUG_LOGGING = true; } catch (e) {}
 
+                    // --- Trigger history (Phase 1.1) -----------------------------------------
+                    // Records what each spoken phrase actually caused (matched pages + keyword +
+                    // confidence, chapter/time transitions, appendix firings, stop phrases) so the
+                    // GM can see *why* something played. Outcomes accumulate across a utterance's
+                    // interim+final recognition calls, then finalize into one history entry.
+                    const triggerHistory = [];
+                    const TRIGGER_HISTORY_MAX = 60;
+                    let currentUtteranceOutcomes = [];
+                    let matchDryRun = false; // set true by the matcher playground to collect outcomes without side effects
+                    function recordMatchOutcome(outcome) {
+                        if (outcome) currentUtteranceOutcomes.push(outcome);
+                    }
+                    function finalizeTriggerHistory(text) {
+                        const outcomes = currentUtteranceOutcomes.slice();
+                        currentUtteranceOutcomes = [];
+                        if (!text) return;
+                        triggerHistory.unshift({ ts: Date.now(), text, outcomes });
+                        if (triggerHistory.length > TRIGGER_HISTORY_MAX) triggerHistory.pop();
+                        renderTriggerHistory();
+                    }
+                    function renderTriggerHistory() {
+                        const listEl = document.getElementById('triggerHistoryList');
+                        if (!listEl) return;
+                        if (triggerHistory.length === 0) {
+                            listEl.innerHTML = '<li class="text-xs text-stone-500 italic text-center py-2">No phrases heard yet.</li>';
+                            return;
+                        }
+                        const iconFor = (type) => ({
+                            page: 'fa-play text-green-400',
+                            stop: 'fa-hand text-red-400',
+                            time: 'fa-clock text-blue-300',
+                            chapter: 'fa-book-open text-amber-300',
+                            appendix: 'fa-wand-magic-sparkles text-purple-300',
+                            no_match: 'fa-ban text-stone-500'
+                        }[type] || 'fa-circle text-stone-500');
+                        listEl.innerHTML = triggerHistory.map(entry => {
+                            const time = new Date(entry.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                            const outcomes = entry.outcomes.length
+                                ? entry.outcomes.map(o => {
+                                    const conf = (typeof o.confidence === 'number') ? ` <span class="text-stone-500">(${Math.round(o.confidence * 100)}%${o.keyword ? ' · "' + escapeHtml(o.keyword) + '"' : ''})</span>` : '';
+                                    const pageAttr = o.pageId != null ? ` data-history-page="${o.pageId}"` : '';
+                                    const clickable = o.pageId != null ? ' cursor-pointer hover:text-[var(--accent-gold-light)]' : '';
+                                    return `<span class="inline-flex items-center mr-2${clickable}"${pageAttr}><i class="fas ${iconFor(o.type)} mr-1 text-[0.6rem]"></i>${escapeHtml(o.label)}${conf}</span>`;
+                                }).join('')
+                                : `<span class="inline-flex items-center text-stone-500"><i class="fas ${iconFor('no_match')} mr-1 text-[0.6rem]"></i>No match</span>`;
+                            return `<li class="text-xs border-b border-stone-800/60 pb-1">
+                                <div class="text-stone-300">"${escapeHtml(entry.text)}" <span class="text-stone-600 text-[0.6rem]">${time}</span></div>
+                                <div class="mt-0.5 flex flex-wrap">${outcomes}</div>
+                            </li>`;
+                        }).join('');
+                    }
+
                     // --- Local audio persistence (IndexedDB) — ANALYSIS.md B3 ---------------
                     // Audio files were previously decoded into memory only; every reload forced
                     // the user to re-pick their audio folder. We now keep the raw file bytes in
@@ -164,6 +216,63 @@
                             keys() { return tx('readonly', store => store.getAllKeys()).then(k => k || []); },
                         };
                     })();
+
+                    // Rolling book backups in IndexedDB (Phase 4.3): periodic metadata snapshots,
+                    // restorable from Settings. Audio bytes live in audioStore, so these stay small.
+                    const backupStore = (() => {
+                        const DB_NAME = 'storytellerBackups';
+                        const STORE = 'backups';
+                        let dbPromise = null;
+                        function open() {
+                            if (dbPromise) return dbPromise;
+                            dbPromise = new Promise((resolve, reject) => {
+                                if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+                                const req = indexedDB.open(DB_NAME, 1);
+                                req.onupgradeneeded = () => {
+                                    const db = req.result;
+                                    if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'ts' });
+                                };
+                                req.onsuccess = () => resolve(req.result);
+                                req.onerror = () => reject(req.error);
+                            });
+                            return dbPromise;
+                        }
+                        function tx(mode, fn) {
+                            return open().then(db => new Promise((resolve, reject) => {
+                                const t = db.transaction(STORE, mode);
+                                const req = fn(t.objectStore(STORE));
+                                t.oncomplete = () => resolve(req ? req.result : undefined);
+                                t.onerror = () => reject(t.error);
+                                t.onabort = () => reject(t.error);
+                            }));
+                        }
+                        return {
+                            available: () => !!window.indexedDB,
+                            put(record) { return tx('readwrite', s => s.put(record)); },
+                            getAll() { return tx('readonly', s => s.getAll()).then(r => r || []); },
+                            get(ts) { return tx('readonly', s => s.get(ts)).then(r => r || null); },
+                            delete(ts) { return tx('readwrite', s => s.delete(ts)); },
+                        };
+                    })();
+
+                    const MAX_BACKUPS = 20;
+                    let bookDirtyForBackup = false; // set on save; a periodic timer snapshots when dirty
+                    async function createBackup(reason) {
+                        if (!backupStore.available()) return;
+                        try {
+                            const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+                            if (!data) return;
+                            const ts = Date.now();
+                            await backupStore.put({ ts, reason: reason || 'auto', size: data.length, data });
+                            bookDirtyForBackup = false;
+                            // Prune to the most recent MAX_BACKUPS.
+                            const all = await backupStore.getAll();
+                            all.sort((a, b) => b.ts - a.ts);
+                            for (const old of all.slice(MAX_BACKUPS)) await backupStore.delete(old.ts);
+                        } catch (e) {
+                            console.warn('Backup failed:', e);
+                        }
+                    }
 
                     // SHA-256 hex when crypto.subtle is available (secure contexts); otherwise a
                     // cheap deterministic fallback from size + name + a byte sample, so file://
@@ -416,6 +525,7 @@
                             currentTimeOfDay: 'day',
                             collections: [],
                             soundtracks: [],
+                            scenes: [], // Phase 2.3: saved mixes { id, name, hotkey?, voicePhrases?, entries:[{pageId, variationId?, volume}] }
                             nextCollectionId: 0,
                             nextPageId: 0,
                             nextTagId: 0,
@@ -438,6 +548,8 @@
                                 speechEngine: 'auto',   // auto | browser | vosk (offline)
                                 voskModelUrl: null,     // optional http(s) URL to a model .tar.gz
                                 voskGrammar: true,       // constrain Vosk to the book's vocabulary
+                                crossfadeEnabled: false, // fade sounds in/out on transitions instead of hard cuts
+                                crossfadeDuration: 1.5,  // seconds (0–5)
                             },
                             storyPlot: {
                                 nodes: [],
@@ -830,6 +942,31 @@
                     // retriggered based on their time-of-day restrictions and variation definitions.  The flag is
                     // toggled within toggleTimeOfDay() and reset immediately after autoplay is processed.
                     let currentMasterVolume = 100;
+                    // Duck-all (Phase 1.5): a temporary global multiplier on the master volume
+                    // for "table talk" — drops everything to duckFactor without moving the slider.
+                    let duckFactor = 1.0;
+                    let isDucked = false;
+                    const DUCK_LEVEL = 0.2;
+                    // Effective master-volume fraction (0–1) folding in the duck. All gain math uses this.
+                    function masterFrac() { return (currentMasterVolume / 100) * duckFactor; }
+                    let quickVolumeSaveTimer = null; // debounce for the per-page live volume slider (2.2)
+                    // Page reorder drag state (3.2): armed by the grip handle so a handle-drag reorders
+                    // while a normal drag keeps the move-to-chapter / make-collection behavior.
+                    let pageReorderArmed = false;
+                    let draggedReorderPageId = null;
+                    function reorderPageInList(draggedId, targetId, insertAfter) {
+                        const activeCh = book.chapters.find(c => c.id == book.activeChapterId);
+                        const arr = (activeCh && !activeCh.isIndex) ? activeCh.pageIds : book.pages;
+                        const idOf = (x) => (x && typeof x === 'object') ? x.id : x;
+                        const fromIdx = arr.findIndex(x => idOf(x) === draggedId);
+                        if (fromIdx === -1) { showTemporaryMessage('Can only reorder pages that belong to this chapter.', 'info'); return; }
+                        const [moved] = arr.splice(fromIdx, 1);
+                        let toIdx = arr.findIndex(x => idOf(x) === targetId);
+                        if (toIdx === -1) { arr.splice(fromIdx, 0, moved); return; } // target not in this list; abort
+                        arr.splice(insertAfter ? toIdx + 1 : toIdx, 0, moved);
+                        saveToLocalStorage();
+                        renderPageList();
+                    }
 
                     // Flag to indicate that autoplay is being triggered due to a time-of-day change.  When set, the
                     // playAutoplayPages function will perform special logic to determine which pages should be
@@ -1157,6 +1294,36 @@
                     const SR_RESTART_MAX_MS = 30000;
                     const FADE_DURATION = 2.0;
                     const MIN_GAIN = 0.0001;
+
+                    // --- Crossfade engine (Phase 2.1) ---
+                    // When enabled, sounds fade in on start and out on stop over a configurable
+                    // duration, so chapter/time/variation transitions crossfade instead of cutting.
+                    function crossfadeActive() {
+                        return !!(book && book.settings && book.settings.crossfadeEnabled) && crossfadeSeconds() > 0;
+                    }
+                    function crossfadeSeconds() {
+                        const d = book && book.settings ? book.settings.crossfadeDuration : 0;
+                        return (typeof d === 'number' && d > 0) ? d : 0;
+                    }
+                    // Duration used for a stop's fade-out: the crossfade time when enabled, else the
+                    // app's default fade so existing (non-crossfade) behavior is unchanged.
+                    function stopFadeSeconds() {
+                        return crossfadeActive() ? crossfadeSeconds() : FADE_DURATION;
+                    }
+                    // Ramp a YouTube player's volume from its current value to a target over N seconds.
+                    function fadeInYouTube(player, targetVol, durationSeconds) {
+                        if (!player || typeof player.setVolume !== 'function') return;
+                        const steps = Math.max(1, Math.round(durationSeconds * 10));
+                        let i = 0;
+                        try { player.setVolume(0); } catch (e) { }
+                        const iv = setInterval(() => {
+                            i++;
+                            const v = Math.round(targetVol * (i / steps));
+                            try { player.setVolume(Math.max(0, Math.min(100, v))); } catch (e) { }
+                            if (i >= steps) clearInterval(iv);
+                        }, 100);
+                    }
+
                     let fuseInstance = null;
                     let keywordListForFuse = [];
                     let chapterKeywordList = [];
@@ -1217,6 +1384,8 @@
                             } else {
                                 log('All words in final transcript were already consumed by interim results.');
                             }
+                            // Record what this whole utterance caused for the history panel.
+                            finalizeTriggerHistory(lowerFinal);
                             consumedWordsForUtterance.clear();
                             lastInterimWordCount = 0;
                             return;
@@ -1433,6 +1602,65 @@
                             messageBox.style.display = 'none';
                             messageBox.timeoutId = null;
                         }, duration);
+                    }
+
+                    // --- Modal stacking (Phase 3.4) ----------------------------------------
+                    // Nested modals used to fight over hand-picked z-index values ('1005'/'1010'/
+                    // '1015'), which is exactly what caused the manage-sources-on-top bug. Instead,
+                    // a sub-modal calls bringModalToFront() when it opens (getting the next z-index
+                    // above whatever is showing) and releaseModalFront() when it closes.
+                    const MODAL_STACK_BASE_Z = 1100;
+                    let modalZStack = [];
+                    function bringModalToFront(el) {
+                        if (!el) return;
+                        modalZStack = modalZStack.filter(e => e !== el);
+                        modalZStack.push(el);
+                        el.style.zIndex = String(MODAL_STACK_BASE_Z + modalZStack.length * 10);
+                    }
+                    function releaseModalFront(el) {
+                        if (!el) return;
+                        modalZStack = modalZStack.filter(e => e !== el);
+                        el.style.zIndex = ''; // fall back to the CSS z-index
+                    }
+
+                    // --- Undo for destructive actions (Phase 1.3) ---------------------------
+                    // Deletes no longer prompt; they perform immediately and register a restore
+                    // function. An 8s snackbar (and Ctrl+Z) reverses the most recent delete.
+                    const undoStack = [];
+                    const UNDO_STACK_MAX = 10;
+                    let undoToastTimeoutId = null;
+                    function registerUndo(description, restoreFn) {
+                        undoStack.push({ description, restoreFn });
+                        if (undoStack.length > UNDO_STACK_MAX) undoStack.shift();
+                        showUndoToast(description, () => performUndo());
+                    }
+                    function performUndo() {
+                        const action = undoStack.pop();
+                        if (!action) { showTemporaryMessage('Nothing to undo.', 'info'); return; }
+                        try {
+                            action.restoreFn();
+                            showTemporaryMessage(`Restored: ${action.description}`, 'success');
+                        } catch (e) {
+                            console.error('Undo failed:', e);
+                            showTemporaryMessage('Undo failed — see console.', 'error');
+                        }
+                        hideUndoToast();
+                    }
+                    function showUndoToast(message, undoFn) {
+                        const toast = document.getElementById('undoToast');
+                        const msg = document.getElementById('undoToastMessage');
+                        const btn = document.getElementById('undoToastButton');
+                        if (!toast || !msg || !btn) return;
+                        msg.textContent = message;
+                        toast.classList.remove('hidden');
+                        btn.onclick = () => { undoFn(); };
+                        if (undoToastTimeoutId) clearTimeout(undoToastTimeoutId);
+                        undoToastTimeoutId = setTimeout(hideUndoToast, 8000);
+                    }
+                    function hideUndoToast() {
+                        const toast = document.getElementById('undoToast');
+                        if (toast) toast.classList.add('hidden');
+                        if (undoToastTimeoutId) { clearTimeout(undoToastTimeoutId); undoToastTimeoutId = null; }
                     }
 
                     // --- YouTube Title Fetcher ---
@@ -1712,11 +1940,24 @@
                     // --- Settings Modal Functions ---
                     function openSettingsModal() {
                         log("Opening Settings modal.");
+                        // Always start on the first tab.
+                        if (typeof activateSettingsTab === 'function') activateSettingsTab('speech');
                         // Populate settings from the 'book.settings' object
                         settingsListeningModeRadios.forEach(radio => {
                             radio.checked = (radio.value === book.settings.listeningMode);
                         });
                         settingsCompoundPhrasingCheckbox.checked = book.settings.compoundPhrasing;
+
+                        const crossfadeToggle = document.getElementById('settingsCrossfadeEnabled');
+                        const crossfadeDurInput = document.getElementById('settingsCrossfadeDuration');
+                        const crossfadeDurContainer = document.getElementById('crossfadeDurationContainer');
+                        const crossfadeDurValue = document.getElementById('settingsCrossfadeDurationValue');
+                        const cfEnabled = book.settings.crossfadeEnabled === true;
+                        const cfDur = typeof book.settings.crossfadeDuration === 'number' ? book.settings.crossfadeDuration : 1.5;
+                        if (crossfadeToggle) crossfadeToggle.checked = cfEnabled;
+                        if (crossfadeDurInput) { crossfadeDurInput.value = cfDur; if (typeof updateRangeFill === 'function') updateRangeFill(crossfadeDurInput); }
+                        if (crossfadeDurValue) crossfadeDurValue.textContent = cfDur;
+                        if (crossfadeDurContainer) crossfadeDurContainer.classList.toggle('hidden', !cfEnabled);
 
                         const debugToggle = document.getElementById('settingsDebugLogging');
                         if (debugToggle) debugToggle.checked = DEBUG_LOGGING;
@@ -1793,6 +2034,10 @@
                         // Update book.settings from modal inputs
                         book.settings.listeningMode = document.querySelector('input[name="settingsListeningMode"]:checked')?.value || 'toggle';
                         book.settings.compoundPhrasing = settingsCompoundPhrasingCheckbox.checked;
+                        const crossfadeToggle = document.getElementById('settingsCrossfadeEnabled');
+                        const crossfadeDurInput = document.getElementById('settingsCrossfadeDuration');
+                        if (crossfadeToggle) book.settings.crossfadeEnabled = crossfadeToggle.checked;
+                        if (crossfadeDurInput) book.settings.crossfadeDuration = parseFloat(crossfadeDurInput.value) || 0;
                         book.settings.stopAudioMode = document.querySelector('input[name="settingsStopAudioMode"]:checked')?.value || 'all';
                         book.settings.autoplayOnClick = document.querySelector('input[name="settingsAutoplayOnClick"]:checked')?.value || 'listening';
 
@@ -2011,7 +2256,7 @@
 
                         // Clear out any existing effects from previous openings
                         addEditAppendixEntryModal.style.display = 'flex';
-                        appendixModal.style.zIndex = '1005'; // Hide the main appendix modal behind this one
+                        bringModalToFront(addEditAppendixEntryModal);
                     }
 
                     function openAppendixEntryForEdit(entryId) {
@@ -2067,12 +2312,12 @@
                         initializeConditionBuilder('appendixActivationPageConditionsList', 'appendixOtherActivationConditions', 'appendixTagActivationConditions', entry.conditions || [], 'appendixActivationPageConditionSearchInput', 'appendixActivationTagSearchInput');
 
                         addEditAppendixEntryModal.style.display = 'flex';
-                        appendixModal.style.zIndex = '1005';
+                        bringModalToFront(addEditAppendixEntryModal);
                     }
 
                     function closeAddEditAppendixEntryModal() {
                         addEditAppendixEntryModal.style.display = 'none';
-                        appendixModal.style.zIndex = '1010'; // Restore the z-index of the main appendix modal
+                        releaseModalFront(addEditAppendixEntryModal);
                     }
 
                     function populateAppendixPageEventTargetList() {
@@ -2292,15 +2537,16 @@
                         }
 
                         const entry = book.appendix[entryIndex];
-                        const triggerText = entry.trigger.type === 'phrase' ? `the phrase trigger "${entry.trigger.phrases[0]}..."` : `the page event trigger`;
-
-                        if (!confirm(`Are you sure you want to delete ${triggerText}? This cannot be undone.`)) return;
 
                         book.appendix.splice(entryIndex, 1);
                         saveToLocalStorage();
                         renderAppendixList();
-                        showTemporaryMessage("Appendix entry deleted.", "success");
                         log(`Deleted appendix entry ID: ${entryId}`);
+                        registerUndo(`Deleted appendix "${entry.name || 'entry'}"`, () => {
+                            book.appendix.splice(Math.min(entryIndex, book.appendix.length), 0, entry);
+                            saveToLocalStorage();
+                            renderAppendixList();
+                        });
                     }
 
                     function renderAppendixEffectsList() {
@@ -2358,13 +2604,13 @@
                         renderAppendixEffectControls(effectType, appendixEffectParamsContainer, appendixEffectTargetContainer, effectId, effectData);
 
                         appendixEffectModal.style.display = 'flex';
-                        addEditAppendixEntryModal.style.zIndex = '1005';
+                        bringModalToFront(appendixEffectModal);
                     }
 
                     function closeAppendixEffectModal(event) {
                         if (event) event.stopPropagation();
                         appendixEffectModal.style.display = 'none';
-                        addEditAppendixEntryModal.style.zIndex = '1010';
+                        releaseModalFront(appendixEffectModal);
                     }
 
                     function renderAppendixEffectControls(effectType, paramsContainer, targetContainer, effectId, effectData = {}, triggerType = 'phrase') {
@@ -2891,6 +3137,60 @@
                         stopAllSounds();
                         showTemporaryMessage('All sounds stopped.', 'info');
                     });
+
+                    // --- Duck-all (Phase 1.5) ---
+                    function toggleDuck() {
+                        isDucked = !isDucked;
+                        duckFactor = isDucked ? DUCK_LEVEL : 1.0;
+                        // Recompute every sound's gain. The master-slider input handler recomputes
+                        // file/YouTube/Syrinscape gains and the soundtrack, all via masterFrac().
+                        if (typeof masterVolumeSlider !== 'undefined') masterVolumeSlider.dispatchEvent(new Event('input'));
+                        else adjustCurrentlyPlayingVolumes();
+                        const duckBtn = document.getElementById('duckButton');
+                        if (duckBtn) {
+                            duckBtn.classList.toggle('is-ducked', isDucked);
+                            const icon = duckBtn.querySelector('i');
+                            if (icon) icon.className = `fas ${isDucked ? 'fa-volume-off' : 'fa-volume-low'} fa-fw`;
+                            duckBtn.title = isDucked ? 'Restore volume (Ctrl+D)' : 'Duck volume for table talk (Ctrl+D)';
+                        }
+                        showTemporaryMessage(isDucked ? `Ducked to ${Math.round(DUCK_LEVEL * 100)}% for table talk.` : 'Volume restored.', 'info', 1500);
+                    }
+                    const duckButton = document.getElementById('duckButton');
+                    if (duckButton) duckButton.addEventListener('click', toggleDuck);
+
+                    // --- Page hotkeys (Phase 1.4) ---
+                    // Build a stable combo string from a keyboard event, used both when capturing
+                    // a binding and when matching one at play time.
+                    function hotkeyComboFromEvent(e) {
+                        const parts = [];
+                        if (e.ctrlKey || e.metaKey) parts.push('ctrl');
+                        if (e.altKey) parts.push('alt');
+                        let key = e.key;
+                        if (key === ' ') key = 'Space';
+                        if (key.length > 1 && e.shiftKey) parts.push('shift'); // shift matters only for named keys
+                        parts.push(key.length === 1 ? key.toUpperCase() : key);
+                        return parts.join('+');
+                    }
+                    const editPageHotkeyInput = document.getElementById('editPageHotkey');
+                    if (editPageHotkeyInput) {
+                        editPageHotkeyInput.addEventListener('keydown', (e) => {
+                            e.preventDefault(); e.stopPropagation();
+                            if (e.key === 'Escape') { editPageHotkeyInput.blur(); return; }
+                            if (['Backspace', 'Delete'].includes(e.key)) { editPageHotkeyInput.value = ''; editPageHotkeyInput.dataset.hotkey = ''; return; }
+                            if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return; // wait for a real key
+                            const combo = hotkeyComboFromEvent(e);
+                            editPageHotkeyInput.dataset.hotkey = combo;
+                            editPageHotkeyInput.value = combo;
+                            editPageHotkeyInput.blur();
+                        });
+                        editPageHotkeyInput.addEventListener('focus', () => { editPageHotkeyInput.value = 'Press a key…'; });
+                        editPageHotkeyInput.addEventListener('blur', () => { editPageHotkeyInput.value = editPageHotkeyInput.dataset.hotkey || ''; });
+                    }
+                    const clearPageHotkeyButton = document.getElementById('clearPageHotkeyButton');
+                    if (clearPageHotkeyButton) clearPageHotkeyButton.addEventListener('click', () => {
+                        if (editPageHotkeyInput) { editPageHotkeyInput.dataset.hotkey = ''; editPageHotkeyInput.value = ''; }
+                    });
+
                     openSaveFileModalButton.addEventListener('click', openSaveFileModal);
                     loadFileInput.addEventListener('change', handleFileLoad);
 
@@ -2975,21 +3275,21 @@
                                 const page = activePage;
                                 if (page) {
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
-                                    const finalGain = (pageOrVariationVolume / 100) * (currentMasterVolume / 100);
+                                    const finalGain = (pageOrVariationVolume / 100) * masterFrac();
                                     soundData.gainNode.gain.setTargetAtTime(finalGain, audioContext.currentTime, 0.01); // Smooth transition
                                 }
                             } else if (soundData.node && soundData.sourceDetail.type === 'youtube') { // YouTube sound
                                 const page = activePage;
                                 if (page) {
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
-                                    const finalYTVolume = Math.round(pageOrVariationVolume * (currentMasterVolume / 100));
+                                    const finalYTVolume = Math.round(pageOrVariationVolume * masterFrac());
                                     soundData.node.setVolume(finalYTVolume);
                                 }
                             } else if (soundData.sourceDetail.type === 'syrinscape' && syrinscapePlayerReady && syrinscape.player && syrinscape.player.audioSystem) { // Syrinscape sound
                                 const page = activePage;
                                 if (page) {
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
-                                    const scaledVolume = (pageOrVariationVolume / 100) * (currentMasterVolume / 100); // Scale 0-1
+                                    const scaledVolume = (pageOrVariationVolume / 100) * masterFrac(); // Scale 0-1
                                     const syrinscapeLocalVolume = Math.min(1.5, scaledVolume * 1.5); // Syrinscape uses 0-1.5 for local volume
                                     log(`Adjusting Syrinscape local volume to: ${syrinscapeLocalVolume} (Master: ${currentMasterVolume}%, Page/Var: ${pageOrVariationVolume}%)`);
                                     syrinscape.player.audioSystem.setLocalVolume(syrinscapeLocalVolume.toString());
@@ -3042,6 +3342,534 @@
                             showTemporaryMessage('Debug log downloaded.', 'success');
                         });
                     }
+
+                    // --- Crossfade settings interaction (Phase 2.1) ---
+                    const settingsCrossfadeToggle = document.getElementById('settingsCrossfadeEnabled');
+                    const settingsCrossfadeDurInput = document.getElementById('settingsCrossfadeDuration');
+                    if (settingsCrossfadeToggle) {
+                        settingsCrossfadeToggle.addEventListener('change', () => {
+                            const c = document.getElementById('crossfadeDurationContainer');
+                            if (c) c.classList.toggle('hidden', !settingsCrossfadeToggle.checked);
+                        });
+                    }
+                    if (settingsCrossfadeDurInput) {
+                        settingsCrossfadeDurInput.addEventListener('input', () => {
+                            const v = document.getElementById('settingsCrossfadeDurationValue');
+                            if (v) v.textContent = parseFloat(settingsCrossfadeDurInput.value).toFixed(1);
+                        });
+                    }
+
+                    // --- Accessibility: label icon-only controls (4.5) ---
+                    // Most buttons carry a `title`; mirror it to aria-label so screen readers
+                    // announce them. A debounced observer covers dynamically-rendered controls.
+                    function applyAriaLabels(root) {
+                        (root || document).querySelectorAll('button[title]:not([aria-label]), a[title]:not([aria-label]), label[title]:not([aria-label])').forEach(el => {
+                            const t = el.getAttribute('title');
+                            if (t) el.setAttribute('aria-label', t);
+                        });
+                    }
+                    let ariaLabelScheduled = false;
+                    const ariaObserver = new MutationObserver(() => {
+                        if (ariaLabelScheduled) return;
+                        ariaLabelScheduled = true;
+                        requestAnimationFrame(() => { ariaLabelScheduled = false; applyAriaLabels(document); });
+                    });
+                    applyAriaLabels(document);
+                    ariaObserver.observe(document.body, { childList: true, subtree: true });
+
+                    // --- Settings modal tabs ---
+                    function activateSettingsTab(tabName) {
+                        document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+                            btn.classList.toggle('active', btn.dataset.settingsTab === tabName);
+                        });
+                        document.querySelectorAll('.settings-tab-panel').forEach(panel => {
+                            panel.classList.toggle('active', panel.dataset.settingsPanel === tabName);
+                        });
+                        // Scroll the modal body back to the top when switching tabs.
+                        const body = document.querySelector('#settingsModal .modal-body');
+                        if (body) body.scrollTop = 0;
+                    }
+                    document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+                        btn.addEventListener('click', () => activateSettingsTab(btn.dataset.settingsTab));
+                    });
+
+                    // --- Trigger history panel (Phase 1.1) ---
+                    const toggleHistoryButton = document.getElementById('toggleHistoryButton');
+                    const triggerHistoryPanel = document.getElementById('triggerHistoryPanel');
+                    if (toggleHistoryButton && triggerHistoryPanel) {
+                        toggleHistoryButton.addEventListener('click', () => {
+                            const nowHidden = triggerHistoryPanel.classList.toggle('hidden');
+                            const label = document.getElementById('toggleHistoryLabel');
+                            if (label) label.textContent = nowHidden ? 'Show History' : 'Hide History';
+                            if (!nowHidden) renderTriggerHistory();
+                        });
+                    }
+                    // Clicking a matched page in the history plays/stops it.
+                    const triggerHistoryList = document.getElementById('triggerHistoryList');
+                    if (triggerHistoryList) {
+                        triggerHistoryList.addEventListener('click', (e) => {
+                            const el = e.target.closest('[data-history-page]');
+                            if (!el) return;
+                            const pageId = parseInt(el.dataset.historyPage, 10);
+                            if (isNaN(pageId)) return;
+                            if (activeSounds[pageId]) stopSingleSound(pageId);
+                            else playPageManually(pageId);
+                        });
+                    }
+
+                    // --- Matcher playground (Phase 1.2) ---
+                    // Runs the real matching pipeline in dry-run mode: same code path as live
+                    // speech, but every side effect is suppressed and outcomes are collected.
+                    async function runMatcherPlayground(text) {
+                        const clean = (text || '').trim().toLowerCase();
+                        currentUtteranceOutcomes = [];
+                        if (!clean) return [];
+                        matchDryRun = true;
+                        try {
+                            await checkForKeywords(clean, book, false, new Set());
+                        } catch (e) {
+                            console.error('Matcher playground error:', e);
+                        } finally {
+                            matchDryRun = false;
+                        }
+                        const outcomes = currentUtteranceOutcomes.slice();
+                        currentUtteranceOutcomes = [];
+                        return outcomes;
+                    }
+                    function renderPlaygroundResults(outcomes) {
+                        const resultsEl = document.getElementById('matcherPlaygroundResults');
+                        if (!resultsEl) return;
+                        if (!outcomes || outcomes.length === 0) {
+                            resultsEl.innerHTML = '<p class="text-sm text-stone-500 italic"><i class="fas fa-ban mr-1"></i>No match — this phrase would not trigger anything in the current chapter.</p>';
+                            return;
+                        }
+                        const iconFor = (type) => ({
+                            page: 'fa-play text-green-400', stop: 'fa-hand text-red-400',
+                            time: 'fa-clock text-blue-300', chapter: 'fa-book-open text-amber-300',
+                            appendix: 'fa-wand-magic-sparkles text-purple-300'
+                        }[type] || 'fa-circle text-stone-500');
+                        resultsEl.innerHTML = '<ul class="space-y-2">' + outcomes.map(o => {
+                            const conf = (typeof o.confidence === 'number')
+                                ? `<span class="text-xs text-stone-400 ml-2">${Math.round(o.confidence * 100)}% confidence${o.keyword ? ' · matched "' + escapeHtml(o.keyword) + '"' : ''}</span>`
+                                : (o.keyword ? `<span class="text-xs text-stone-400 ml-2">matched "${escapeHtml(o.keyword)}"</span>` : '');
+                            return `<li class="flex items-baseline text-sm text-stone-200"><i class="fas ${iconFor(o.type)} mr-2"></i><span>${escapeHtml(o.label)}${conf}</span></li>`;
+                        }).join('') + '</ul>';
+                    }
+                    function openMatcherPlayground() {
+                        const modal = document.getElementById('matcherPlaygroundModal');
+                        if (!modal) return;
+                        const activeCh = book.chapters.find(c => c.id == book.activeChapterId);
+                        const chSpan = document.getElementById('matcherPlaygroundChapter');
+                        const timeSpan = document.getElementById('matcherPlaygroundTime');
+                        if (chSpan) chSpan.textContent = activeCh ? activeCh.name : '—';
+                        if (timeSpan) timeSpan.textContent = currentTimeOfDay;
+                        document.getElementById('matcherPlaygroundResults').innerHTML = '<p class="text-sm text-stone-500 italic">Type a phrase and press Test.</p>';
+                        modal.style.display = 'flex';
+                        const input = document.getElementById('matcherPlaygroundInput');
+                        if (input) { input.value = ''; setTimeout(() => input.focus(), 50); }
+                    }
+                    async function doPlaygroundRun() {
+                        const input = document.getElementById('matcherPlaygroundInput');
+                        if (!input) return;
+                        const outcomes = await runMatcherPlayground(input.value);
+                        renderPlaygroundResults(outcomes);
+                    }
+                    // --- Scenes (Phase 2.3): save & recall sound mixes ---
+                    function captureCurrentMix() {
+                        const entries = [];
+                        Object.keys(activeSounds).forEach(pid => {
+                            const id = parseInt(pid, 10);
+                            const sd = activeSounds[id];
+                            const page = book.pages.find(p => p.id === id);
+                            if (!page || !sd) return;
+                            let variationId = null;
+                            const detail = sd.sourceDetail;
+                            if (detail && Array.isArray(page.sources)) {
+                                const v = page.sources.find(v => v.sources && (v.sources.includes(detail) || (detail.id && v.sources.some(s => s.id === detail.id))));
+                                if (v) variationId = v.id;
+                            }
+                            const vol = Math.max(0, Math.min(100, (page.volume || 0) + (volumeModifiers[id] || 0)));
+                            entries.push({ pageId: id, variationId, volume: vol });
+                        });
+                        return entries;
+                    }
+                    function saveCurrentScene() {
+                        const nameInput = document.getElementById('newSceneNameInput');
+                        const entries = captureCurrentMix();
+                        if (entries.length === 0) { showTemporaryMessage('Nothing is playing to capture.', 'info'); return; }
+                        if (!Array.isArray(book.scenes)) book.scenes = [];
+                        const name = (nameInput && nameInput.value.trim()) || `Scene ${book.scenes.length + 1}`;
+                        book.scenes.push({ id: `scene_${generateUUID()}`, name, entries });
+                        if (nameInput) nameInput.value = '';
+                        saveToLocalStorage();
+                        renderScenesList();
+                        showTemporaryMessage(`Scene "${name}" saved (${entries.length} sound${entries.length !== 1 ? 's' : ''}).`, 'success');
+                    }
+                    function recallScene(sceneId) {
+                        const scene = (book.scenes || []).find(s => s.id === sceneId);
+                        if (!scene) return;
+                        const targetIds = new Set(scene.entries.map(e => e.pageId));
+                        // Crossfade out anything not in the scene.
+                        Object.keys(activeSounds).forEach(pid => {
+                            const id = parseInt(pid, 10);
+                            if (!targetIds.has(id)) stopSingleSound(id, 'scene_recall');
+                        });
+                        // Start or re-level the scene's members at their saved volumes.
+                        scene.entries.forEach(e => {
+                            const page = book.pages.find(p => p.id === e.pageId);
+                            if (!page) return;
+                            // Set effective volume to the saved value via the modifier layer (no permanent page.volume change).
+                            volumeModifiers[e.pageId] = e.volume - (page.volume || 0);
+                            if (activeSounds[e.pageId]) {
+                                adjustCurrentlyPlayingVolumes([e.pageId]);
+                            } else {
+                                let source = null;
+                                if (e.variationId) {
+                                    const v = page.sources.find(s => s.id === e.variationId);
+                                    if (v && Array.isArray(v.sources)) {
+                                        const playable = v.sources.filter(sub => (sub.type === 'file' && !sub.needsFile) || sub.type === 'youtube' || (sub.type === 'syrinscape' && sub.syrinscapeElementId));
+                                        if (playable.length) source = playable[Math.floor(Math.random() * playable.length)];
+                                    }
+                                }
+                                if (!source) source = findPlayableSourceVariation(page, false, null);
+                                if (source) playSound(page, source, true, null, false, false);
+                            }
+                        });
+                        saveToLocalStorage();
+                        renderPageList();
+                        showTemporaryMessage(`Recalled scene "${scene.name}".`, 'success');
+                    }
+                    function deleteScene(sceneId) {
+                        const idx = (book.scenes || []).findIndex(s => s.id === sceneId);
+                        if (idx === -1) return;
+                        const removed = book.scenes[idx];
+                        book.scenes.splice(idx, 1);
+                        saveToLocalStorage();
+                        renderScenesList();
+                        registerUndo(`Deleted scene "${removed.name || 'scene'}"`, () => {
+                            book.scenes.splice(Math.min(idx, book.scenes.length), 0, removed);
+                            saveToLocalStorage();
+                            renderScenesList();
+                        });
+                    }
+                    function renderScenesList() {
+                        const listEl = document.getElementById('scenesList');
+                        if (!listEl) return;
+                        const scenes = book.scenes || [];
+                        if (scenes.length === 0) {
+                            listEl.innerHTML = '<li class="text-center py-4 italic text-gray-400 text-sm">No scenes yet. Play some sounds, then Save Current Mix.</li>';
+                            return;
+                        }
+                        listEl.innerHTML = '';
+                        scenes.forEach(scene => {
+                            const li = document.createElement('li');
+                            li.className = 'flex items-center justify-between gap-2 py-1.5 px-2 border-b border-stone-700/50';
+                            li.innerHTML = `
+                                <div class="min-w-0">
+                                    <div class="text-sm text-stone-200 truncate">${escapeHtml(scene.name)}</div>
+                                    <div class="text-xs text-stone-500">${(scene.entries || []).length} sound${(scene.entries || []).length !== 1 ? 's' : ''}</div>
+                                </div>
+                                <div class="flex-shrink-0 flex gap-2">
+                                    <button class="btn-rpg-sm recall-scene-btn"><i class="fas fa-play mr-1"></i>Recall</button>
+                                    <button class="btn-rpg-sm btn-danger-sm delete-scene-btn" title="Delete scene"><i class="fas fa-trash-alt"></i></button>
+                                </div>`;
+                            li.querySelector('.recall-scene-btn').addEventListener('click', () => recallScene(scene.id));
+                            li.querySelector('.delete-scene-btn').addEventListener('click', () => deleteScene(scene.id));
+                            listEl.appendChild(li);
+                        });
+                    }
+                    function openScenesModal() {
+                        renderScenesList();
+                        const modal = document.getElementById('scenesModal');
+                        if (modal) modal.style.display = 'flex';
+                    }
+                    // --- Bulk audio import (Phase 3.1): a page per file, reviewed in one pass ---
+                    let bulkImportFiles = [];
+                    function cleanFilenameToTitle(name) {
+                        let t = String(name || '').replace(/\.[^.]+$/, '');   // strip extension
+                        t = t.replace(/[_\-]+/g, ' ');                        // underscores/dashes → spaces
+                        t = t.replace(/^\s*\d+\s*[.\-)]?\s+/, '');            // leading "01 - " track number
+                        t = t.replace(/\s+/g, ' ').trim();
+                        t = t.replace(/\b\w/g, c => c.toUpperCase());         // title case
+                        return t || String(name || 'Untitled');
+                    }
+                    function keywordsFromTitle(title) {
+                        return title.toLowerCase().split(/\s+/)
+                            .filter(w => w.length >= 3 && !IGNORED_WORDS.has(w))
+                            .slice(0, 6).join(', ');
+                    }
+                    function uniqueTitle(base, taken) {
+                        let t = base, n = 2;
+                        const lc = new Set([...taken].map(x => x.toLowerCase()));
+                        while (lc.has(t.toLowerCase())) { t = `${base} ${n++}`; }
+                        return t;
+                    }
+                    function chapterOptionsHtml(selectedId) {
+                        return book.chapters.slice().sort((a, b) => (a.isIndex ? -1 : b.isIndex ? 1 : a.name.localeCompare(b.name)))
+                            .map(ch => `<option value="${ch.id}" ${String(ch.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(ch.name)}</option>`).join('');
+                    }
+                    function openBulkImportReview(files) {
+                        bulkImportFiles = Array.from(files);
+                        const tbody = document.getElementById('bulkImportTableBody');
+                        const defaultChapterSelect = document.getElementById('bulkImportDefaultChapter');
+                        const activeCh = book.chapters.find(c => c.id == book.activeChapterId);
+                        const defaultChapterId = activeCh ? activeCh.id : 'index';
+                        if (defaultChapterSelect) defaultChapterSelect.innerHTML = chapterOptionsHtml(defaultChapterId);
+                        const takenTitles = new Set(book.pages.map(p => p.title));
+                        tbody.innerHTML = '';
+                        bulkImportFiles.forEach((file, idx) => {
+                            const base = cleanFilenameToTitle(file.name);
+                            const title = uniqueTitle(base, takenTitles);
+                            takenTitles.add(title);
+                            const tr = document.createElement('tr');
+                            tr.className = 'border-b border-stone-800/60';
+                            tr.innerHTML = `
+                                <td class="p-1 align-top"><input type="checkbox" class="bulk-row-include" data-idx="${idx}" checked></td>
+                                <td class="p-1"><input type="text" class="bulk-row-title w-full !py-1" value="${escapeHtml(title)}"></td>
+                                <td class="p-1"><input type="text" class="bulk-row-keywords w-full !py-1" value="${escapeHtml(keywordsFromTitle(title))}"></td>
+                                <td class="p-1"><select class="bulk-row-chapter w-full !py-1">${chapterOptionsHtml(defaultChapterId)}</select></td>`;
+                            tbody.appendChild(tr);
+                        });
+                        document.getElementById('bulkImportStatus').textContent = `${bulkImportFiles.length} file${bulkImportFiles.length !== 1 ? 's' : ''} selected.`;
+                        const selectAll = document.getElementById('bulkImportSelectAll');
+                        if (selectAll) selectAll.checked = true;
+                        document.getElementById('bulkImportModal').style.display = 'flex';
+                    }
+                    async function confirmBulkImport() {
+                        if (!initAudioContext()) { showTemporaryMessage('Audio system not ready.', 'error'); return; }
+                        const rows = Array.from(document.querySelectorAll('#bulkImportTableBody tr'));
+                        const confirmBtn = document.getElementById('confirmBulkImportButton');
+                        const statusEl = document.getElementById('bulkImportStatus');
+                        confirmBtn.disabled = true;
+                        let created = 0, failed = 0;
+                        const takenTitles = new Set(book.pages.map(p => p.title));
+                        for (let i = 0; i < rows.length; i++) {
+                            const row = rows[i];
+                            const include = row.querySelector('.bulk-row-include');
+                            const idx = parseInt(include.dataset.idx, 10);
+                            if (!include.checked) continue;
+                            const file = bulkImportFiles[idx];
+                            if (!file) continue;
+                            const title = uniqueTitle(row.querySelector('.bulk-row-title').value.trim() || cleanFilenameToTitle(file.name), takenTitles);
+                            takenTitles.add(title);
+                            const keywords = row.querySelector('.bulk-row-keywords').value.trim().toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
+                            const chapterId = row.querySelector('.bulk-row-chapter').value;
+                            statusEl.textContent = `Importing ${created + 1}… "${title}"`;
+                            try {
+                                const arrayBuffer = await file.arrayBuffer();
+                                const bytesForStore = arrayBuffer.slice(0);
+                                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                                const sourceDetail = { type: 'file', source: audioBuffer, fileName: file.name, startTime: 0, endTime: null, needsFile: false };
+                                await persistAudioSource(sourceDetail, file, bytesForStore);
+                                const pageId = book.nextPageId++;
+                                book.pages.push({
+                                    id: pageId, title, primaryKey: null, keywords, phrases: [], isStarred: false,
+                                    volume: 80, loop: false, loopCount: 0, fadeInOut: false, endPlayKeywords: [],
+                                    nextPageId: null, timeOfDaySetting: 'always', hotkey: null, currentLoop: 0,
+                                    sources: [{ id: `var_${generateUUID()}`, name: 'Main', volumeOverride: null, isDefault: true, variationKeywords: [], conditions: null, sources: [sourceDetail] }]
+                                });
+                                const ch = book.chapters.find(c => String(c.id) === String(chapterId));
+                                if (ch && !ch.isIndex && !ch.pageIds.includes(pageId)) ch.pageIds.push(pageId);
+                                created++;
+                            } catch (e) {
+                                console.error(`Bulk import failed for "${file.name}":`, e);
+                                failed++;
+                            }
+                        }
+                        updateFuseIndex();
+                        updateChapterKeywordList();
+                        saveToLocalStorage();
+                        renderPageList();
+                        confirmBtn.disabled = false;
+                        document.getElementById('bulkImportModal').style.display = 'none';
+                        bulkImportFiles = [];
+                        showTemporaryMessage(`Created ${created} page${created !== 1 ? 's' : ''}${failed ? `, ${failed} failed` : ''}.`, failed ? 'warning' : 'success', 4000);
+                    }
+                    const bulkImportInput = document.getElementById('bulkImportInput');
+                    if (bulkImportInput) bulkImportInput.addEventListener('change', (e) => {
+                        if (e.target.files && e.target.files.length > 0) openBulkImportReview(e.target.files);
+                        e.target.value = ''; // allow re-selecting the same files
+                    });
+                    const cancelBulkImportButton = document.getElementById('cancelBulkImportButton');
+                    if (cancelBulkImportButton) cancelBulkImportButton.addEventListener('click', () => { document.getElementById('bulkImportModal').style.display = 'none'; bulkImportFiles = []; });
+                    const confirmBulkImportButton = document.getElementById('confirmBulkImportButton');
+                    if (confirmBulkImportButton) confirmBulkImportButton.addEventListener('click', confirmBulkImport);
+                    const bulkImportSelectAll = document.getElementById('bulkImportSelectAll');
+                    if (bulkImportSelectAll) bulkImportSelectAll.addEventListener('change', () => {
+                        document.querySelectorAll('#bulkImportTableBody .bulk-row-include').forEach(cb => { cb.checked = bulkImportSelectAll.checked; });
+                    });
+                    const bulkImportDefaultChapter = document.getElementById('bulkImportDefaultChapter');
+                    if (bulkImportDefaultChapter) bulkImportDefaultChapter.addEventListener('change', () => {
+                        document.querySelectorAll('#bulkImportTableBody .bulk-row-chapter').forEach(sel => { sel.value = bulkImportDefaultChapter.value; });
+                    });
+
+                    // --- Command palette (Phase 3.3): Ctrl+K fuzzy launcher ---
+                    let cmdFiltered = [];
+                    let cmdActiveIndex = 0;
+                    function buildCommandList() {
+                        const cmds = [];
+                        const btn = (id) => { const el = document.getElementById(id); if (el) el.click(); };
+                        cmds.push({ type: 'action', label: 'Toggle Listening', icon: 'fa-microphone', run: () => btn('toggleListenButton') });
+                        cmds.push({ type: 'action', label: 'Stop All Sounds', icon: 'fa-volume-xmark', run: () => { stopAllSounds(); showTemporaryMessage('All sounds stopped.', 'info'); } });
+                        cmds.push({ type: 'action', label: 'Duck Volume (table talk)', icon: 'fa-volume-low', run: () => toggleDuck() });
+                        cmds.push({ type: 'action', label: 'Toggle Day / Night', icon: 'fa-clock', run: () => toggleTimeOfDay() });
+                        cmds.push({ type: 'action', label: 'Open Settings', icon: 'fa-gear', run: () => btn('openSettingsModalButton') });
+                        cmds.push({ type: 'action', label: 'Open Appendix', icon: 'fa-scroll', run: () => btn('openAppendixModalButton') });
+                        cmds.push({ type: 'action', label: 'Open Scenes', icon: 'fa-layer-group', run: () => openScenesModal() });
+                        cmds.push({ type: 'action', label: 'Test a Phrase', icon: 'fa-flask', run: () => openMatcherPlayground() });
+                        cmds.push({ type: 'action', label: 'Open Story Plotter', icon: 'fa-diagram-project', run: () => btn('openStoryPlotterButton') });
+                        (book.chapters || []).forEach(ch => cmds.push({ type: 'chapter', label: ch.name, icon: 'fa-book-open', run: () => setActiveChapter(ch.id, true, 'tab_click') }));
+                        (book.scenes || []).forEach(s => cmds.push({ type: 'scene', label: s.name, icon: 'fa-layer-group', run: () => recallScene(s.id) }));
+                        (book.pages || []).forEach(pg => cmds.push({
+                            type: 'page', label: pg.title, icon: 'fa-play',
+                            run: () => { if (activeSounds[pg.id]) stopSingleSound(pg.id); else playPageManually(pg.id); }
+                        }));
+                        return cmds;
+                    }
+                    function cmdMatchScore(label, q) {
+                        const idx = label.indexOf(q);
+                        if (idx === 0) return 0;         // prefix
+                        if (idx > 0) return 1 + idx / 100; // substring, earlier is better
+                        let li = 0;                      // subsequence fallback
+                        for (let i = 0; i < q.length; i++) { li = label.indexOf(q[i], li); if (li < 0) return -1; li++; }
+                        return 50;
+                    }
+                    function renderCommandResults(query) {
+                        const resultsEl = document.getElementById('commandPaletteResults');
+                        if (!resultsEl) return;
+                        const all = buildCommandList();
+                        const q = (query || '').trim().toLowerCase();
+                        let list = all;
+                        if (q) {
+                            list = all.map(c => ({ c, s: cmdMatchScore(c.label.toLowerCase(), q) }))
+                                .filter(x => x.s >= 0).sort((a, b) => a.s - b.s).map(x => x.c);
+                        }
+                        cmdFiltered = list.slice(0, 40);
+                        cmdActiveIndex = 0;
+                        resultsEl.innerHTML = cmdFiltered.length === 0
+                            ? '<li class="!cursor-default text-stone-500 italic">No matches</li>'
+                            : cmdFiltered.map((c, i) => `<li data-idx="${i}" class="${i === 0 ? 'active' : ''}"><i class="fas ${c.icon} cmd-icon"></i><span class="truncate">${escapeHtml(c.label)}</span><span class="cmd-type">${c.type}</span></li>`).join('');
+                        resultsEl.querySelectorAll('li[data-idx]').forEach(li => {
+                            li.addEventListener('click', () => runCommand(parseInt(li.dataset.idx, 10)));
+                            li.addEventListener('mousemove', () => setCmdActive(parseInt(li.dataset.idx, 10)));
+                        });
+                    }
+                    function setCmdActive(idx) {
+                        cmdActiveIndex = Math.max(0, Math.min(cmdFiltered.length - 1, idx));
+                        const resultsEl = document.getElementById('commandPaletteResults');
+                        resultsEl.querySelectorAll('li[data-idx]').forEach(li => li.classList.toggle('active', parseInt(li.dataset.idx, 10) === cmdActiveIndex));
+                        const activeLi = resultsEl.querySelector('li.active');
+                        if (activeLi) activeLi.scrollIntoView({ block: 'nearest' });
+                    }
+                    function runCommand(idx) {
+                        const cmd = cmdFiltered[idx];
+                        if (!cmd) return;
+                        closeCommandPalette();
+                        try { cmd.run(); } catch (e) { console.error('Command failed:', e); }
+                    }
+                    function openCommandPalette() {
+                        const pal = document.getElementById('commandPalette');
+                        const input = document.getElementById('commandPaletteInput');
+                        if (!pal || !input) return;
+                        pal.classList.remove('hidden');
+                        input.value = '';
+                        renderCommandResults('');
+                        setTimeout(() => input.focus(), 20);
+                    }
+                    function closeCommandPalette() {
+                        const pal = document.getElementById('commandPalette');
+                        if (pal) pal.classList.add('hidden');
+                    }
+                    const commandPaletteInput = document.getElementById('commandPaletteInput');
+                    if (commandPaletteInput) {
+                        commandPaletteInput.addEventListener('input', () => renderCommandResults(commandPaletteInput.value));
+                        commandPaletteInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'ArrowDown') { e.preventDefault(); setCmdActive(cmdActiveIndex + 1); }
+                            else if (e.key === 'ArrowUp') { e.preventDefault(); setCmdActive(cmdActiveIndex - 1); }
+                            else if (e.key === 'Enter') { e.preventDefault(); runCommand(cmdActiveIndex); }
+                            else if (e.key === 'Escape') { e.preventDefault(); closeCommandPalette(); }
+                        });
+                    }
+                    const commandPaletteOverlay = document.getElementById('commandPalette');
+                    if (commandPaletteOverlay) commandPaletteOverlay.addEventListener('mousedown', (e) => { if (e.target === commandPaletteOverlay) closeCommandPalette(); });
+
+                    // --- Backups UI + restore (Phase 4.3) ---
+                    async function restoreBackup(ts) {
+                        const record = await backupStore.get(ts);
+                        if (!record || !record.data) { showTemporaryMessage('Backup not found.', 'error'); return; }
+                        // Snapshot the current book first so the restore is reversible.
+                        await createBackup('pre-restore');
+                        try {
+                            localStorage.setItem(LOCAL_STORAGE_KEY, record.data);
+                            stopAllSounds();
+                            loadFromLocalStorage();
+                            if (typeof rehydrateAudioFromStore === 'function') rehydrateAudioFromStore();
+                            updateFuseIndex();
+                            updateChapterKeywordList();
+                            renderChapterTabs();
+                            renderPageList();
+                            if (typeof updateUIState === 'function') updateUIState();
+                            document.getElementById('backupsModal').style.display = 'none';
+                            showTemporaryMessage(`Restored backup from ${new Date(ts).toLocaleString()}.`, 'success', 4000);
+                        } catch (e) {
+                            console.error('Restore failed:', e);
+                            showTemporaryMessage('Restore failed — see console.', 'error');
+                        }
+                    }
+                    async function renderBackupsList() {
+                        const listEl = document.getElementById('backupsList');
+                        if (!listEl) return;
+                        listEl.innerHTML = '<li class="text-center py-4 italic text-gray-400 text-sm">Loading…</li>';
+                        let backups = [];
+                        try { backups = await backupStore.getAll(); } catch (e) { /* ignore */ }
+                        backups.sort((a, b) => b.ts - a.ts);
+                        if (backups.length === 0) {
+                            listEl.innerHTML = '<li class="text-center py-4 italic text-gray-400 text-sm">No backups yet.</li>';
+                            return;
+                        }
+                        listEl.innerHTML = '';
+                        backups.forEach(bk => {
+                            const li = document.createElement('li');
+                            li.className = 'flex items-center justify-between gap-2 py-1.5 px-2 border-b border-stone-700/50';
+                            const kb = Math.max(1, Math.round((bk.size || 0) / 1024));
+                            li.innerHTML = `
+                                <div class="min-w-0">
+                                    <div class="text-sm text-stone-200">${new Date(bk.ts).toLocaleString()}</div>
+                                    <div class="text-xs text-stone-500">${kb} KB · ${escapeHtml(bk.reason || 'auto')}</div>
+                                </div>
+                                <button class="btn-rpg-sm restore-backup-btn flex-shrink-0"><i class="fas fa-rotate-left mr-1"></i>Restore</button>`;
+                            li.querySelector('.restore-backup-btn').addEventListener('click', () => restoreBackup(bk.ts));
+                            listEl.appendChild(li);
+                        });
+                    }
+                    const openBackupsButton = document.getElementById('openBackupsButton');
+                    if (openBackupsButton) openBackupsButton.addEventListener('click', () => { document.getElementById('backupsModal').style.display = 'flex'; renderBackupsList(); });
+                    const closeBackupsButton = document.getElementById('closeBackupsButton');
+                    if (closeBackupsButton) closeBackupsButton.addEventListener('click', () => { document.getElementById('backupsModal').style.display = 'none'; });
+                    const backupNowButton = document.getElementById('backupNowButton');
+                    if (backupNowButton) backupNowButton.addEventListener('click', async () => { await createBackup('manual'); renderBackupsList(); showTemporaryMessage('Backup saved.', 'success'); });
+                    // Periodic auto-backup: every 5 minutes if the book changed since the last snapshot.
+                    setInterval(() => { if (bookDirtyForBackup) createBackup('auto'); }, 5 * 60 * 1000);
+
+                    const openScenesModalButton = document.getElementById('openScenesModalButton');
+                    if (openScenesModalButton) openScenesModalButton.addEventListener('click', openScenesModal);
+                    const closeScenesModalButton = document.getElementById('closeScenesModalButton');
+                    if (closeScenesModalButton) closeScenesModalButton.addEventListener('click', () => { document.getElementById('scenesModal').style.display = 'none'; });
+                    const saveSceneButton = document.getElementById('saveSceneButton');
+                    if (saveSceneButton) saveSceneButton.addEventListener('click', saveCurrentScene);
+
+                    const openMatcherPlaygroundButton = document.getElementById('openMatcherPlaygroundButton');
+                    if (openMatcherPlaygroundButton) openMatcherPlaygroundButton.addEventListener('click', openMatcherPlayground);
+                    const closeMatcherPlaygroundButton = document.getElementById('closeMatcherPlaygroundButton');
+                    if (closeMatcherPlaygroundButton) closeMatcherPlaygroundButton.addEventListener('click', () => {
+                        document.getElementById('matcherPlaygroundModal').style.display = 'none';
+                    });
+                    const matcherPlaygroundRunButton = document.getElementById('matcherPlaygroundRunButton');
+                    if (matcherPlaygroundRunButton) matcherPlaygroundRunButton.addEventListener('click', doPlaygroundRun);
+                    const matcherPlaygroundInput = document.getElementById('matcherPlaygroundInput');
+                    if (matcherPlaygroundInput) matcherPlaygroundInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); doPlaygroundRun(); }
+                    });
 
 
                     // --- Add Page Modal Listeners ---
@@ -3858,7 +4686,7 @@
                     // --- Keyword Checking Logic ---
                     // --- Keyword Checking Logic ---
                     async function checkForKeywords(text, currentBook, isInterim = false, wordsToExclude = new Set()) {
-                        if (!text || !isListening) return;
+                        if (!text || (!isListening && !matchDryRun)) return;
 
                         // 1. Stop Phrases Check (Highest Priority)
                         // Clean up old page events before checking anything else
@@ -3883,8 +4711,9 @@
                         if (stopPhrases && stopPhrases.length > 0) {
                             const foundStopPhrase = stopPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                             if (foundStopPhrase) {
+                                recordMatchOutcome({ type: 'stop', label: 'Stop all sounds', keyword: foundStopPhrase });
                                 log(`Stop Phrase "${foundStopPhrase}" detected! Stopping all sounds.`);
-                                stopAllSounds();
+                                if (!matchDryRun) stopAllSounds();
                                 return; // Stop further processing
                             }
                         }
@@ -3894,15 +4723,17 @@
                         if (currentTimeOfDay === 'day' && nighttimeTransitionPhrases && nighttimeTransitionPhrases.length > 0) {
                             const foundNightPhrase = nighttimeTransitionPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                             if (foundNightPhrase) {
+                                recordMatchOutcome({ type: 'time', label: 'Time of day → Night', keyword: foundNightPhrase });
                                 log(`Nighttime transition phrase "${foundNightPhrase}" detected.`);
-                                toggleTimeOfDay('night'); // This will handle autoplay checks
+                                if (!matchDryRun) toggleTimeOfDay('night'); // This will handle autoplay checks
                                 timeTransitionHandled = true;
                             }
                         } else if (currentTimeOfDay === 'night' && daytimeTransitionPhrases && daytimeTransitionPhrases.length > 0) {
                             const foundDayPhrase = daytimeTransitionPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                             if (foundDayPhrase) {
+                                recordMatchOutcome({ type: 'time', label: 'Time of day → Day', keyword: foundDayPhrase });
                                 log(`Daytime transition phrase "${foundDayPhrase}" detected.`);
-                                toggleTimeOfDay('day'); // This will handle autoplay checks
+                                if (!matchDryRun) toggleTimeOfDay('day'); // This will handle autoplay checks
                                 timeTransitionHandled = true;
                             }
                         }
@@ -3917,8 +4748,9 @@
                                         if (entry.conditions && entry.conditions.length > 0 && !checkAppendixConditions(entry.conditions)) {
                                             continue; // Skip if activation conditions are not met
                                         }
+                                        recordMatchOutcome({ type: 'appendix', label: `Appendix: ${entry.name || 'Effect'}`, keyword: foundPhrase });
                                         log(`Appendix Phrase Triggered: "${foundPhrase}" for entry ID ${entry.id}`);
-                                        executeAppendixEntry(entry);
+                                        if (!matchDryRun) executeAppendixEntry(entry);
                                         // For now, we assume an appendix phrase is a standalone command and stop further page checks.
                                         return;
                                     }
@@ -3938,9 +4770,10 @@
                                     if (recentMatchingEvent) {
                                         const foundContextualPhrase = entry.trigger.phrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                                         if (foundContextualPhrase) {
+                                            recordMatchOutcome({ type: 'appendix', label: `Appendix: ${entry.name || 'Effect'} (contextual)`, keyword: foundContextualPhrase });
                                             log(`Appendix Contextual Phrase Triggered: "${foundContextualPhrase}" for entry ID ${entry.id} after event on page ${recentMatchingEvent.pageId}`);
-                                            executeAppendixEntry(entry);
-                                            if (!entry.trigger.allowMultiple) {
+                                            if (!matchDryRun) executeAppendixEntry(entry);
+                                            if (!matchDryRun && !entry.trigger.allowMultiple) {
                                                 recentMatchingEvent.usedBy.add(entry.id); // Mark this event as used by this entry
                                             }
                                             return; // Contextual phrases take precedence
@@ -3984,6 +4817,9 @@
                                 if (threadTriggered) {
                                     const toPlotNode = getPlotNodeById(thread.toNodeId);
                                     if (toPlotNode && toPlotNode.chapterId) {
+                                        const targetChapter = currentBook.chapters.find(c => c.id == toPlotNode.chapterId);
+                                        recordMatchOutcome({ type: 'chapter', label: `Chapter → ${targetChapter ? targetChapter.name : toPlotNode.chapterId} (plot thread)` });
+                                        if (matchDryRun) return;
                                         log(`Activating Plot Thread: From Chapter ${activeChapterNode.chapterId} to Chapter ${toPlotNode.chapterId}`);
                                         const soundsToPlayFromThread = thread.soundPageIds || [];
                                         if (thread.timeChange && thread.timeChange !== 'none' && thread.timeChange !== currentTimeOfDay) {
@@ -4031,8 +4867,10 @@
                                             const returnRegex = new RegExp(`\\b${exitPhrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s+(?:the\\s+|a\\s+|an\\s+|from\\s+)?${keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
                                             if (returnRegex.test(text)) {
                                                 const triggerAutoplay = !(originThread.disableAutoplay || false);
+                                                const returnCh = currentBook.chapters.find(c => c.id == lookBehindContext.returnChapterContext.fromChapterId);
+                                                recordMatchOutcome({ type: 'chapter', label: `Chapter → ${returnCh ? returnCh.name : 'return'} (exit)` });
                                                 log(`Exit Phrase "${exitPhrase}" + Keyword "${keyword}" (Type: ${returnKeywordType}) detected with active return context. Returning to chapter ${lookBehindContext.returnChapterContext.fromChapterId}. Autoplay: ${triggerAutoplay}`);
-                                                setActiveChapter(lookBehindContext.returnChapterContext.fromChapterId, triggerAutoplay, 'exit_phrase_return');
+                                                if (!matchDryRun) setActiveChapter(lookBehindContext.returnChapterContext.fromChapterId, triggerAutoplay, 'exit_phrase_return');
                                                 exitPhraseHandled = true;
                                                 break; // Keyword found, no need to check others for this exit phrase
                                             }
@@ -4051,12 +4889,16 @@
                                     if (match && chapterKeywordData.chapterId == currentBook.activeChapterId) { // Matched an exit phrase for the *current* chapter
                                         log(`Exit Phrase "${exitPhrase}" + Chapter Keyword "${targetKeyword}" detected for active chapter "${currentActiveChapterData.name}".`);
                                         const leaveTransitionTargetId = currentActiveChapterData.leaveTransitionTargetId || 'index'; // Default to Index
-                                        const afterLeaveSoundsCallback = () => {
-                                            log(`Leave sounds finished. Transitioning to chapter ${leaveTransitionTargetId}.`);
-                                            setActiveChapter(leaveTransitionTargetId, true, 'exit_phrase');
-                                        };
-                                        // Play sounds configured to play on leaving this chapter, then transition
-                                        playLeaveSounds(currentActiveChapterData.leaveSoundPageIds || [], afterLeaveSoundsCallback);
+                                        const leaveTarget = currentBook.chapters.find(c => c.id == leaveTransitionTargetId);
+                                        recordMatchOutcome({ type: 'chapter', label: `Chapter → ${leaveTarget ? leaveTarget.name : leaveTransitionTargetId} (exit)`, keyword: targetKeyword });
+                                        if (!matchDryRun) {
+                                            const afterLeaveSoundsCallback = () => {
+                                                log(`Leave sounds finished. Transitioning to chapter ${leaveTransitionTargetId}.`);
+                                                setActiveChapter(leaveTransitionTargetId, true, 'exit_phrase');
+                                            };
+                                            // Play sounds configured to play on leaving this chapter, then transition
+                                            playLeaveSounds(currentActiveChapterData.leaveSoundPageIds || [], afterLeaveSoundsCallback);
+                                        }
                                         exitPhraseHandled = true;
                                         break; // Exit inner loop (chapter keywords)
                                     }
@@ -4078,8 +4920,10 @@
                                 for (const chapterKeywordData of chapterKeywordList) {
                                     const targetRegex = new RegExp(`\\b${chapterKeywordData.keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
                                     if (targetRegex.test(potentialTargetPhrase) && chapterKeywordData.chapterId != currentBook.activeChapterId) {
+                                        const enterCh = currentBook.chapters.find(c => c.id == chapterKeywordData.chapterId);
+                                        recordMatchOutcome({ type: 'chapter', label: `Chapter → ${enterCh ? enterCh.name : chapterKeywordData.chapterId} (enter)`, keyword: chapterKeywordData.keyword });
                                         log(`Enter Phrase "${cue}" + Chapter Keyword "${chapterKeywordData.keyword}" matched! Switching to chapter ID: ${chapterKeywordData.chapterId}`);
-                                        setActiveChapter(chapterKeywordData.chapterId, true, 'enter_phrase'); // True for triggeredByVoice for autoplay
+                                        if (!matchDryRun) setActiveChapter(chapterKeywordData.chapterId, true, 'enter_phrase'); // True for triggeredByVoice for autoplay
                                         enterPhraseFound = true;
                                         break; // Exit chapterKeywordList loop
                                     }
@@ -4147,9 +4991,12 @@
                                         new RegExp(`\\b${keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text)
                                     ); // This regex needs to check against the un-consumed part of the text
                                     if (foundEndKeyword) {
+                                        recordMatchOutcome({ type: 'stop', label: `Stop "${activePage.title}" (end keyword)`, keyword: foundEndKeyword });
                                         log(`End keyword "${foundEndKeyword}" for looping sound "${activePage.title}". Stopping.`);
-                                        stopSingleSound(activePageId);
-                                        setSoundCooldown(activePageId, SMART_COOLDOWN_MS); // Cooldown to prevent immediate retrigger
+                                        if (!matchDryRun) {
+                                            stopSingleSound(activePageId);
+                                            setSoundCooldown(activePageId, SMART_COOLDOWN_MS); // Cooldown to prevent immediate retrigger
+                                        }
                                         stoppedSoundThisCheck = true;
                                     }
                                 }
@@ -4189,7 +5036,7 @@
                                     log(`Consumed words from multi-match: ${[...wordsInMatch]}`);
 
                                     // Set the look-behind context if this match has a primary key. // This logic is correct
-                                    if (isCompoundPhrasingEnabled && bestMatch.page.primaryKey) {
+                                    if (!matchDryRun && isCompoundPhrasingEnabled && bestMatch.page.primaryKey) {
                                         const primaryKeys = bestMatch.page.primaryKey.split(',').map(k => k.trim()).filter(Boolean);
                                         lookBehindContext.active = true;
                                         lookBehindContext.primaryKeys = primaryKeys;
@@ -4197,13 +5044,22 @@
                                         log(`Look-behind context activated with PKs: [${primaryKeys.join(', ')}]`);
                                     }
 
+                                    // Record this match for the history / playground. Surface the
+                                    // strongest matched keyword and its confidence.
+                                    const bestDetail = (bestMatch.matchDetails || []).slice().sort((x, y) => (y.confidence || 0) - (x.confidence || 0))[0];
+                                    recordMatchOutcome({
+                                        type: 'page', label: bestMatch.page.title, pageId: bestMatch.page.id,
+                                        keyword: bestDetail ? (bestDetail.keyword || bestDetail.matchedWord) : undefined,
+                                        confidence: bestDetail ? bestDetail.confidence : undefined
+                                    });
+
                                     // Position = earliest trigger-word index, so we can order by
                                     // where the phrase actually mentioned this page.
                                     const indices = bestMatch.matchDetails.map(d => d.index).filter(i => i >= 0);
                                     const position = indices.length ? Math.min(...indices) : Number.MAX_SAFE_INTEGER;
                                     matchesToPlay.push({ page: bestMatch.page, sourceToPlay, position });
 
-                                    setSoundCooldown(bestMatch.page.id, SMART_COOLDOWN_MS);
+                                    if (!matchDryRun) setSoundCooldown(bestMatch.page.id, SMART_COOLDOWN_MS);
                                 } else {
                                     console.warn(`Match found for "${bestMatch.page.title}" but no playable source. Stopping search for this utterance.`);
                                     keepSearching = false;
@@ -4218,6 +5074,10 @@
                         const triggerNextForPage = (page) => {
                             if (page.nextPageId !== null && page.nextPageId !== undefined) triggerNextPage(page.nextPageId);
                         };
+                        if (matchDryRun) {
+                            // Playground: outcomes are recorded; do not play or check soundtracks.
+                            return;
+                        }
                         if (matchesToPlay.length === 1) {
                             const m = matchesToPlay[0];
                             playSound(m.page, m.sourceToPlay, false, () => triggerNextForPage(m.page));
@@ -4467,7 +5327,7 @@
                                 const pageOrVariationVolume = (typeof currentSourceDetail.volumeOverride === 'number') ? currentSourceDetail.volumeOverride : page.volume;
                                 const modifier = volumeModifiers[page.id] || 0;
                                 const finalVolume = Math.max(0, Math.min(100, pageOrVariationVolume + modifier));
-                                const finalGainValue = (finalVolume / 100) * (currentMasterVolume / 100);
+                                const finalGainValue = (finalVolume / 100) * masterFrac();
                                 const targetGain = Math.max(MIN_GAIN, Math.min(1, finalGainValue));
 
                                 log(`LOG (playSound): Setting FILE volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final Gain: ${targetGain.toFixed(4)}`);
@@ -4475,6 +5335,10 @@
                                 if (page.fadeInOut && !isRestart) { // isRestart for files might mean a manual re-trigger of a counted loop
                                     gainNode.gain.setValueAtTime(MIN_GAIN, now);
                                     gainNode.gain.linearRampToValueAtTime(targetGain, now + FADE_DURATION);
+                                } else if (crossfadeActive() && !isRestart && !isInternalLoopIteration) {
+                                    // Global crossfade: fade the new sound in even without per-page fadeInOut.
+                                    gainNode.gain.setValueAtTime(MIN_GAIN, now);
+                                    gainNode.gain.linearRampToValueAtTime(targetGain, now + crossfadeSeconds());
                                 } else {
                                     gainNode.gain.setValueAtTime(targetGain, now);
                                 }
@@ -4535,7 +5399,7 @@
                                     const pageOrVariationVolume = (typeof currentSourceDetail.volumeOverride === 'number') ? currentSourceDetail.volumeOverride : page.volume;
                                     const modifier = volumeModifiers[page.id] || 0;
                                     const finalVolume = Math.max(0, Math.min(100, pageOrVariationVolume + modifier));
-                                    const scaledVolume = (finalVolume / 100) * (currentMasterVolume / 100);
+                                    const scaledVolume = (finalVolume / 100) * masterFrac();
                                     const syrinscapeLocalVolume = Math.min(1.5, scaledVolume * 1.5);
                                     log(`LOG (playSound): Setting SYRINSCAPE volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final Local Vol: ${syrinscapeLocalVolume.toFixed(4)}`);
                                     syrinscape.player.audioSystem.setLocalVolume(syrinscapeLocalVolume.toString());
@@ -4712,13 +5576,14 @@
                         }
                         const pageOrVariationVolume = (typeof sourceDetail.volumeOverride === 'number') ? sourceDetail.volumeOverride : page.volume;
                         const modifier = volumeModifiers[page.id] || 0;
-                        const baseVolume = (pageOrVariationVolume / 100) * (currentMasterVolume / 100) * 100; // Volume 0-100
+                        const baseVolume = (pageOrVariationVolume / 100) * masterFrac() * 100; // Volume 0-100
                         const finalYTVolume = Math.round(Math.max(0, Math.min(100, baseVolume + modifier)));
                         log(`LOG (playYouTubeVideo): Setting YT volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final YT Vol: ${finalYTVolume}`);
 
                         const startPlayback = (p) => {
                             log(`YT startPlayback: Loading video ${playerOptions.videoId} for player ${playerId}`);
-                            p.setVolume(finalYTVolume);
+                            if (crossfadeActive() && !isRestart) fadeInYouTube(p, finalYTVolume, crossfadeSeconds());
+                            else p.setVolume(finalYTVolume);
                             // Instead of loadVideoById, we use cueVideoById which is more reliable for this flow
                             p.cueVideoById({ videoId: playerOptions.videoId, startSeconds: playerOptions.startSeconds, endSeconds: playerOptions.endSeconds });
                             // The onStateChange handler will catch the CUED event and play the video.
@@ -4856,25 +5721,26 @@
                         // reEvaluateActiveSounds(pageId); // Re-evaluate other sounds now that this one has stopped
 
                         // Handle fade-out and stopping based on type
+                        const fadeOutSecs = stopFadeSeconds();
                         if (sourceDetail.type === 'file' && gainNode && audioContext && node instanceof AudioBufferSourceNode) {
-                            log(`LOG (stopSingleSound): Fading out FILE Page ID: ${pageId}`);
+                            log(`LOG (stopSingleSound): Fading out FILE Page ID: ${pageId} over ${fadeOutSecs}s`);
                             const now = audioContext.currentTime;
                             try {
                                 gainNode.gain.cancelScheduledValues(now);
                                 gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-                                gainNode.gain.linearRampToValueAtTime(MIN_GAIN, now + FADE_DURATION);
+                                gainNode.gain.linearRampToValueAtTime(MIN_GAIN, now + fadeOutSecs);
                                 activeSoundData.fadeTimeoutId = setTimeout(() => {
                                     if (node?.stop) { try { node.stop(); } catch (e) { } }
                                     if (node?.disconnect) { try { node.disconnect(); } catch (e) { } }
                                     if (gainNode?.disconnect) { try { gainNode.disconnect(); } catch (e) { } }
-                                }, FADE_DURATION * 1000);
+                                }, fadeOutSecs * 1000);
                             } catch (e) {
                                 console.error("Error scheduling fade out:", e);
                                 if (node?.stop) { try { node.stop(); node.disconnect(); if (gainNode) gainNode.disconnect(); } catch (err) { } }
                             }
                         } else if (sourceDetail.type === 'youtube' && node?.stopVideo) {
-                            log(`LOG (stopSingleSound): Fading out YOUTUBE Page ID: ${pageId}`);
-                            fadeOutYouTube(node, FADE_DURATION);
+                            log(`LOG (stopSingleSound): Fading out YOUTUBE Page ID: ${pageId} over ${fadeOutSecs}s`);
+                            fadeOutYouTube(node, fadeOutSecs);
                         } else if (sourceDetail.type === 'syrinscape' && syrinscapePlayerReady) {
                             const elementId = sourceDetail.syrinscapeElementId;
                             const kind = sourceDetail.syrinscapeKind?.toLowerCase();
@@ -5212,6 +6078,16 @@
 
                         li.addEventListener('dragover', (e) => {
                             e.preventDefault();
+                            if (draggedReorderPageId != null) {
+                                // Reorder mode: show an insertion indicator before/after this item.
+                                if (draggedReorderPageId === page.id) return;
+                                e.dataTransfer.dropEffect = 'move';
+                                const rect = li.getBoundingClientRect();
+                                const after = e.clientY > rect.top + rect.height / 2;
+                                li.classList.toggle('reorder-target-after', after);
+                                li.classList.toggle('reorder-target-before', !after);
+                                return;
+                            }
                             const draggedPageId = e.dataTransfer.getData('text/plain');
                             // Only show collection drop indicator if dragging a DIFFERENT page
                             if (draggedPageId && draggedPageId != page.id) {
@@ -5219,14 +6095,19 @@
                                 li.classList.add('drag-over-for-collection');
                             }
                         });
-                        li.addEventListener('dragleave', () => li.classList.remove('drag-over-for-collection'));
+                        li.addEventListener('dragleave', () => li.classList.remove('drag-over-for-collection', 'reorder-target-before', 'reorder-target-after'));
                         li.addEventListener('drop', (e) => {
                             e.preventDefault();
                             e.stopPropagation(); // Prevent chapter drop handler
                             li.classList.remove('drag-over-for-collection');
+                            if (draggedReorderPageId != null) {
+                                // Reorder within the current chapter's page order.
+                                const after = li.classList.contains('reorder-target-after');
+                                li.classList.remove('reorder-target-before', 'reorder-target-after');
+                                if (draggedReorderPageId !== page.id) reorderPageInList(draggedReorderPageId, page.id, after);
+                                return;
+                            }
                             const draggedPageIdStr = e.dataTransfer.getData('text/plain');
-
-
                             const targetPageId = page.id;
                             if (draggedPageIdStr && draggedPageIdStr != targetPageId) {
                                 createCollectionFromPages(parseInt(draggedPageIdStr, 10), targetPageId);
@@ -5348,8 +6229,10 @@
                         li.innerHTML = `
                             <div class="page-item-main-content"> <div class="page-item-title-row">
                                     <div class="page-item-title-container">
+                                        <span class="page-drag-handle" title="Drag to reorder within this chapter"><i class="fas fa-grip-vertical"></i></span>
                                         ${starCheckboxHtml}
                                         <span class="page-item-title">${escapeHtml(page.title)}</span>
+                                        ${page.hotkey ? `<span class="hotkey-badge" title="Hotkey: ${escapeHtml(page.hotkey)}">${escapeHtml(page.hotkey)}</span>` : ''}
                                         ${timeOfDayIconHtml}
                                         ${sourceCountText}${fadeInfo}
                                     </div>
@@ -5361,6 +6244,7 @@
                                     ${loopInfo}${chainInfoHtml}
                                 </div>
                                 ${endPlayKeywordInfo}
+                                ${isPlaying ? `<div class="page-quick-volume-row"><i class="fas fa-volume-low fa-fw"></i><input type="range" class="page-quick-volume" min="0" max="100" value="${page.volume}" title="Adjust this sound's volume live"><span class="page-quick-volume-value">${page.volume}</span></div>` : ''}
                             </div>
                             <div class="page-item-grid-content"> <div class="page-item-grid-title-container">
                                     ${starCheckboxHtml}
@@ -5385,13 +6269,21 @@
                             </div>
                             `;
 
+                        // A drag started from the grip handle reorders within the chapter; a drag
+                        // from anywhere else keeps the existing move-to-chapter / make-collection behavior.
+                        const dragHandle = li.querySelector('.page-drag-handle');
+                        if (dragHandle) dragHandle.addEventListener('mousedown', () => { pageReorderArmed = true; });
                         li.addEventListener('dragstart', (e) => {
-                            // if (isTimeRestricted) { e.preventDefault(); return; } // Allow dragging even if restricted
-                            e.dataTransfer.setData('text/plain', page.id);
-                            e.dataTransfer.effectAllowed = 'move';
+                            if (e.dataTransfer) { e.dataTransfer.setData('text/plain', page.id); e.dataTransfer.effectAllowed = 'move'; }
                             li.classList.add('dragging');
+                            if (pageReorderArmed) { draggedReorderPageId = page.id; li.classList.add('reordering'); }
                         });
-                        li.addEventListener('dragend', () => { li.classList.remove('dragging'); });
+                        li.addEventListener('dragend', () => {
+                            li.classList.remove('dragging'); li.classList.remove('reordering');
+                            pageReorderArmed = false; draggedReorderPageId = null;
+                            document.querySelectorAll('.page-item.reorder-target-before, .page-item.reorder-target-after')
+                                .forEach(el => el.classList.remove('reorder-target-before', 'reorder-target-after'));
+                        });
 
                         li.querySelectorAll('.delete-button').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deletePageFromBook(page.id); }));
                         li.querySelectorAll('.edit-button').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); openEditPageModal(page.id); }));
@@ -5405,6 +6297,22 @@
                             if (isCurrentlyPlaying) stopSingleSound(page.id);
                             else playPageManually(page.id, e.shiftKey);
                         }));
+                        // Live per-page volume (Phase 2.2): adjusts the playing sound immediately
+                        // and writes page.volume (debounced save so dragging doesn't thrash storage).
+                        li.querySelectorAll('.page-quick-volume').forEach(slider => {
+                            if (typeof updateRangeFill === 'function') updateRangeFill(slider);
+                            slider.addEventListener('click', (e) => e.stopPropagation());
+                            slider.addEventListener('input', (e) => {
+                                e.stopPropagation();
+                                const vol = parseInt(slider.value, 10);
+                                page.volume = vol;
+                                const valSpan = slider.parentElement.querySelector('.page-quick-volume-value');
+                                if (valSpan) valSpan.textContent = vol;
+                                adjustCurrentlyPlayingVolumes([page.id]);
+                                clearTimeout(quickVolumeSaveTimer);
+                                quickVolumeSaveTimer = setTimeout(saveToLocalStorage, 500);
+                            });
+                        });
 
                         return li;
                     }
@@ -5748,7 +6656,7 @@
 
                                 const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
                                 const modifier = volumeModifiers[pageId] || 0;
-                                const baseGain = (pageOrVariationVolume / 100) * (currentMasterVolume / 100);
+                                const baseGain = (pageOrVariationVolume / 100) * masterFrac();
                                 const finalGain = Math.max(0, Math.min(1.5, baseGain + (modifier / 100))); // Apply modifier after multiplication, cap at 150%
                                 soundData.gainNode.gain.setTargetAtTime(finalGain, audioContext.currentTime, 0.02);
                             } else if (soundData.node && soundData.sourceDetail?.type === 'youtube') {
@@ -5756,7 +6664,7 @@
                                 if (!page) return;
                                 const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
                                 const modifier = volumeModifiers[pageId] || 0;
-                                const baseVolume = (pageOrVariationVolume / 100) * (currentMasterVolume / 100) * 100; // Volume 0-100
+                                const baseVolume = (pageOrVariationVolume / 100) * masterFrac() * 100; // Volume 0-100
                                 const finalYTVolume = Math.round(Math.max(0, Math.min(100, baseVolume + modifier))); // Apply modifier, cap at 100
                                 if (soundData.node.setVolume) {
                                     soundData.node.setVolume(finalYTVolume);
@@ -5882,8 +6790,21 @@
                         const deletedPage = book.pages[pageIndex];
                         const deletedTitle = deletedPage.title;
 
-                        // User confirmation for deletion
-                        if (!confirm(`Are you sure you want to permanently delete page "${deletedTitle}" from the book? This cannot be undone.`)) return;
+                        // Capture every place this page is referenced so an undo can fully restore it.
+                        // The page object itself is kept by reference (its sources hold non-clonable AudioBuffers).
+                        const undoData = {
+                            page: deletedPage,
+                            index: pageIndex,
+                            collectionIds: (book.collections || []).filter(c => (c.pageIds || []).includes(pageId)).map(c => c.id),
+                            chapterMemberships: book.chapters.map(ch => ({
+                                id: ch.id,
+                                pageIdx: (ch.pageIds || []).indexOf(pageId),
+                                inAuto: (ch.autoPlayPageIds || []).includes(pageId),
+                                inLeave: (ch.leaveSoundPageIds || []).includes(pageId)
+                            })).filter(m => m.pageIdx > -1 || m.inAuto || m.inLeave),
+                            threadIds: (book.storyPlot.threads || []).filter(t => (t.soundPageIds || []).includes(pageId)).map(t => t.id),
+                            nextPageRefs: book.pages.filter(p => p.nextPageId === pageId).map(p => p.id)
+                        };
 
                         log(`Deleting Page ID: ${pageId} ("${deletedTitle}")`);
                         stopSingleSound(pageId); // Stop sound if playing
@@ -5947,7 +6868,33 @@
                         updateChapterKeywordList(); // Update chapter keywords
                         saveToLocalStorage(); // Persist changes
                         renderPageList(); // Re-render the page list
-                        showTemporaryMessage(`Page "${deletedTitle}" deleted.${chainsBroken > 0 ? ` (${chainsBroken} chain link(s) cleared.)` : ''}`, 'info');
+
+                        registerUndo(`Deleted page "${deletedTitle}"`, () => {
+                            book.pages.splice(Math.min(undoData.index, book.pages.length), 0, undoData.page);
+                            undoData.collectionIds.forEach(cid => {
+                                const c = (book.collections || []).find(c => c.id === cid);
+                                if (c && !(c.pageIds || []).includes(pageId)) c.pageIds.push(pageId);
+                            });
+                            undoData.chapterMemberships.forEach(m => {
+                                const ch = book.chapters.find(c => c.id === m.id);
+                                if (!ch) return;
+                                if (m.pageIdx > -1 && !ch.pageIds.includes(pageId)) ch.pageIds.splice(Math.min(m.pageIdx, ch.pageIds.length), 0, pageId);
+                                if (m.inAuto) { ch.autoPlayPageIds = ch.autoPlayPageIds || []; if (!ch.autoPlayPageIds.includes(pageId)) ch.autoPlayPageIds.push(pageId); }
+                                if (m.inLeave) { ch.leaveSoundPageIds = ch.leaveSoundPageIds || []; if (!ch.leaveSoundPageIds.includes(pageId)) ch.leaveSoundPageIds.push(pageId); }
+                            });
+                            undoData.threadIds.forEach(tid => {
+                                const t = (book.storyPlot.threads || []).find(t => t.id === tid);
+                                if (t) { t.soundPageIds = t.soundPageIds || []; if (!t.soundPageIds.includes(pageId)) t.soundPageIds.push(pageId); }
+                            });
+                            undoData.nextPageRefs.forEach(pid => {
+                                const p = book.pages.find(p => p.id === pid);
+                                if (p) p.nextPageId = pageId;
+                            });
+                            updateFuseIndex();
+                            updateChapterKeywordList();
+                            saveToLocalStorage();
+                            renderPageList();
+                        });
                     }
 
                     // --- Remove Page from Current Chapter ---
@@ -6051,6 +6998,9 @@
                             if (includeSoundtracks) {
                                 partialBook.soundtracks = fullBook.soundtracks;
                             }
+                            // Scenes reference pages; include them and their pages.
+                            partialBook.scenes = fullBook.scenes || [];
+                            (fullBook.scenes || []).forEach(s => (s.entries || []).forEach(e => pagesToInclude.add(e.pageId)));
                             if (includeSettings) {
                                 partialBook.settings = fullBook.settings;
                             }
@@ -6345,6 +7295,7 @@
                                         endPlayKeywords: Array.isArray(item.endPlayKeywords) ? item.endPlayKeywords : [],
                                         nextPageId: item.nextPageId ?? null,
                                         timeOfDaySetting: ['day', 'night', 'always'].includes(item.timeOfDaySetting) ? item.timeOfDaySetting : 'always',
+                                        hotkey: item.hotkey || null,
                                         currentLoop: 0, sources: sourcesData
                                     };
                                     loadedPages.push(newPage);
@@ -6457,6 +7408,7 @@
                                 if (importChoices.appendix === 'overwrite') {
                                     book.appendix = [];
                                 }
+                                if (!Array.isArray(book.appendix)) book.appendix = []; // Guard: merge/add into an uninitialized appendix
                                 (loadedData.appendix || []).forEach(item => {
                                     const existingAppendixIndex = (book.appendix || []).findIndex(a => a.name && a.name.toLowerCase() === item.name.toLowerCase());
                                     if (existingAppendixIndex > -1 && importChoices.appendix === 'merge') {
@@ -6467,6 +7419,13 @@
                                         appendixAdded++;
                                     }
                                 });
+                            }
+
+                            // Scenes (Phase 2.3) travel with the book's pages.
+                            if (Array.isArray(loadedData.scenes) && importChoices.pages && importChoices.pages !== 'skip') {
+                                if (!Array.isArray(book.scenes)) book.scenes = [];
+                                if (importChoices.pages === 'overwrite') book.scenes = loadedData.scenes.map(s => ({ ...s }));
+                                else loadedData.scenes.forEach(s => book.scenes.push({ ...s, id: `scene_${generateUUID()}` }));
                             }
 
                             // Process Settings
@@ -6899,24 +7858,29 @@
                             showTemporaryMessage("Cannot delete Index chapter.", "error");
                             return;
                         }
-                        if (!confirm(`Delete chapter "${chapterToDelete.name}"? Pages within this chapter will NOT be deleted from the book but will be unassigned from this chapter.`)) return;
-
                         log(`Deleting chapter: "${chapterToDelete.name}" (ID: ${chapterId})`);
 
-                        // Remove this chapterId from any page source variations that were specifically assigned to it
+                        const wasActive = book.activeChapterId === chapterId;
+                        // Record source variations that pointed at this chapter so undo can re-add it.
+                        const affectedSources = [];
                         book.pages.forEach(page => {
                             page.sources.forEach(source => {
                                 if (Array.isArray(source.chapterIds)) {
                                     const index = source.chapterIds.indexOf(chapterId);
-                                    if (index > -1) source.chapterIds.splice(index, 1);
-                                    if (source.chapterIds.length === 0) source.chapterIds = null; // If no chapters left, make it general
+                                    if (index > -1) {
+                                        affectedSources.push({ source, atIndex: index });
+                                        source.chapterIds.splice(index, 1);
+                                        if (source.chapterIds.length === 0) source.chapterIds = null; // If no chapters left, make it general
+                                    }
                                 }
                             });
                         });
 
-                        // Remove chapter node and connected threads from story plotter
+                        // Remove chapter node and connected threads from story plotter (kept for undo)
                         const nodesToDelete = book.storyPlot.nodes.filter(node => node.chapterId === chapterId);
                         const nodeIdsToDelete = nodesToDelete.map(node => node.id);
+                        const threadsToDelete = book.storyPlot.threads.filter(thread =>
+                            nodeIdsToDelete.includes(thread.fromNodeId) || nodeIdsToDelete.includes(thread.toNodeId));
 
                         book.storyPlot.nodes = book.storyPlot.nodes.filter(node => node.chapterId !== chapterId);
                         book.storyPlot.threads = book.storyPlot.threads.filter(thread =>
@@ -6928,11 +7892,25 @@
                         updateChapterKeywordList(); // Update list
                         saveToLocalStorage();
 
-                        if (book.activeChapterId === chapterId) { // If deleted chapter was active
+                        if (wasActive) { // If deleted chapter was active
                             setActiveChapter('index', false, 'deletion_fallback'); // Switch to Index
                         } else {
                             renderChapterTabs(); // Just re-render tabs
                         }
+
+                        registerUndo(`Deleted chapter "${chapterToDelete.name}"`, () => {
+                            book.chapters.splice(Math.min(chapterIndex, book.chapters.length), 0, chapterToDelete);
+                            affectedSources.forEach(({ source, atIndex }) => {
+                                if (!Array.isArray(source.chapterIds)) source.chapterIds = [];
+                                if (!source.chapterIds.includes(chapterId)) source.chapterIds.splice(Math.min(atIndex, source.chapterIds.length), 0, chapterId);
+                            });
+                            nodesToDelete.forEach(n => { if (!book.storyPlot.nodes.some(x => x.id === n.id)) book.storyPlot.nodes.push(n); });
+                            threadsToDelete.forEach(t => { if (!book.storyPlot.threads.some(x => x.id === t.id)) book.storyPlot.threads.push(t); });
+                            updateChapterKeywordList();
+                            saveToLocalStorage();
+                            renderChapterTabs();
+                            if (storyPlotterModal.style.display === 'flex') renderPlotBoard();
+                        });
                         // If plotter is open, re-render it
                         if (storyPlotterModal.style.display === 'flex') {
                             renderPlotBoard();
@@ -7334,10 +8312,17 @@
                     }
 
                     function deleteCollection(collectionId) {
-                        if (!confirm("Are you sure you want to delete this collection? The pages inside will become uncollected.")) return;
-                        book.collections = (book.collections || []).filter(c => c.id !== collectionId);
+                        const idx = (book.collections || []).findIndex(c => c.id === collectionId);
+                        if (idx === -1) return;
+                        const removed = book.collections[idx];
+                        book.collections.splice(idx, 1);
                         saveToLocalStorage();
                         renderPageList();
+                        registerUndo(`Deleted collection "${removed.name || 'collection'}"`, () => {
+                            book.collections.splice(Math.min(idx, book.collections.length), 0, removed);
+                            saveToLocalStorage();
+                            renderPageList();
+                        });
                     }
 
                     function openEditCollectionModal(collectionId) {
@@ -7525,6 +8510,8 @@
 
                         editPageIdInput.value = page.id;
                         editPageTitleInput.value = page.title;
+                        const hotkeyInput = document.getElementById('editPageHotkey');
+                        if (hotkeyInput) { hotkeyInput.value = page.hotkey || ''; hotkeyInput.dataset.hotkey = page.hotkey || ''; }
                         editPrimaryKeyInput.value = page.primaryKey || "";
                         editIsStarredCheckbox.checked = page.isStarred || false;
                         editKeywordsInput.value = (page.keywords || []).join(', ');
@@ -7684,6 +8671,13 @@
                         if (duplicateTitle) { showTemporaryMessage(`Another page named "${newTitle}" exists.`, 'error', 5000); return; }
 
                         page.title = newTitle;
+                        const hotkeyInput = document.getElementById('editPageHotkey');
+                        const newHotkey = hotkeyInput ? (hotkeyInput.dataset.hotkey || null) : (page.hotkey || null);
+                        if (newHotkey) {
+                            // A hotkey is unique across pages; clear it from any other page (last wins).
+                            book.pages.forEach(p => { if (p.id !== pageId && p.hotkey === newHotkey) p.hotkey = null; });
+                        }
+                        page.hotkey = newHotkey;
                         page.primaryKey = newPrimaryKey;
                         page.phrases = newPhrasesRaw === '' ? [] : newPhrasesRaw.split('\n').map(p => p.trim().toLowerCase()).filter(Boolean);
                         page.isStarred = newIsStarred;
@@ -7975,13 +8969,11 @@
 
                         currentSyrinscapeSearchContext = 'sub-variation';
                         addEditSourceModal.style.display = 'flex';
-                        // Raise the edit-source modal above Manage Sources. (Both are .modal at
-                        // z-index 1000, so we lift this one rather than the base modal.)
-                        addEditSourceModal.style.zIndex = '1015';
+                        bringModalToFront(addEditSourceModal); // stack above Manage Sources
                     }
 
                     function closeAddEditSourceModal() {
-                        if (addEditSourceModal) { addEditSourceModal.style.display = 'none'; addEditSourceModal.style.zIndex = ''; } // Reset to base z-index
+                        if (addEditSourceModal) { addEditSourceModal.style.display = 'none'; releaseModalFront(addEditSourceModal); }
                         currentSyrinscapeSearchContext = null;
                         if (activePreviewContext?.container === sourceFilePreviewContainer || activePreviewContext?.container === sourceYouTubePreviewContainer) {
                             stopModalPreview();
@@ -8559,7 +9551,7 @@
                                         keywords: page.keywords || [], phrases: page.phrases || [], isStarred: page.isStarred || false,
                                         volume: page.volume ?? 80, loop: page.loop || false, loopCount: page.loopCount ?? 0,
                                         fadeInOut: page.fadeInOut || false, endPlayKeywords: page.endPlayKeywords || [],
-                                        nextPageId: page.nextPageId ?? null, timeOfDaySetting: page.timeOfDaySetting || 'always',
+                                        nextPageId: page.nextPageId ?? null, timeOfDaySetting: page.timeOfDaySetting || 'always', hotkey: page.hotkey || null,
                                         sources: savableSources
                                     };
                                 });
@@ -8781,7 +9773,7 @@
                                         keywords: page.keywords || [], phrases: page.phrases || [], isStarred: page.isStarred || false,
                                         volume: page.volume ?? 80, loop: page.loop || false, loopCount: page.loopCount ?? 0,
                                         fadeInOut: page.fadeInOut || false, endPlayKeywords: page.endPlayKeywords || [],
-                                        nextPageId: page.nextPageId ?? null, timeOfDaySetting: page.timeOfDaySetting || 'always',
+                                        nextPageId: page.nextPageId ?? null, timeOfDaySetting: page.timeOfDaySetting || 'always', hotkey: page.hotkey || null,
                                         sources: savableSources
                                     };
                                 });
@@ -10023,6 +11015,7 @@
                                     endPlayKeywords: page.endPlayKeywords || [],
                                     nextPageId: page.nextPageId ?? null,
                                     timeOfDaySetting: page.timeOfDaySetting || 'always',
+                                    hotkey: page.hotkey || null,
                                     sources: (page.sources || []).map(variation => ({
                                         // Properties of the variation container
                                         id: variation.id,
@@ -10092,12 +11085,14 @@
                                         needsFile: song.type === 'file'
                                     }))
                                 })) : [],
+                                scenes: Array.isArray(book.scenes) ? book.scenes.map(s => ({ ...s })) : [],
                                 // Ensure name is saved for appendix entries
                                 appendix: Array.isArray(book.appendix) ? book.appendix.map(entry => ({ ...entry, name: entry.name || null })) : []
                             };
                             const jsonString = JSON.stringify(savableBook);
                             // (Removed keep-alive checkbox read: no such control exists in the UI, B4)
                             localStorage.setItem(LOCAL_STORAGE_KEY, jsonString);
+                            bookDirtyForBackup = true; // let the periodic backup timer snapshot this
                         } catch (error) {
                             console.error("Error autosaving to local storage:", error);
                             showTemporaryMessage("Autosave failed. Check console.", "error");
@@ -10250,6 +11245,7 @@
                                         endPlayKeywords: Array.isArray(item.endPlayKeywords) ? item.endPlayKeywords : [],
                                         nextPageId: item.nextPageId ?? null,
                                         timeOfDaySetting: ['day', 'night', 'always'].includes(item.timeOfDaySetting) ? item.timeOfDaySetting : 'always',
+                                        hotkey: item.hotkey || null,
                                         currentLoop: 0, sources: sourcesData
                                     };
                                     loadedPages.push(newPage);
@@ -10350,6 +11346,8 @@
                             } else {
                                 book.soundtracks = [];
                             }
+
+                            book.scenes = Array.isArray(loadedData.scenes) ? loadedData.scenes : [];
 
                             log("Book data successfully parsed and applied from local storage.");
                             return true;
@@ -10490,6 +11488,14 @@
 
                     // --- Keyboard Shortcuts ---
                     document.addEventListener('keydown', (event) => {
+                        // Command palette (Ctrl/Cmd+K) works from anywhere; toggles open/closed.
+                        if ((event.ctrlKey || event.metaKey) && (event.key === 'k' || event.key === 'K')) {
+                            event.preventDefault();
+                            const pal = document.getElementById('commandPalette');
+                            if (pal && !pal.classList.contains('hidden')) closeCommandPalette();
+                            else openCommandPalette();
+                            return;
+                        }
                         const inInput = event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable;
                         const addModalVisible = addEditSourceModal.style.display === 'flex' && currentSyrinscapeSearchContext === 'add'; // More specific check for when it's acting as the "Add Page" source modal
                         const editPageModalVisible = editPageModal.style.display === 'flex';
@@ -10537,6 +11543,19 @@
                                 event.preventDefault(); const loadLabel = document.querySelector('label[title*="Load a book file"]'); if (loadLabel) loadLabel.click(); showTemporaryMessage("Load Book from File (Shortcut)", "info", 1500);
                             } else if ((event.ctrlKey || event.metaKey) && event.key === 'q') {
                                 event.preventDefault(); stopAllSoundsButton.click(); showTemporaryMessage("All Sounds Stopped (Shortcut)", "info", 1500);
+                            } else if ((event.ctrlKey || event.metaKey) && (event.key === 'z' || event.key === 'Z')) {
+                                event.preventDefault(); performUndo();
+                            } else if ((event.ctrlKey || event.metaKey) && (event.key === 'd' || event.key === 'D')) {
+                                event.preventDefault(); toggleDuck();
+                            } else if (!['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
+                                // Page hotkeys: match the pressed combo against page bindings.
+                                const combo = hotkeyComboFromEvent(event);
+                                const boundPage = book.pages.find(p => p.hotkey && p.hotkey === combo);
+                                if (boundPage) {
+                                    event.preventDefault();
+                                    if (activeSounds[boundPage.id]) stopSingleSound(boundPage.id);
+                                    else playPageManually(boundPage.id);
+                                }
                             }
                         }
                     });
@@ -11894,14 +12913,42 @@
                     }
 
 
+                    // Fade a soundtrack player node out over N seconds, then tear it down (2.4).
+                    function fadeOutStPlayer(node, seconds) {
+                        if (!node) return;
+                        if (node.gainNode && typeof audioContext !== 'undefined' && audioContext) {
+                            try {
+                                const now = audioContext.currentTime;
+                                node.gainNode.gain.cancelScheduledValues(now);
+                                node.gainNode.gain.setValueAtTime(node.gainNode.gain.value, now);
+                                node.gainNode.gain.linearRampToValueAtTime(MIN_GAIN, now + seconds);
+                            } catch (e) { }
+                            setTimeout(() => {
+                                try { if (node.stop) node.stop(); } catch (e) { }
+                                try { if (node.disconnect) node.disconnect(); } catch (e) { }
+                                try { if (node.gainNode && node.gainNode.disconnect) node.gainNode.disconnect(); } catch (e) { }
+                            }, seconds * 1000 + 50);
+                        } else if (typeof node.setVolume === 'function') {
+                            fadeOutYouTube(node, seconds);
+                            setTimeout(() => {
+                                try { if (node.pauseVideo) node.pauseVideo(); } catch (e) { }
+                                try { if (node.destroy) node.destroy(); } catch (e) { }
+                            }, seconds * 1000 + 50);
+                        } else {
+                            try { if (node.stop) node.stop(); if (node.pauseVideo) node.pauseVideo(); if (node.destroy) node.destroy(); } catch (e) { }
+                        }
+                    }
+
                     function getSoundtrackFinalVol(st, song) {
                         const baseVol = globalSoundtrackVolume / 100;
                         const playlistVol = (st.volume !== undefined ? st.volume : 100) / 100;
                         const songVol = (song.volume !== undefined ? song.volume : 100) / 100;
                         let finalVol = Math.max(baseVol * playlistVol * songVol, 0.001);
                         if (typeof book !== 'undefined' && book.settings && book.settings.masterVolumeAffectsSoundtracks !== false) {
-                            const mv = typeof currentMasterVolume !== 'undefined' ? currentMasterVolume : 100;
-                            finalVol = Math.max(finalVol * (mv / 100), 0.001);
+                            finalVol = Math.max(finalVol * masterFrac(), 0.001);
+                        } else if (duckFactor !== 1.0) {
+                            // Duck-all still lowers soundtracks even when they ignore master volume.
+                            finalVol = Math.max(finalVol * duckFactor, 0.001);
                         }
                         return finalVol;
                     }
@@ -11951,16 +12998,20 @@
 
                         const currentRequestId = ++stPlayRequestCount;
 
-                        // Stop current immediately
+                        // Stop the current song. With crossfade on, fade the old one out while the
+                        // new one fades in (a true song-to-song crossfade); otherwise hard-cut.
                         if (stPlayerNode) {
                             if (stPlayerNode.endTimeout) clearTimeout(stPlayerNode.endTimeout);
                             if (stPlayerNode.endTimeTimeout) clearTimeout(stPlayerNode.endTimeTimeout);
-
-                            try {
-                                if (stPlayerNode.stop) stPlayerNode.stop();
-                                if (stPlayerNode.pauseVideo) stPlayerNode.pauseVideo();
-                                if (stPlayerNode.destroy) stPlayerNode.destroy();
-                            } catch(e) {}
+                            if (crossfadeActive()) {
+                                fadeOutStPlayer(stPlayerNode, crossfadeSeconds());
+                            } else {
+                                try {
+                                    if (stPlayerNode.stop) stPlayerNode.stop();
+                                    if (stPlayerNode.pauseVideo) stPlayerNode.pauseVideo();
+                                    if (stPlayerNode.destroy) stPlayerNode.destroy();
+                                } catch (e) { }
+                            }
                             stPlayerNode = null;
                         }
 
@@ -11980,7 +13031,13 @@
                                     const source = audioContext.createBufferSource();
                                     source.buffer = buffer;
                                     const gainNode = audioContext.createGain();
-                                    gainNode.gain.value = finalVol; 
+                                    if (crossfadeActive()) {
+                                        const t0 = audioContext.currentTime;
+                                        gainNode.gain.setValueAtTime(MIN_GAIN, t0);
+                                        gainNode.gain.linearRampToValueAtTime(finalVol, t0 + crossfadeSeconds());
+                                    } else {
+                                        gainNode.gain.value = finalVol;
+                                    }
                                     source.connect(gainNode);
                                     gainNode.connect(audioContext.destination); // was undefined masterGainNode (B4)
 
@@ -12043,7 +13100,8 @@
                                         }
 
                                         const targetVol = finalVol * 100;
-                                        event.target.setVolume(targetVol);
+                                        if (crossfadeActive()) fadeInYouTube(event.target, targetVol, crossfadeSeconds());
+                                        else event.target.setVolume(targetVol);
                                         event.target.playVideo();
 
                                         isStPlaying = true;
@@ -12077,8 +13135,19 @@
                     }
 
                     function stopSoundtrack() {
+                        const node = stPlayerNode;
+                        const wasPlaying = isStPlaying && !!node;
                         activeSoundtrackId = null;
                         isStPlaying = false;
+                        // Detach the node first so updateSoundtrackBarUI won't hard-stop it, then
+                        // fade it out ourselves (or tear down instantly when crossfade is off).
+                        stPlayerNode = null;
+                        if (node) {
+                            if (node.endTimeout) clearTimeout(node.endTimeout);
+                            if (node.endTimeTimeout) clearTimeout(node.endTimeTimeout);
+                            if (wasPlaying && crossfadeActive()) fadeOutStPlayer(node, stopFadeSeconds());
+                            else { try { if (node.stop) node.stop(); if (node.pauseVideo) node.pauseVideo(); if (node.destroy) node.destroy(); } catch (e) { } }
+                        }
                         updateSoundtrackBarUI();
                         renderSoundtrackIcons();
                     }
@@ -12251,13 +13320,19 @@
 
                             li.querySelector('.btn-edit-st').onclick = () => openEditSoundtrack(st);
                             li.querySelector('.btn-del-st').onclick = () => {
-                                if (confirm('Delete playlist?')) {
-                                    book.soundtracks = book.soundtracks.filter(s => s.id !== st.id);
-                                    if (activeSoundtrackId === st.id) stopSoundtrack();
+                                const idx = book.soundtracks.findIndex(s => s.id === st.id);
+                                if (idx === -1) return;
+                                const removed = book.soundtracks[idx];
+                                book.soundtracks.splice(idx, 1);
+                                if (activeSoundtrackId === st.id) stopSoundtrack();
+                                renderManifestList();
+                                document.getElementById('editSoundtrackContainer').classList.add('hidden');
+                                saveToLocalStorage();
+                                registerUndo(`Deleted playlist "${removed.name || 'playlist'}"`, () => {
+                                    book.soundtracks.splice(Math.min(idx, book.soundtracks.length), 0, removed);
                                     renderManifestList();
-                                    document.getElementById('editSoundtrackContainer').classList.add('hidden');
                                     saveToLocalStorage();
-                                }
+                                });
                             };
                         });
                     }

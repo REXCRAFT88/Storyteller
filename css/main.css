@@ -1893,6 +1893,310 @@
             transform: translateY(-1px);
         }
 
+        /* --- Page reorder drag handle (3.2) --- */
+        .page-drag-handle {
+            cursor: grab;
+            color: var(--text-secondary, #78716c);
+            padding: 0 4px;
+            opacity: 0.5;
+            transition: opacity 0.15s, color 0.15s;
+            flex-shrink: 0;
+        }
+
+        .page-item:hover .page-drag-handle {
+            opacity: 1;
+            color: var(--accent-gold-light, #D6C06D);
+        }
+
+        .page-drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .page-item.reorder-target-before {
+            box-shadow: inset 0 3px 0 0 var(--accent-gold-light, #D6C06D);
+        }
+
+        .page-item.reorder-target-after {
+            box-shadow: inset 0 -3px 0 0 var(--accent-gold-light, #D6C06D);
+        }
+
+        .page-item.reordering {
+            opacity: 0.5;
+        }
+
+        /* --- Per-page live volume (2.2) --- */
+        .page-quick-volume-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed rgba(214, 192, 109, 0.2);
+            color: var(--accent-gold-light, #D6C06D);
+        }
+
+        .page-quick-volume-row .page-quick-volume {
+            flex: 1;
+            height: 8px;
+            min-width: 60px;
+        }
+
+        .page-quick-volume-row .page-quick-volume-value {
+            font-size: 0.7rem;
+            width: 2rem;
+            text-align: right;
+            color: var(--text-secondary, #a8a29e);
+        }
+
+        /* --- Hotkey badge on page items --- */
+        .hotkey-badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            line-height: 1.4;
+            color: var(--accent-gold-light, #D6C06D);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--accent-gold-dark, #B8860B);
+            border-radius: 4px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        /* --- Duck button active state --- */
+        #duckButton.is-ducked {
+            background: linear-gradient(to bottom, var(--accent-gold-dark, #B8860B), #8a6508);
+            color: #1c1917;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+        }
+
+        /* --- Command palette (3.3) --- */
+        #commandPalette {
+            position: fixed;
+            inset: 0;
+            z-index: 2200;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(3px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 12vh;
+        }
+
+        #commandPalette.hidden {
+            display: none;
+        }
+
+        #commandPaletteBox {
+            width: 92%;
+            max-width: 560px;
+            background: var(--bg-secondary, #1c1917);
+            border: 2px solid var(--accent-gold-dark, #B8860B);
+            border-radius: 10px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 70vh;
+        }
+
+        .command-palette-input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-stone, #44403c);
+            color: var(--accent-gold-light, #D6C06D);
+        }
+
+        #commandPaletteInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary, #e7e5e4);
+            font-size: 1rem;
+        }
+
+        #commandPaletteResults {
+            list-style: none;
+            margin: 0;
+            padding: 4px;
+            overflow-y: auto;
+        }
+
+        #commandPaletteResults li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-primary, #e7e5e4);
+            font-size: 0.9rem;
+        }
+
+        #commandPaletteResults li .cmd-type {
+            margin-left: auto;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary, #a8a29e);
+            border: 1px solid var(--border-stone, #44403c);
+            border-radius: 4px;
+            padding: 1px 6px;
+        }
+
+        #commandPaletteResults li.active,
+        #commandPaletteResults li:hover {
+            background: rgba(214, 192, 109, 0.15);
+        }
+
+        #commandPaletteResults li .cmd-icon {
+            width: 1.1rem;
+            text-align: center;
+            color: var(--accent-gold-light, #D6C06D);
+        }
+
+        .command-palette-hint {
+            padding: 6px 12px;
+            font-size: 0.65rem;
+            color: var(--text-secondary, #78716c);
+            border-top: 1px solid var(--border-stone, #44403c);
+            text-align: right;
+        }
+
+        /* --- Undo snackbar --- */
+        #undoToast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--bg-tertiary, #292524);
+            border: 1px solid var(--accent-gold-dark, #B8860B);
+            color: var(--text-primary, #e7e5e4);
+            padding: 10px 14px;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+            font-size: 0.85rem;
+            max-width: 90vw;
+        }
+
+        #undoToast.hidden {
+            display: none;
+        }
+
+        #undoToastButton {
+            background: transparent;
+            border: 1px solid var(--accent-gold-light, #D6C06D);
+            color: var(--accent-gold-light, #D6C06D);
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.15s, color 0.15s;
+        }
+
+        #undoToastButton:hover {
+            background-color: var(--accent-gold-light, #D6C06D);
+            color: var(--bg-tertiary, #292524);
+        }
+
+        /* --- Reduced motion (4.5): honor the OS setting --- */
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+                scroll-behavior: auto !important;
+            }
+
+            .torch-container,
+            .torch-glow,
+            .torch-img {
+                animation: none !important;
+            }
+        }
+
+        /* --- Touch targets (4.4): bigger tap areas on touch/coarse pointers --- */
+        @media (pointer: coarse) {
+
+            .action-button,
+            .btn-rpg-sm-icon,
+            .play-toggle-button {
+                min-width: 40px;
+                min-height: 40px;
+            }
+
+            .page-item .page-drag-handle {
+                padding: 0 8px;
+                opacity: 0.8;
+            }
+
+            /* Grid view is the natural "performance mode" for touch — enlarge its play buttons. */
+            .grid-view .page-item-grid-actions .action-button {
+                min-width: 44px;
+                min-height: 44px;
+            }
+        }
+
+        /* --- Settings modal tabs --- */
+        .settings-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            border-bottom: 2px solid var(--border-stone);
+            margin-bottom: 1rem;
+            position: sticky;
+            top: 0;
+            background-color: var(--bg-secondary);
+            z-index: 2;
+            padding-top: 2px;
+        }
+
+        .settings-tab-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-secondary, #a8a29e);
+            font-family: 'Cinzel', serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 0.5rem 0.9rem;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+            margin-bottom: -2px;
+            white-space: nowrap;
+        }
+
+        .settings-tab-btn:hover {
+            color: var(--accent-gold-light);
+            background-color: rgba(255, 255, 255, 0.04);
+        }
+
+        .settings-tab-btn.active {
+            color: var(--accent-gold-light);
+            border-bottom-color: var(--accent-gold-light);
+        }
+
+        .settings-tab-panel {
+            display: none;
+        }
+
+        .settings-tab-panel.active {
+            display: block;
+        }
+
         /* --- Modals Common Styles --- */
         #modalOverlay {
             position: fixed;
