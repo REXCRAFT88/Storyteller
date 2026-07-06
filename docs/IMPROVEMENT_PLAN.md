@@ -13,7 +13,13 @@
 - ✅ **1.4** Page hotkeys: bind a key in the Edit Page modal (persisted), press it anywhere outside inputs to play/stop; badge on the page item.
 - ✅ **1.5** Duck-all button + Ctrl+D: drops all audio to 20% for table talk via a global `duckFactor`/`masterFrac()` without moving the master slider.
 
-**Next: Phase 2 (audio polish).** Note the Fuse.js CDN dependency means page-keyword matching can't be exercised in the `file://` sandbox (only stop/time/chapter/appendix outcomes were testable there) — verify the playground's page matches in a served/online context, and prioritize Phase 4.1 (vendor CDNs) to unblock offline use + local testing.
+**Phase 2 complete** — audio behaviors verified structurally (helpers + gating extracted/tested; full audio can't run in the `file://` sandbox):
+- ✅ **2.1** Crossfade engine, toggleable in Settings → Audio (crossfadeEnabled/crossfadeDuration). File + YouTube sounds fade in on start / out on stop over the configured time; off = unchanged.
+- ✅ **2.2** Per-page live volume slider (shown while a page is playing); debounced save. **Also fixed a critical recursion bug** a bulk replace introduced into `masterFrac()` in the 1.5 commit (would stack-overflow on first playback).
+- ✅ **2.3** Scenes: save the current mix and recall it with a crossfade (stop non-members, start/re-level members at saved volumes via the modifier layer). Persisted + undoable. Scene hotkey/voice recall deferred.
+- ✅ **2.4** Soundtrack fades on stop/switch + song-to-song crossfade (file + YouTube).
+
+**Next: Phase 3 (book-building speed).** Note the Fuse.js CDN dependency means page-keyword matching (and real audio) can't be exercised in the `file://` sandbox — verify page matches + crossfade/scene audio in a served/online context, and prioritize Phase 4.1 (vendor CDNs) to unblock offline use + local testing.
 
 ## Ground rules for the executing agent
 
