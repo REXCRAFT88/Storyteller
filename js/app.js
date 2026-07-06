@@ -490,6 +490,8 @@
                                 speechEngine: 'auto',   // auto | browser | vosk (offline)
                                 voskModelUrl: null,     // optional http(s) URL to a model .tar.gz
                                 voskGrammar: true,       // constrain Vosk to the book's vocabulary
+                                crossfadeEnabled: false, // fade sounds in/out on transitions instead of hard cuts
+                                crossfadeDuration: 1.5,  // seconds (0–5)
                             },
                             storyPlot: {
                                 nodes: [],
@@ -1216,6 +1218,36 @@
                     const SR_RESTART_MAX_MS = 30000;
                     const FADE_DURATION = 2.0;
                     const MIN_GAIN = 0.0001;
+
+                    // --- Crossfade engine (Phase 2.1) ---
+                    // When enabled, sounds fade in on start and out on stop over a configurable
+                    // duration, so chapter/time/variation transitions crossfade instead of cutting.
+                    function crossfadeActive() {
+                        return !!(book && book.settings && book.settings.crossfadeEnabled) && crossfadeSeconds() > 0;
+                    }
+                    function crossfadeSeconds() {
+                        const d = book && book.settings ? book.settings.crossfadeDuration : 0;
+                        return (typeof d === 'number' && d > 0) ? d : 0;
+                    }
+                    // Duration used for a stop's fade-out: the crossfade time when enabled, else the
+                    // app's default fade so existing (non-crossfade) behavior is unchanged.
+                    function stopFadeSeconds() {
+                        return crossfadeActive() ? crossfadeSeconds() : FADE_DURATION;
+                    }
+                    // Ramp a YouTube player's volume from its current value to a target over N seconds.
+                    function fadeInYouTube(player, targetVol, durationSeconds) {
+                        if (!player || typeof player.setVolume !== 'function') return;
+                        const steps = Math.max(1, Math.round(durationSeconds * 10));
+                        let i = 0;
+                        try { player.setVolume(0); } catch (e) { }
+                        const iv = setInterval(() => {
+                            i++;
+                            const v = Math.round(targetVol * (i / steps));
+                            try { player.setVolume(Math.max(0, Math.min(100, v))); } catch (e) { }
+                            if (i >= steps) clearInterval(iv);
+                        }, 100);
+                    }
+
                     let fuseInstance = null;
                     let keywordListForFuse = [];
                     let chapterKeywordList = [];
@@ -1821,6 +1853,17 @@
                         });
                         settingsCompoundPhrasingCheckbox.checked = book.settings.compoundPhrasing;
 
+                        const crossfadeToggle = document.getElementById('settingsCrossfadeEnabled');
+                        const crossfadeDurInput = document.getElementById('settingsCrossfadeDuration');
+                        const crossfadeDurContainer = document.getElementById('crossfadeDurationContainer');
+                        const crossfadeDurValue = document.getElementById('settingsCrossfadeDurationValue');
+                        const cfEnabled = book.settings.crossfadeEnabled === true;
+                        const cfDur = typeof book.settings.crossfadeDuration === 'number' ? book.settings.crossfadeDuration : 1.5;
+                        if (crossfadeToggle) crossfadeToggle.checked = cfEnabled;
+                        if (crossfadeDurInput) { crossfadeDurInput.value = cfDur; if (typeof updateRangeFill === 'function') updateRangeFill(crossfadeDurInput); }
+                        if (crossfadeDurValue) crossfadeDurValue.textContent = cfDur;
+                        if (crossfadeDurContainer) crossfadeDurContainer.classList.toggle('hidden', !cfEnabled);
+
                         const debugToggle = document.getElementById('settingsDebugLogging');
                         if (debugToggle) debugToggle.checked = DEBUG_LOGGING;
 
@@ -1896,6 +1939,10 @@
                         // Update book.settings from modal inputs
                         book.settings.listeningMode = document.querySelector('input[name="settingsListeningMode"]:checked')?.value || 'toggle';
                         book.settings.compoundPhrasing = settingsCompoundPhrasingCheckbox.checked;
+                        const crossfadeToggle = document.getElementById('settingsCrossfadeEnabled');
+                        const crossfadeDurInput = document.getElementById('settingsCrossfadeDuration');
+                        if (crossfadeToggle) book.settings.crossfadeEnabled = crossfadeToggle.checked;
+                        if (crossfadeDurInput) book.settings.crossfadeDuration = parseFloat(crossfadeDurInput.value) || 0;
                         book.settings.stopAudioMode = document.querySelector('input[name="settingsStopAudioMode"]:checked')?.value || 'all';
                         book.settings.autoplayOnClick = document.querySelector('input[name="settingsAutoplayOnClick"]:checked')?.value || 'listening';
 
@@ -3198,6 +3245,22 @@
                         downloadDebugLogButton.addEventListener('click', () => {
                             window.storytellerDownloadLogs();
                             showTemporaryMessage('Debug log downloaded.', 'success');
+                        });
+                    }
+
+                    // --- Crossfade settings interaction (Phase 2.1) ---
+                    const settingsCrossfadeToggle = document.getElementById('settingsCrossfadeEnabled');
+                    const settingsCrossfadeDurInput = document.getElementById('settingsCrossfadeDuration');
+                    if (settingsCrossfadeToggle) {
+                        settingsCrossfadeToggle.addEventListener('change', () => {
+                            const c = document.getElementById('crossfadeDurationContainer');
+                            if (c) c.classList.toggle('hidden', !settingsCrossfadeToggle.checked);
+                        });
+                    }
+                    if (settingsCrossfadeDurInput) {
+                        settingsCrossfadeDurInput.addEventListener('input', () => {
+                            const v = document.getElementById('settingsCrossfadeDurationValue');
+                            if (v) v.textContent = parseFloat(settingsCrossfadeDurInput.value).toFixed(1);
                         });
                     }
 
@@ -4775,6 +4838,10 @@
                                 if (page.fadeInOut && !isRestart) { // isRestart for files might mean a manual re-trigger of a counted loop
                                     gainNode.gain.setValueAtTime(MIN_GAIN, now);
                                     gainNode.gain.linearRampToValueAtTime(targetGain, now + FADE_DURATION);
+                                } else if (crossfadeActive() && !isRestart && !isInternalLoopIteration) {
+                                    // Global crossfade: fade the new sound in even without per-page fadeInOut.
+                                    gainNode.gain.setValueAtTime(MIN_GAIN, now);
+                                    gainNode.gain.linearRampToValueAtTime(targetGain, now + crossfadeSeconds());
                                 } else {
                                     gainNode.gain.setValueAtTime(targetGain, now);
                                 }
@@ -5018,7 +5085,8 @@
 
                         const startPlayback = (p) => {
                             log(`YT startPlayback: Loading video ${playerOptions.videoId} for player ${playerId}`);
-                            p.setVolume(finalYTVolume);
+                            if (crossfadeActive() && !isRestart) fadeInYouTube(p, finalYTVolume, crossfadeSeconds());
+                            else p.setVolume(finalYTVolume);
                             // Instead of loadVideoById, we use cueVideoById which is more reliable for this flow
                             p.cueVideoById({ videoId: playerOptions.videoId, startSeconds: playerOptions.startSeconds, endSeconds: playerOptions.endSeconds });
                             // The onStateChange handler will catch the CUED event and play the video.
@@ -5156,25 +5224,26 @@
                         // reEvaluateActiveSounds(pageId); // Re-evaluate other sounds now that this one has stopped
 
                         // Handle fade-out and stopping based on type
+                        const fadeOutSecs = stopFadeSeconds();
                         if (sourceDetail.type === 'file' && gainNode && audioContext && node instanceof AudioBufferSourceNode) {
-                            log(`LOG (stopSingleSound): Fading out FILE Page ID: ${pageId}`);
+                            log(`LOG (stopSingleSound): Fading out FILE Page ID: ${pageId} over ${fadeOutSecs}s`);
                             const now = audioContext.currentTime;
                             try {
                                 gainNode.gain.cancelScheduledValues(now);
                                 gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-                                gainNode.gain.linearRampToValueAtTime(MIN_GAIN, now + FADE_DURATION);
+                                gainNode.gain.linearRampToValueAtTime(MIN_GAIN, now + fadeOutSecs);
                                 activeSoundData.fadeTimeoutId = setTimeout(() => {
                                     if (node?.stop) { try { node.stop(); } catch (e) { } }
                                     if (node?.disconnect) { try { node.disconnect(); } catch (e) { } }
                                     if (gainNode?.disconnect) { try { gainNode.disconnect(); } catch (e) { } }
-                                }, FADE_DURATION * 1000);
+                                }, fadeOutSecs * 1000);
                             } catch (e) {
                                 console.error("Error scheduling fade out:", e);
                                 if (node?.stop) { try { node.stop(); node.disconnect(); if (gainNode) gainNode.disconnect(); } catch (err) { } }
                             }
                         } else if (sourceDetail.type === 'youtube' && node?.stopVideo) {
-                            log(`LOG (stopSingleSound): Fading out YOUTUBE Page ID: ${pageId}`);
-                            fadeOutYouTube(node, FADE_DURATION);
+                            log(`LOG (stopSingleSound): Fading out YOUTUBE Page ID: ${pageId} over ${fadeOutSecs}s`);
+                            fadeOutYouTube(node, fadeOutSecs);
                         } else if (sourceDetail.type === 'syrinscape' && syrinscapePlayerReady) {
                             const elementId = sourceDetail.syrinscapeElementId;
                             const kind = sourceDetail.syrinscapeKind?.toLowerCase();
