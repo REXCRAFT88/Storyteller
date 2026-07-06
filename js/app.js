@@ -3609,6 +3609,96 @@
                         document.querySelectorAll('#bulkImportTableBody .bulk-row-chapter').forEach(sel => { sel.value = bulkImportDefaultChapter.value; });
                     });
 
+                    // --- Command palette (Phase 3.3): Ctrl+K fuzzy launcher ---
+                    let cmdFiltered = [];
+                    let cmdActiveIndex = 0;
+                    function buildCommandList() {
+                        const cmds = [];
+                        const btn = (id) => { const el = document.getElementById(id); if (el) el.click(); };
+                        cmds.push({ type: 'action', label: 'Toggle Listening', icon: 'fa-microphone', run: () => btn('toggleListenButton') });
+                        cmds.push({ type: 'action', label: 'Stop All Sounds', icon: 'fa-volume-xmark', run: () => { stopAllSounds(); showTemporaryMessage('All sounds stopped.', 'info'); } });
+                        cmds.push({ type: 'action', label: 'Duck Volume (table talk)', icon: 'fa-volume-low', run: () => toggleDuck() });
+                        cmds.push({ type: 'action', label: 'Toggle Day / Night', icon: 'fa-clock', run: () => toggleTimeOfDay() });
+                        cmds.push({ type: 'action', label: 'Open Settings', icon: 'fa-gear', run: () => btn('openSettingsModalButton') });
+                        cmds.push({ type: 'action', label: 'Open Appendix', icon: 'fa-scroll', run: () => btn('openAppendixModalButton') });
+                        cmds.push({ type: 'action', label: 'Open Scenes', icon: 'fa-layer-group', run: () => openScenesModal() });
+                        cmds.push({ type: 'action', label: 'Test a Phrase', icon: 'fa-flask', run: () => openMatcherPlayground() });
+                        cmds.push({ type: 'action', label: 'Open Story Plotter', icon: 'fa-diagram-project', run: () => btn('openStoryPlotterButton') });
+                        (book.chapters || []).forEach(ch => cmds.push({ type: 'chapter', label: ch.name, icon: 'fa-book-open', run: () => setActiveChapter(ch.id, true, 'tab_click') }));
+                        (book.scenes || []).forEach(s => cmds.push({ type: 'scene', label: s.name, icon: 'fa-layer-group', run: () => recallScene(s.id) }));
+                        (book.pages || []).forEach(pg => cmds.push({
+                            type: 'page', label: pg.title, icon: 'fa-play',
+                            run: () => { if (activeSounds[pg.id]) stopSingleSound(pg.id); else playPageManually(pg.id); }
+                        }));
+                        return cmds;
+                    }
+                    function cmdMatchScore(label, q) {
+                        const idx = label.indexOf(q);
+                        if (idx === 0) return 0;         // prefix
+                        if (idx > 0) return 1 + idx / 100; // substring, earlier is better
+                        let li = 0;                      // subsequence fallback
+                        for (let i = 0; i < q.length; i++) { li = label.indexOf(q[i], li); if (li < 0) return -1; li++; }
+                        return 50;
+                    }
+                    function renderCommandResults(query) {
+                        const resultsEl = document.getElementById('commandPaletteResults');
+                        if (!resultsEl) return;
+                        const all = buildCommandList();
+                        const q = (query || '').trim().toLowerCase();
+                        let list = all;
+                        if (q) {
+                            list = all.map(c => ({ c, s: cmdMatchScore(c.label.toLowerCase(), q) }))
+                                .filter(x => x.s >= 0).sort((a, b) => a.s - b.s).map(x => x.c);
+                        }
+                        cmdFiltered = list.slice(0, 40);
+                        cmdActiveIndex = 0;
+                        resultsEl.innerHTML = cmdFiltered.length === 0
+                            ? '<li class="!cursor-default text-stone-500 italic">No matches</li>'
+                            : cmdFiltered.map((c, i) => `<li data-idx="${i}" class="${i === 0 ? 'active' : ''}"><i class="fas ${c.icon} cmd-icon"></i><span class="truncate">${escapeHtml(c.label)}</span><span class="cmd-type">${c.type}</span></li>`).join('');
+                        resultsEl.querySelectorAll('li[data-idx]').forEach(li => {
+                            li.addEventListener('click', () => runCommand(parseInt(li.dataset.idx, 10)));
+                            li.addEventListener('mousemove', () => setCmdActive(parseInt(li.dataset.idx, 10)));
+                        });
+                    }
+                    function setCmdActive(idx) {
+                        cmdActiveIndex = Math.max(0, Math.min(cmdFiltered.length - 1, idx));
+                        const resultsEl = document.getElementById('commandPaletteResults');
+                        resultsEl.querySelectorAll('li[data-idx]').forEach(li => li.classList.toggle('active', parseInt(li.dataset.idx, 10) === cmdActiveIndex));
+                        const activeLi = resultsEl.querySelector('li.active');
+                        if (activeLi) activeLi.scrollIntoView({ block: 'nearest' });
+                    }
+                    function runCommand(idx) {
+                        const cmd = cmdFiltered[idx];
+                        if (!cmd) return;
+                        closeCommandPalette();
+                        try { cmd.run(); } catch (e) { console.error('Command failed:', e); }
+                    }
+                    function openCommandPalette() {
+                        const pal = document.getElementById('commandPalette');
+                        const input = document.getElementById('commandPaletteInput');
+                        if (!pal || !input) return;
+                        pal.classList.remove('hidden');
+                        input.value = '';
+                        renderCommandResults('');
+                        setTimeout(() => input.focus(), 20);
+                    }
+                    function closeCommandPalette() {
+                        const pal = document.getElementById('commandPalette');
+                        if (pal) pal.classList.add('hidden');
+                    }
+                    const commandPaletteInput = document.getElementById('commandPaletteInput');
+                    if (commandPaletteInput) {
+                        commandPaletteInput.addEventListener('input', () => renderCommandResults(commandPaletteInput.value));
+                        commandPaletteInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'ArrowDown') { e.preventDefault(); setCmdActive(cmdActiveIndex + 1); }
+                            else if (e.key === 'ArrowUp') { e.preventDefault(); setCmdActive(cmdActiveIndex - 1); }
+                            else if (e.key === 'Enter') { e.preventDefault(); runCommand(cmdActiveIndex); }
+                            else if (e.key === 'Escape') { e.preventDefault(); closeCommandPalette(); }
+                        });
+                    }
+                    const commandPaletteOverlay = document.getElementById('commandPalette');
+                    if (commandPaletteOverlay) commandPaletteOverlay.addEventListener('mousedown', (e) => { if (e.target === commandPaletteOverlay) closeCommandPalette(); });
+
                     const openScenesModalButton = document.getElementById('openScenesModalButton');
                     if (openScenesModalButton) openScenesModalButton.addEventListener('click', openScenesModal);
                     const closeScenesModalButton = document.getElementById('closeScenesModalButton');
@@ -11247,6 +11337,14 @@
 
                     // --- Keyboard Shortcuts ---
                     document.addEventListener('keydown', (event) => {
+                        // Command palette (Ctrl/Cmd+K) works from anywhere; toggles open/closed.
+                        if ((event.ctrlKey || event.metaKey) && (event.key === 'k' || event.key === 'K')) {
+                            event.preventDefault();
+                            const pal = document.getElementById('commandPalette');
+                            if (pal && !pal.classList.contains('hidden')) closeCommandPalette();
+                            else openCommandPalette();
+                            return;
+                        }
                         const inInput = event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable;
                         const addModalVisible = addEditSourceModal.style.display === 'flex' && currentSyrinscapeSearchContext === 'add'; // More specific check for when it's acting as the "Add Page" source modal
                         const editPageModalVisible = editPageModal.style.display === 'flex';
