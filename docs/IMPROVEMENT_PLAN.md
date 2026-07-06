@@ -2,6 +2,19 @@
 
 *Written 2026-07-06, after the appendix/slider/compound-phrasing troubleshooting session. Companion to `FIX_PLAN.md` (bugs/tech-debt, mostly complete) — this plan is about making the app **better**, not just correct. Phases are ordered by value to a GM running a live session; each phase leaves the app shippable.*
 
+## Progress (updated 2026-07-06)
+
+**Settings reorganized into tabs** (Speech / Audio / Integrations / Advanced), per request. The Audio tab also hosts a Crossfade Transitions toggle + duration slider (UI in place; engine lands in Phase 2.1).
+
+**Phase 1 complete** — all verified in headless Chromium, each its own commit:
+- ✅ **1.1** Trigger history panel below the transcript: records what each phrase caused (matched pages + keyword + confidence, chapter/time transitions, appendix, stop phrases); click a matched page to play/stop it.
+- ✅ **1.2** "Test a Phrase" matcher playground: runs the real pipeline in a `matchDryRun` mode (every side effect suppressed) to show what a typed phrase would trigger without playing anything.
+- ✅ **1.3** Undo for page/chapter/collection/appendix/soundtrack deletes (8s snackbar + Ctrl+Z, depth 10); native `confirm()` dialogs removed. Also guarded a pre-existing `book.appendix.push` load crash.
+- ✅ **1.4** Page hotkeys: bind a key in the Edit Page modal (persisted), press it anywhere outside inputs to play/stop; badge on the page item.
+- ✅ **1.5** Duck-all button + Ctrl+D: drops all audio to 20% for table talk via a global `duckFactor`/`masterFrac()` without moving the master slider.
+
+**Next: Phase 2 (audio polish).** Note the Fuse.js CDN dependency means page-keyword matching can't be exercised in the `file://` sandbox (only stop/time/chapter/appendix outcomes were testable there) — verify the playground's page matches in a served/online context, and prioritize Phase 4.1 (vendor CDNs) to unblock offline use + local testing.
+
 ## Ground rules for the executing agent
 
 1. **One commit per numbered step.** Run `node --check js/app.js`, `node scripts/check-dom-ids.mjs`, and `node scripts/smoke-test.mjs` before every commit (Playwright JS package installs with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm i --no-save playwright`; Chromium is at `/opt/pw-browsers/chromium` in the cloud sandbox).
