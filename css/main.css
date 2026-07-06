@@ -2108,6 +2108,47 @@
             color: var(--bg-tertiary, #292524);
         }
 
+        /* --- Reduced motion (4.5): honor the OS setting --- */
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+                scroll-behavior: auto !important;
+            }
+
+            .torch-container,
+            .torch-glow,
+            .torch-img {
+                animation: none !important;
+            }
+        }
+
+        /* --- Touch targets (4.4): bigger tap areas on touch/coarse pointers --- */
+        @media (pointer: coarse) {
+
+            .action-button,
+            .btn-rpg-sm-icon,
+            .play-toggle-button {
+                min-width: 40px;
+                min-height: 40px;
+            }
+
+            .page-item .page-drag-handle {
+                padding: 0 8px;
+                opacity: 0.8;
+            }
+
+            /* Grid view is the natural "performance mode" for touch — enlarge its play buttons. */
+            .grid-view .page-item-grid-actions .action-button {
+                min-width: 44px;
+                min-height: 44px;
+            }
+        }
+
         /* --- Settings modal tabs --- */
         .settings-tabs {
             display: flex;

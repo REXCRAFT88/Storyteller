@@ -3359,6 +3359,24 @@
                         });
                     }
 
+                    // --- Accessibility: label icon-only controls (4.5) ---
+                    // Most buttons carry a `title`; mirror it to aria-label so screen readers
+                    // announce them. A debounced observer covers dynamically-rendered controls.
+                    function applyAriaLabels(root) {
+                        (root || document).querySelectorAll('button[title]:not([aria-label]), a[title]:not([aria-label]), label[title]:not([aria-label])').forEach(el => {
+                            const t = el.getAttribute('title');
+                            if (t) el.setAttribute('aria-label', t);
+                        });
+                    }
+                    let ariaLabelScheduled = false;
+                    const ariaObserver = new MutationObserver(() => {
+                        if (ariaLabelScheduled) return;
+                        ariaLabelScheduled = true;
+                        requestAnimationFrame(() => { ariaLabelScheduled = false; applyAriaLabels(document); });
+                    });
+                    applyAriaLabels(document);
+                    ariaObserver.observe(document.body, { childList: true, subtree: true });
+
                     // --- Settings modal tabs ---
                     function activateSettingsTab(tabName) {
                         document.querySelectorAll('.settings-tab-btn').forEach(btn => {
