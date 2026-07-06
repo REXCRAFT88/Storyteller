@@ -5030,10 +5030,17 @@
 
                                 const sourceToPlay = findPlayableSourceVariation(bestMatch.page, false, textForVariationCheck);
                                 if (sourceToPlay) {
-                                    // Consume the matched words from the transcript so they aren't re-used.
-                                    const wordsInMatch = bestMatch.matchDetails.map(d => d.matchedWord.toLowerCase());
+                                    // Consume the matched *regular* keywords from the transcript so
+                                    // they aren't re-used by another page. The Primary Key word is
+                                    // deliberately NOT consumed: several pages can share one PK (e.g.
+                                    // "arrow" for Arrow Whoosh, Arrow Hits Flesh and Arrow Hits Object),
+                                    // and one spoken utterance should be able to trigger all of them.
+                                    // Consuming the PK here would gate every later same-PK page out via
+                                    // checkPrimaryKeyConfidence, so a compound phrase like "...fire an
+                                    // arrow ... and hits an orc" would only ever fire the first arrow page.
+                                    const wordsInMatch = bestMatch.matchDetails.filter(d => !d.isPK).map(d => d.matchedWord.toLowerCase());
                                     wordsInMatch.forEach(w => wordsToExclude.add(w));
-                                    log(`Consumed words from multi-match: ${[...wordsInMatch]}`);
+                                    log(`Consumed regular-keyword words from multi-match: ${[...wordsInMatch]}`);
 
                                     // Set the look-behind context if this match has a primary key. // This logic is correct
                                     if (!matchDryRun && isCompoundPhrasingEnabled && bestMatch.page.primaryKey) {

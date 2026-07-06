@@ -10,6 +10,7 @@
     "lint": "eslint js/**/*.js",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\"",
     "test:smoke": "node scripts/smoke-test.mjs",
+    "test:compound": "node scripts/compound-phrasing-test.mjs",
     "build:vendor": "node scripts/build-vendor.mjs"
   },
   "devDependencies": {
