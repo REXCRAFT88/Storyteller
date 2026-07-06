@@ -1893,6 +1893,30 @@
             transform: translateY(-1px);
         }
 
+        /* --- Per-page live volume (2.2) --- */
+        .page-quick-volume-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed rgba(214, 192, 109, 0.2);
+            color: var(--accent-gold-light, #D6C06D);
+        }
+
+        .page-quick-volume-row .page-quick-volume {
+            flex: 1;
+            height: 8px;
+            min-width: 60px;
+        }
+
+        .page-quick-volume-row .page-quick-volume-value {
+            font-size: 0.7rem;
+            width: 2rem;
+            text-align: right;
+            color: var(--text-secondary, #a8a29e);
+        }
+
         /* --- Hotkey badge on page items --- */
         .hotkey-badge {
             display: inline-block;

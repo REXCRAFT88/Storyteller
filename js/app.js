@@ -890,7 +890,8 @@
                     let isDucked = false;
                     const DUCK_LEVEL = 0.2;
                     // Effective master-volume fraction (0–1) folding in the duck. All gain math uses this.
-                    function masterFrac() { return masterFrac() * duckFactor; }
+                    function masterFrac() { return (currentMasterVolume / 100) * duckFactor; }
+                    let quickVolumeSaveTimer = null; // debounce for the per-page live volume slider (2.2)
 
                     // Flag to indicate that autoplay is being triggered due to a time-of-day change.  When set, the
                     // playAutoplayPages function will perform special logic to determine which pages should be
@@ -5731,6 +5732,7 @@
                                     ${loopInfo}${chainInfoHtml}
                                 </div>
                                 ${endPlayKeywordInfo}
+                                ${isPlaying ? `<div class="page-quick-volume-row"><i class="fas fa-volume-low fa-fw"></i><input type="range" class="page-quick-volume" min="0" max="100" value="${page.volume}" title="Adjust this sound's volume live"><span class="page-quick-volume-value">${page.volume}</span></div>` : ''}
                             </div>
                             <div class="page-item-grid-content"> <div class="page-item-grid-title-container">
                                     ${starCheckboxHtml}
@@ -5775,6 +5777,22 @@
                             if (isCurrentlyPlaying) stopSingleSound(page.id);
                             else playPageManually(page.id, e.shiftKey);
                         }));
+                        // Live per-page volume (Phase 2.2): adjusts the playing sound immediately
+                        // and writes page.volume (debounced save so dragging doesn't thrash storage).
+                        li.querySelectorAll('.page-quick-volume').forEach(slider => {
+                            if (typeof updateRangeFill === 'function') updateRangeFill(slider);
+                            slider.addEventListener('click', (e) => e.stopPropagation());
+                            slider.addEventListener('input', (e) => {
+                                e.stopPropagation();
+                                const vol = parseInt(slider.value, 10);
+                                page.volume = vol;
+                                const valSpan = slider.parentElement.querySelector('.page-quick-volume-value');
+                                if (valSpan) valSpan.textContent = vol;
+                                adjustCurrentlyPlayingVolumes([page.id]);
+                                clearTimeout(quickVolumeSaveTimer);
+                                quickVolumeSaveTimer = setTimeout(saveToLocalStorage, 500);
+                            });
+                        });
 
                         return li;
                     }
