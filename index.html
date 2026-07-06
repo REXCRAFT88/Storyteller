@@ -187,6 +187,17 @@
                                 "but", etc., the next phrase can use the first phrase's Primary Key(s) to trigger
                                 another sound.</p>
                         </div>
+                        <div class="border-t border-stone-700 pt-4">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Debug Logging</span>
+                                <div class="rpg-toggle-switch"><input type="checkbox" id="settingsDebugLogging"><span
+                                        class="slider"></span></div>
+                            </label>
+                            <p class="text-xs text-gray-400 mt-1">Records detailed matching &amp; playback logs. Turn it
+                                on, reproduce the problem, then download the log to share for troubleshooting.</p>
+                            <button id="downloadDebugLogButton" type="button" class="btn-rpg-sm mt-2"><i
+                                    class="fas fa-download mr-1"></i> Download Debug Log</button>
+                        </div>
                         <div id="accuracyThresholdContainer" class="border-t border-stone-700 pt-4">
                             <label for="settingsAccuracyThreshold" class="block text-sm font-medium mb-1">Minimum
                                 Confidence (Keywords & Primary Keys):</label>
@@ -744,6 +755,19 @@
                                     placeholder="e.g., heavy, intense, distant">
                                 <p class="text-xs text-gray-400 mt-1">If set, these keywords help select this variation
                                     when the page is triggered.</p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium mb-1">Time of Day:</label>
+                                <div class="flex items-center space-x-4 time-of-day-options">
+                                    <label><input type="radio" name="sourceVariationTimeOfDay" value="always" checked>
+                                        <i class="fas fa-clock"></i> Always</label>
+                                    <label><input type="radio" name="sourceVariationTimeOfDay" value="day"> <i
+                                            class="fas fa-sun day"></i> Day</label>
+                                    <label><input type="radio" name="sourceVariationTimeOfDay" value="night"> <i
+                                            class="fas fa-moon night"></i> Night</label>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">Restrict this variation to day or night. "Always"
+                                    plays regardless of the current time of day.</p>
                             </div>
                             <div class="modal-full-width modal-section !mt-2 !pt-2">
                                 <h4 class="!mb-2 !text-sm !font-semibold">Activation Conditions (Optional)</h4>

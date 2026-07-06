@@ -66,11 +66,56 @@
                     // user opts in with storytellerDebug(true) from the console. Warnings and
                     // errors still use console.warn/console.error directly.
                     let DEBUG_LOGGING = false;
-                    function log(...args) { if (DEBUG_LOGGING) console.log(...args); }
+                    // In-memory ring buffer so users can download a log to share for
+                    // troubleshooting without needing the browser console. Every log() line and
+                    // any console.warn/error is captured here regardless of DEBUG_LOGGING; only
+                    // console *output* is gated by the toggle.
+                    const LOG_BUFFER_MAX = 6000;
+                    const logBuffer = [];
+                    function pushLogBuffer(level, args) {
+                        try {
+                            const parts = [];
+                            args.forEach(a => {
+                                if (typeof a === 'string') {
+                                    // Skip CSS style arguments that pair with %c format directives.
+                                    if (/^\s*(color|font-weight|background|font-size)\s*:/i.test(a)) return;
+                                    parts.push(a.replace(/%c/g, '').trim());
+                                } else {
+                                    try { parts.push(JSON.stringify(a)); } catch { parts.push(String(a)); }
+                                }
+                            });
+                            logBuffer.push(`[${new Date().toISOString()}] ${level}: ${parts.join(' ')}`);
+                            if (logBuffer.length > LOG_BUFFER_MAX) logBuffer.shift();
+                        } catch (e) { /* logging must never break the app */ }
+                    }
+                    function log(...args) { pushLogBuffer('LOG', args); if (DEBUG_LOGGING) console.log(...args); }
+                    // Also capture warnings and errors so a downloaded log includes failures.
+                    (function captureConsole() {
+                        const origWarn = console.warn.bind(console);
+                        const origError = console.error.bind(console);
+                        console.warn = (...a) => { pushLogBuffer('WARN', a); origWarn(...a); };
+                        console.error = (...a) => { pushLogBuffer('ERROR', a); origError(...a); };
+                    })();
                     window.storytellerDebug = (on = true) => {
                         DEBUG_LOGGING = !!on;
+                        try { localStorage.setItem('storyteller_debug_logging', DEBUG_LOGGING ? '1' : '0'); } catch (e) {}
                         console.log(`Storyteller debug logging ${DEBUG_LOGGING ? 'ON' : 'OFF'}`);
                     };
+                    window.storytellerDownloadLogs = () => {
+                        const text = logBuffer.length ? logBuffer.join('\n') : 'No log entries captured yet.';
+                        const blob = new Blob([text], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `storyteller-debug-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    };
+                    // Restore the debug preference across reloads so a user can enable it, reload,
+                    // reproduce the issue, then download the captured log.
+                    try { if (localStorage.getItem('storyteller_debug_logging') === '1') DEBUG_LOGGING = true; } catch (e) {}
 
                     // --- Local audio persistence (IndexedDB) — ANALYSIS.md B3 ---------------
                     // Audio files were previously decoded into memory only; every reload forced
@@ -1673,6 +1718,9 @@
                         });
                         settingsCompoundPhrasingCheckbox.checked = book.settings.compoundPhrasing;
 
+                        const debugToggle = document.getElementById('settingsDebugLogging');
+                        if (debugToggle) debugToggle.checked = DEBUG_LOGGING;
+
                         const savedKeywordConfidence = book.settings.accuracyThreshold ?? 0.80;
                         settingsAccuracyThresholdInput.value = savedKeywordConfidence * 100;
                         settingsAccuracyValueSpan.textContent = savedKeywordConfidence.toFixed(2);
@@ -2977,6 +3025,23 @@
                     });
                     // Keep fills in sync when values are set programmatically (load, restore, appendix).
                     document.addEventListener('storyteller:refresh-range-fills', initAllRangeFills);
+
+                    // --- Debug Logging controls (Settings) ---
+                    const settingsDebugLoggingToggle = document.getElementById('settingsDebugLogging');
+                    if (settingsDebugLoggingToggle) {
+                        settingsDebugLoggingToggle.checked = DEBUG_LOGGING;
+                        settingsDebugLoggingToggle.addEventListener('change', () => {
+                            window.storytellerDebug(settingsDebugLoggingToggle.checked);
+                            showTemporaryMessage(`Debug logging ${settingsDebugLoggingToggle.checked ? 'enabled' : 'disabled'}.`, 'info');
+                        });
+                    }
+                    const downloadDebugLogButton = document.getElementById('downloadDebugLogButton');
+                    if (downloadDebugLogButton) {
+                        downloadDebugLogButton.addEventListener('click', () => {
+                            window.storytellerDownloadLogs();
+                            showTemporaryMessage('Debug log downloaded.', 'success');
+                        });
+                    }
 
 
                     // --- Add Page Modal Listeners ---
@@ -7693,6 +7758,9 @@
                         sourceVariationNameInput.value = '';
                         sourceVariationVolumeInput.value = 80;
                         sourceVariationKeywordsInput.value = '';
+                        // Reset time-of-day radios to "always" for a new variation.
+                        const defaultTimeRadio = document.querySelector('input[name="sourceVariationTimeOfDay"][value="always"]');
+                        if (defaultTimeRadio) defaultTimeRadio.checked = true;
                         sourceVariationVolumeValueSpan.textContent = '80';
                         if (sourceVariationEnableVolumeOverrideCheckbox) {
                             sourceVariationEnableVolumeOverrideCheckbox.checked = false;
@@ -7722,6 +7790,10 @@
                             sourceVariationKeywordsInput.value = (source.variationKeywords || []).join(', ');
                             sourceVariationVolumeValueSpan.textContent = sourceVariationVolumeInput.value;
                             sourceVariationIsDefaultCheckbox.checked = source.isDefault || false;
+                            // Restore the variation's time-of-day restriction.
+                            const savedTime = ['day', 'night', 'always'].includes(source.timeOfDay) ? source.timeOfDay : 'always';
+                            const timeRadio = document.querySelector(`input[name="sourceVariationTimeOfDay"][value="${savedTime}"]`);
+                            if (timeRadio) timeRadio.checked = true;
 
                             initializeConditionBuilder(
                                 'sourceVariationPageConditionsList',      // pageListContainerId
@@ -7903,12 +7975,13 @@
 
                         currentSyrinscapeSearchContext = 'sub-variation';
                         addEditSourceModal.style.display = 'flex';
-                        manageSourcesModal.style.zIndex = '1005'; // Hide behind
+                        // Raise the edit-source modal above Manage Sources. (Both are .modal at
+                        // z-index 1000, so we lift this one rather than the base modal.)
+                        addEditSourceModal.style.zIndex = '1015';
                     }
 
                     function closeAddEditSourceModal() {
-                        if (addEditSourceModal) addEditSourceModal.style.display = 'none';
-                        if (manageSourcesModal) manageSourcesModal.style.zIndex = '1010'; // Restore
+                        if (addEditSourceModal) { addEditSourceModal.style.display = 'none'; addEditSourceModal.style.zIndex = ''; } // Reset to base z-index
                         currentSyrinscapeSearchContext = null;
                         if (activePreviewContext?.container === sourceFilePreviewContainer || activePreviewContext?.container === sourceYouTubePreviewContainer) {
                             stopModalPreview();
@@ -8039,6 +8112,8 @@
                         const volumeOverride = (enableOverride && !isNaN(volumeValue)) ? volumeValue : null;
                         const variationKeywords = sourceVariationKeywordsInput.value.trim().toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
 
+                        const timeOfDay = document.querySelector('input[name="sourceVariationTimeOfDay"]:checked')?.value || 'always';
+
                         const conditions = getConditionsFromBuilder('sourceVariationPageConditionsList', 'sourceVariationOtherConditions', 'sourceVariationTagConditionsList');
                         // --- DEBUG LOG ---
                         log(`%c[DEBUG] saveSourceVariationChanges: Conditions retrieved from builder:`, 'color: lightgreen', JSON.parse(JSON.stringify(conditions)));
@@ -8072,6 +8147,7 @@
                                 volumeOverride: volumeOverride,
                                 isDefault: isDefault,
                                 variationKeywords: variationKeywords,
+                                timeOfDay: timeOfDay,
                                 conditions: conditions.length > 0 ? conditions : null,
                                 sources: isEditing ? page.sources[sourceIndex].sources : [] // Keep existing sources if editing
                             };
@@ -8983,8 +9059,10 @@
                     function findPlayableSourceVariation(page, isPlotterContextForVariationSelection = false, textToSearch = null) {
                         if (!page || !page.sources || page.sources.length === 0) return null;
 
-                        // 1. Create Candidate Pool: Filter for variations that have at least one playable sub-source.
+                        // 1. Create Candidate Pool: Filter for variations that have at least one playable sub-source
+                        //    AND whose time-of-day restriction matches the current time ("always"/unset = any time).
                         const allPlayableVariations = page.sources.filter(variation =>
+                            (!variation.timeOfDay || variation.timeOfDay === 'always' || variation.timeOfDay === currentTimeOfDay) &&
                             variation.sources && variation.sources.length > 0 && variation.sources.some(subSource =>
                                 (subSource.type === 'file' && !subSource.needsFile) ||
                                 subSource.type === 'youtube' ||
@@ -8993,7 +9071,7 @@
                         );
 
                         if (allPlayableVariations.length === 0) {
-                            log(`No playable variations found for page "${page.title}" after checking sources.`);
+                            log(`No playable variations found for page "${page.title}" after checking sources / time-of-day (${currentTimeOfDay}).`);
                             return null;
                         }
 
@@ -9953,6 +10031,7 @@
                                         isDefault: variation.isDefault,
                                         conditions: variation.conditions,
                                         variationKeywords: variation.variationKeywords || [],
+                                        timeOfDay: variation.timeOfDay || 'always',
                                         // The nested array of actual sound sources
                                         sources: (variation.sources || []).map(subSource => ({
                                             type: subSource.type,
