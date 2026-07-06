@@ -12503,6 +12503,32 @@
                     }
 
 
+                    // Fade a soundtrack player node out over N seconds, then tear it down (2.4).
+                    function fadeOutStPlayer(node, seconds) {
+                        if (!node) return;
+                        if (node.gainNode && typeof audioContext !== 'undefined' && audioContext) {
+                            try {
+                                const now = audioContext.currentTime;
+                                node.gainNode.gain.cancelScheduledValues(now);
+                                node.gainNode.gain.setValueAtTime(node.gainNode.gain.value, now);
+                                node.gainNode.gain.linearRampToValueAtTime(MIN_GAIN, now + seconds);
+                            } catch (e) { }
+                            setTimeout(() => {
+                                try { if (node.stop) node.stop(); } catch (e) { }
+                                try { if (node.disconnect) node.disconnect(); } catch (e) { }
+                                try { if (node.gainNode && node.gainNode.disconnect) node.gainNode.disconnect(); } catch (e) { }
+                            }, seconds * 1000 + 50);
+                        } else if (typeof node.setVolume === 'function') {
+                            fadeOutYouTube(node, seconds);
+                            setTimeout(() => {
+                                try { if (node.pauseVideo) node.pauseVideo(); } catch (e) { }
+                                try { if (node.destroy) node.destroy(); } catch (e) { }
+                            }, seconds * 1000 + 50);
+                        } else {
+                            try { if (node.stop) node.stop(); if (node.pauseVideo) node.pauseVideo(); if (node.destroy) node.destroy(); } catch (e) { }
+                        }
+                    }
+
                     function getSoundtrackFinalVol(st, song) {
                         const baseVol = globalSoundtrackVolume / 100;
                         const playlistVol = (st.volume !== undefined ? st.volume : 100) / 100;
@@ -12562,16 +12588,20 @@
 
                         const currentRequestId = ++stPlayRequestCount;
 
-                        // Stop current immediately
+                        // Stop the current song. With crossfade on, fade the old one out while the
+                        // new one fades in (a true song-to-song crossfade); otherwise hard-cut.
                         if (stPlayerNode) {
                             if (stPlayerNode.endTimeout) clearTimeout(stPlayerNode.endTimeout);
                             if (stPlayerNode.endTimeTimeout) clearTimeout(stPlayerNode.endTimeTimeout);
-
-                            try {
-                                if (stPlayerNode.stop) stPlayerNode.stop();
-                                if (stPlayerNode.pauseVideo) stPlayerNode.pauseVideo();
-                                if (stPlayerNode.destroy) stPlayerNode.destroy();
-                            } catch(e) {}
+                            if (crossfadeActive()) {
+                                fadeOutStPlayer(stPlayerNode, crossfadeSeconds());
+                            } else {
+                                try {
+                                    if (stPlayerNode.stop) stPlayerNode.stop();
+                                    if (stPlayerNode.pauseVideo) stPlayerNode.pauseVideo();
+                                    if (stPlayerNode.destroy) stPlayerNode.destroy();
+                                } catch (e) { }
+                            }
                             stPlayerNode = null;
                         }
 
@@ -12591,7 +12621,13 @@
                                     const source = audioContext.createBufferSource();
                                     source.buffer = buffer;
                                     const gainNode = audioContext.createGain();
-                                    gainNode.gain.value = finalVol; 
+                                    if (crossfadeActive()) {
+                                        const t0 = audioContext.currentTime;
+                                        gainNode.gain.setValueAtTime(MIN_GAIN, t0);
+                                        gainNode.gain.linearRampToValueAtTime(finalVol, t0 + crossfadeSeconds());
+                                    } else {
+                                        gainNode.gain.value = finalVol;
+                                    }
                                     source.connect(gainNode);
                                     gainNode.connect(audioContext.destination); // was undefined masterGainNode (B4)
 
@@ -12654,7 +12690,8 @@
                                         }
 
                                         const targetVol = finalVol * 100;
-                                        event.target.setVolume(targetVol);
+                                        if (crossfadeActive()) fadeInYouTube(event.target, targetVol, crossfadeSeconds());
+                                        else event.target.setVolume(targetVol);
                                         event.target.playVideo();
 
                                         isStPlaying = true;
@@ -12688,8 +12725,19 @@
                     }
 
                     function stopSoundtrack() {
+                        const node = stPlayerNode;
+                        const wasPlaying = isStPlaying && !!node;
                         activeSoundtrackId = null;
                         isStPlaying = false;
+                        // Detach the node first so updateSoundtrackBarUI won't hard-stop it, then
+                        // fade it out ourselves (or tear down instantly when crossfade is off).
+                        stPlayerNode = null;
+                        if (node) {
+                            if (node.endTimeout) clearTimeout(node.endTimeout);
+                            if (node.endTimeTimeout) clearTimeout(node.endTimeTimeout);
+                            if (wasPlaying && crossfadeActive()) fadeOutStPlayer(node, stopFadeSeconds());
+                            else { try { if (node.stop) node.stop(); if (node.pauseVideo) node.pauseVideo(); if (node.destroy) node.destroy(); } catch (e) { } }
+                        }
                         updateSoundtrackBarUI();
                         renderSoundtrackIcons();
                     }
