@@ -1,7 +1,12 @@
-/* Storyteller service worker (Phase 4.2) — precaches the app shell so it boots
- * offline. Bump CACHE_VERSION whenever a shell asset changes. Cross-origin
- * requests (Syrinscape/YouTube/Spotify/Vosk models) are left to the network. */
-const CACHE_VERSION = 'storyteller-shell-v1';
+/* Storyteller service worker (Phase 4.2, hardened) — NETWORK-FIRST.
+ *
+ * Always serves the freshest version when online (so a new deploy takes effect
+ * on the next load and the site can never get stuck on a stale/broken cached
+ * copy), falling back to the cache only when the network is unavailable.
+ * Bump CACHE_VERSION whenever the shell changes; old caches are purged on
+ * activate. Cross-origin requests (Syrinscape/YouTube/Spotify/Vosk) are left
+ * entirely to the network. */
+const CACHE_VERSION = 'storyteller-shell-v2';
 
 const SHELL = [
     './',
@@ -27,11 +32,13 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
+    // Warm the cache for offline use, but never let a failed precache block
+    // installation — the network-first fetch handler works without it.
     event.waitUntil(
         caches.open(CACHE_VERSION)
-            .then((cache) => cache.addAll(SHELL))
+            .then((cache) => Promise.allSettled(SHELL.map((u) => cache.add(u))))
             .then(() => self.skipWaiting())
-            .catch((e) => console.warn('SW precache failed (some assets skipped):', e))
+            .catch(() => self.skipWaiting())
     );
 });
 
@@ -43,29 +50,37 @@ self.addEventListener('activate', (event) => {
     );
 });
 
+// Allow the page to tell a waiting SW to activate immediately (future use).
+self.addEventListener('message', (event) => {
+    if (event.data === 'skipWaiting') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (event) => {
     const req = event.request;
     if (req.method !== 'GET') return;
-    const url = new URL(req.url);
-    // Only handle our own origin; let external integrations hit the network.
+    let url;
+    try { url = new URL(req.url); } catch (e) { return; }
+    // Only handle our own origin; external integrations always hit the network.
     if (url.origin !== self.location.origin) return;
 
-    // Navigation requests fall back to the cached shell when offline.
-    if (req.mode === 'navigate') {
-        event.respondWith(
-            fetch(req).catch(() => caches.match('index.html').then((r) => r || caches.match('./')))
-        );
-        return;
-    }
-
-    // Cache-first for same-origin assets; populate the cache on first network hit.
-    event.respondWith(
-        caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-            if (res && res.ok && res.type === 'basic') {
-                const copy = res.clone();
-                caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy)).catch(() => { });
+    event.respondWith((async () => {
+        try {
+            // Network first: the freshest response wins and refreshes the cache.
+            const fresh = await fetch(req);
+            if (fresh && fresh.ok && fresh.type === 'basic') {
+                const cache = await caches.open(CACHE_VERSION);
+                cache.put(req, fresh.clone()).catch(() => { });
             }
-            return res;
-        }).catch(() => cached))
-    );
+            return fresh;
+        } catch (e) {
+            // Offline: fall back to the cache, then to the cached shell for navigations.
+            const cached = await caches.match(req);
+            if (cached) return cached;
+            if (req.mode === 'navigate') {
+                const shell = (await caches.match('index.html')) || (await caches.match('./'));
+                if (shell) return shell;
+            }
+            throw e; // genuinely offline and uncached — let the browser handle it
+        }
+    })());
 });
