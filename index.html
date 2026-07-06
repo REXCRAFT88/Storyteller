@@ -5,6 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Storyteller</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0d0b09">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <script>
+        // Register the service worker for offline use. No-op on file:// (SW needs http/https).
+        if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW registration failed:', e));
+            });
+        }
+    </script>
     <!-- Locally vendored dependencies (no CDN) so the app boots styled & searchable offline. -->
     <link rel="stylesheet" href="vendor/tailwind.css">
     <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
