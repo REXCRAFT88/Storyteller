@@ -3472,6 +3472,126 @@
                         const modal = document.getElementById('scenesModal');
                         if (modal) modal.style.display = 'flex';
                     }
+                    // --- Bulk audio import (Phase 3.1): a page per file, reviewed in one pass ---
+                    let bulkImportFiles = [];
+                    function cleanFilenameToTitle(name) {
+                        let t = String(name || '').replace(/\.[^.]+$/, '');   // strip extension
+                        t = t.replace(/[_\-]+/g, ' ');                        // underscores/dashes → spaces
+                        t = t.replace(/^\s*\d+\s*[.\-)]?\s+/, '');            // leading "01 - " track number
+                        t = t.replace(/\s+/g, ' ').trim();
+                        t = t.replace(/\b\w/g, c => c.toUpperCase());         // title case
+                        return t || String(name || 'Untitled');
+                    }
+                    function keywordsFromTitle(title) {
+                        return title.toLowerCase().split(/\s+/)
+                            .filter(w => w.length >= 3 && !IGNORED_WORDS.has(w))
+                            .slice(0, 6).join(', ');
+                    }
+                    function uniqueTitle(base, taken) {
+                        let t = base, n = 2;
+                        const lc = new Set([...taken].map(x => x.toLowerCase()));
+                        while (lc.has(t.toLowerCase())) { t = `${base} ${n++}`; }
+                        return t;
+                    }
+                    function chapterOptionsHtml(selectedId) {
+                        return book.chapters.slice().sort((a, b) => (a.isIndex ? -1 : b.isIndex ? 1 : a.name.localeCompare(b.name)))
+                            .map(ch => `<option value="${ch.id}" ${String(ch.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(ch.name)}</option>`).join('');
+                    }
+                    function openBulkImportReview(files) {
+                        bulkImportFiles = Array.from(files);
+                        const tbody = document.getElementById('bulkImportTableBody');
+                        const defaultChapterSelect = document.getElementById('bulkImportDefaultChapter');
+                        const activeCh = book.chapters.find(c => c.id == book.activeChapterId);
+                        const defaultChapterId = activeCh ? activeCh.id : 'index';
+                        if (defaultChapterSelect) defaultChapterSelect.innerHTML = chapterOptionsHtml(defaultChapterId);
+                        const takenTitles = new Set(book.pages.map(p => p.title));
+                        tbody.innerHTML = '';
+                        bulkImportFiles.forEach((file, idx) => {
+                            const base = cleanFilenameToTitle(file.name);
+                            const title = uniqueTitle(base, takenTitles);
+                            takenTitles.add(title);
+                            const tr = document.createElement('tr');
+                            tr.className = 'border-b border-stone-800/60';
+                            tr.innerHTML = `
+                                <td class="p-1 align-top"><input type="checkbox" class="bulk-row-include" data-idx="${idx}" checked></td>
+                                <td class="p-1"><input type="text" class="bulk-row-title w-full !py-1" value="${escapeHtml(title)}"></td>
+                                <td class="p-1"><input type="text" class="bulk-row-keywords w-full !py-1" value="${escapeHtml(keywordsFromTitle(title))}"></td>
+                                <td class="p-1"><select class="bulk-row-chapter w-full !py-1">${chapterOptionsHtml(defaultChapterId)}</select></td>`;
+                            tbody.appendChild(tr);
+                        });
+                        document.getElementById('bulkImportStatus').textContent = `${bulkImportFiles.length} file${bulkImportFiles.length !== 1 ? 's' : ''} selected.`;
+                        const selectAll = document.getElementById('bulkImportSelectAll');
+                        if (selectAll) selectAll.checked = true;
+                        document.getElementById('bulkImportModal').style.display = 'flex';
+                    }
+                    async function confirmBulkImport() {
+                        if (!initAudioContext()) { showTemporaryMessage('Audio system not ready.', 'error'); return; }
+                        const rows = Array.from(document.querySelectorAll('#bulkImportTableBody tr'));
+                        const confirmBtn = document.getElementById('confirmBulkImportButton');
+                        const statusEl = document.getElementById('bulkImportStatus');
+                        confirmBtn.disabled = true;
+                        let created = 0, failed = 0;
+                        const takenTitles = new Set(book.pages.map(p => p.title));
+                        for (let i = 0; i < rows.length; i++) {
+                            const row = rows[i];
+                            const include = row.querySelector('.bulk-row-include');
+                            const idx = parseInt(include.dataset.idx, 10);
+                            if (!include.checked) continue;
+                            const file = bulkImportFiles[idx];
+                            if (!file) continue;
+                            const title = uniqueTitle(row.querySelector('.bulk-row-title').value.trim() || cleanFilenameToTitle(file.name), takenTitles);
+                            takenTitles.add(title);
+                            const keywords = row.querySelector('.bulk-row-keywords').value.trim().toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
+                            const chapterId = row.querySelector('.bulk-row-chapter').value;
+                            statusEl.textContent = `Importing ${created + 1}… "${title}"`;
+                            try {
+                                const arrayBuffer = await file.arrayBuffer();
+                                const bytesForStore = arrayBuffer.slice(0);
+                                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                                const sourceDetail = { type: 'file', source: audioBuffer, fileName: file.name, startTime: 0, endTime: null, needsFile: false };
+                                await persistAudioSource(sourceDetail, file, bytesForStore);
+                                const pageId = book.nextPageId++;
+                                book.pages.push({
+                                    id: pageId, title, primaryKey: null, keywords, phrases: [], isStarred: false,
+                                    volume: 80, loop: false, loopCount: 0, fadeInOut: false, endPlayKeywords: [],
+                                    nextPageId: null, timeOfDaySetting: 'always', hotkey: null, currentLoop: 0,
+                                    sources: [{ id: `var_${generateUUID()}`, name: 'Main', volumeOverride: null, isDefault: true, variationKeywords: [], conditions: null, sources: [sourceDetail] }]
+                                });
+                                const ch = book.chapters.find(c => String(c.id) === String(chapterId));
+                                if (ch && !ch.isIndex && !ch.pageIds.includes(pageId)) ch.pageIds.push(pageId);
+                                created++;
+                            } catch (e) {
+                                console.error(`Bulk import failed for "${file.name}":`, e);
+                                failed++;
+                            }
+                        }
+                        updateFuseIndex();
+                        updateChapterKeywordList();
+                        saveToLocalStorage();
+                        renderPageList();
+                        confirmBtn.disabled = false;
+                        document.getElementById('bulkImportModal').style.display = 'none';
+                        bulkImportFiles = [];
+                        showTemporaryMessage(`Created ${created} page${created !== 1 ? 's' : ''}${failed ? `, ${failed} failed` : ''}.`, failed ? 'warning' : 'success', 4000);
+                    }
+                    const bulkImportInput = document.getElementById('bulkImportInput');
+                    if (bulkImportInput) bulkImportInput.addEventListener('change', (e) => {
+                        if (e.target.files && e.target.files.length > 0) openBulkImportReview(e.target.files);
+                        e.target.value = ''; // allow re-selecting the same files
+                    });
+                    const cancelBulkImportButton = document.getElementById('cancelBulkImportButton');
+                    if (cancelBulkImportButton) cancelBulkImportButton.addEventListener('click', () => { document.getElementById('bulkImportModal').style.display = 'none'; bulkImportFiles = []; });
+                    const confirmBulkImportButton = document.getElementById('confirmBulkImportButton');
+                    if (confirmBulkImportButton) confirmBulkImportButton.addEventListener('click', confirmBulkImport);
+                    const bulkImportSelectAll = document.getElementById('bulkImportSelectAll');
+                    if (bulkImportSelectAll) bulkImportSelectAll.addEventListener('change', () => {
+                        document.querySelectorAll('#bulkImportTableBody .bulk-row-include').forEach(cb => { cb.checked = bulkImportSelectAll.checked; });
+                    });
+                    const bulkImportDefaultChapter = document.getElementById('bulkImportDefaultChapter');
+                    if (bulkImportDefaultChapter) bulkImportDefaultChapter.addEventListener('change', () => {
+                        document.querySelectorAll('#bulkImportTableBody .bulk-row-chapter').forEach(sel => { sel.value = bulkImportDefaultChapter.value; });
+                    });
+
                     const openScenesModalButton = document.getElementById('openScenesModalButton');
                     if (openScenesModalButton) openScenesModalButton.addEventListener('click', openScenesModal);
                     const closeScenesModalButton = document.getElementById('closeScenesModalButton');
