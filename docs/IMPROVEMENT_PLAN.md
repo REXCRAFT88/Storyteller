@@ -19,7 +19,13 @@
 - ✅ **2.3** Scenes: save the current mix and recall it with a crossfade (stop non-members, start/re-level members at saved volumes via the modifier layer). Persisted + undoable. Scene hotkey/voice recall deferred.
 - ✅ **2.4** Soundtrack fades on stop/switch + song-to-song crossfade (file + YouTube).
 
-**Next: Phase 3 (book-building speed).** Note the Fuse.js CDN dependency means page-keyword matching (and real audio) can't be exercised in the `file://` sandbox — verify page matches + crossfade/scene audio in a served/online context, and prioritize Phase 4.1 (vendor CDNs) to unblock offline use + local testing.
+**Phase 3 complete** — each verified in headless Chromium (bulk import exercised with real WAV decoding):
+- ✅ **3.1** Bulk audio import: multi-select files → review table (auto title/keywords, per-row chapter, include checkbox) → create a page per file, cached in IndexedDB.
+- ✅ **3.2** Drag-to-reorder pages within a chapter via a grip handle (body-drag still does move-to-chapter / make-collection); reorder persists.
+- ✅ **3.3** Command palette (Ctrl+K) over pages/chapters/scenes/actions with fuzzy scoring and keyboard nav.
+- ✅ **3.4** Modal stack manager (bringModalToFront/releaseModalFront) replacing the scattered z-index writes that caused the manage-sources bug.
+
+**Next: Phase 4 (platform & reach).** Note the Fuse.js CDN dependency means page-keyword matching (and real audio: crossfades, scenes, soundtrack fades) still can't be exercised in the `file://` sandbox — verify those in a served/online context. **Phase 4.1 (vendor CDNs) is now the top priority**: it unblocks offline use, removes the flash-of-unstyled load, and would let future work test matching + audio locally.
 
 ## Ground rules for the executing agent
 
