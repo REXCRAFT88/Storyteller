@@ -25,7 +25,13 @@
 - ✅ **3.3** Command palette (Ctrl+K) over pages/chapters/scenes/actions with fuzzy scoring and keyboard nav.
 - ✅ **3.4** Modal stack manager (bringModalToFront/releaseModalFront) replacing the scattered z-index writes that caused the manage-sources bug.
 
-**Next: Phase 4 (platform & reach).** Note the Fuse.js CDN dependency means page-keyword matching (and real audio: crossfades, scenes, soundtrack fades) still can't be exercised in the `file://` sandbox — verify those in a served/online context. **Phase 4.1 (vendor CDNs) is now the top priority**: it unblocks offline use, removes the flash-of-unstyled load, and would let future work test matching + audio locally.
+**Phase 4 complete** — the app is now a self-contained, installable, offline-capable PWA:
+- ✅ **4.1** Vendored all CDNs (Tailwind compiled to 20KB, Fuse 6.6.2 UMD, Font Awesome woff2, Cinzel/Inter) → boots fully styled + searchable offline; `npm run build:vendor` regenerates. **This also fixed the long-standing test gap** — Fuse now loads in the sandbox, so page-keyword matching is finally exercisable locally.
+- ✅ **4.2** PWA: manifest + service worker precaching the shell; verified the app loads fully offline over http.
+- ✅ **4.3** Automatic book backups (IndexedDB, rolling 20) with a Settings → Advanced restore UI; restore is itself reversible.
+- ✅ **4.4/4.5** Touch targets (coarse-pointer sizing), prefers-reduced-motion, and aria-labels on icon controls via a debounced observer.
+
+**All of the original plan (Phases 1–4 + settings tabs) is done.** Remaining deferrals, if desired later: scene hotkey/voice recall (2.3), the ES-module split (`FIX_PLAN.md` 3.1/3.2, pairs with the now-present build step), and the explicitly-rejected items (cloud sync, analytics, phone layout).
 
 ## Ground rules for the executing agent
 
