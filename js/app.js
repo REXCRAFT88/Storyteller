@@ -1547,6 +1547,25 @@
                         }, duration);
                     }
 
+                    // --- Modal stacking (Phase 3.4) ----------------------------------------
+                    // Nested modals used to fight over hand-picked z-index values ('1005'/'1010'/
+                    // '1015'), which is exactly what caused the manage-sources-on-top bug. Instead,
+                    // a sub-modal calls bringModalToFront() when it opens (getting the next z-index
+                    // above whatever is showing) and releaseModalFront() when it closes.
+                    const MODAL_STACK_BASE_Z = 1100;
+                    let modalZStack = [];
+                    function bringModalToFront(el) {
+                        if (!el) return;
+                        modalZStack = modalZStack.filter(e => e !== el);
+                        modalZStack.push(el);
+                        el.style.zIndex = String(MODAL_STACK_BASE_Z + modalZStack.length * 10);
+                    }
+                    function releaseModalFront(el) {
+                        if (!el) return;
+                        modalZStack = modalZStack.filter(e => e !== el);
+                        el.style.zIndex = ''; // fall back to the CSS z-index
+                    }
+
                     // --- Undo for destructive actions (Phase 1.3) ---------------------------
                     // Deletes no longer prompt; they perform immediately and register a restore
                     // function. An 8s snackbar (and Ctrl+Z) reverses the most recent delete.
@@ -2180,7 +2199,7 @@
 
                         // Clear out any existing effects from previous openings
                         addEditAppendixEntryModal.style.display = 'flex';
-                        appendixModal.style.zIndex = '1005'; // Hide the main appendix modal behind this one
+                        bringModalToFront(addEditAppendixEntryModal);
                     }
 
                     function openAppendixEntryForEdit(entryId) {
@@ -2236,12 +2255,12 @@
                         initializeConditionBuilder('appendixActivationPageConditionsList', 'appendixOtherActivationConditions', 'appendixTagActivationConditions', entry.conditions || [], 'appendixActivationPageConditionSearchInput', 'appendixActivationTagSearchInput');
 
                         addEditAppendixEntryModal.style.display = 'flex';
-                        appendixModal.style.zIndex = '1005';
+                        bringModalToFront(addEditAppendixEntryModal);
                     }
 
                     function closeAddEditAppendixEntryModal() {
                         addEditAppendixEntryModal.style.display = 'none';
-                        appendixModal.style.zIndex = '1010'; // Restore the z-index of the main appendix modal
+                        releaseModalFront(addEditAppendixEntryModal);
                     }
 
                     function populateAppendixPageEventTargetList() {
@@ -2528,13 +2547,13 @@
                         renderAppendixEffectControls(effectType, appendixEffectParamsContainer, appendixEffectTargetContainer, effectId, effectData);
 
                         appendixEffectModal.style.display = 'flex';
-                        addEditAppendixEntryModal.style.zIndex = '1005';
+                        bringModalToFront(appendixEffectModal);
                     }
 
                     function closeAppendixEffectModal(event) {
                         if (event) event.stopPropagation();
                         appendixEffectModal.style.display = 'none';
-                        addEditAppendixEntryModal.style.zIndex = '1010';
+                        releaseModalFront(appendixEffectModal);
                     }
 
                     function renderAppendixEffectControls(effectType, paramsContainer, targetContainer, effectId, effectData = {}, triggerType = 'phrase') {
@@ -8817,13 +8836,11 @@
 
                         currentSyrinscapeSearchContext = 'sub-variation';
                         addEditSourceModal.style.display = 'flex';
-                        // Raise the edit-source modal above Manage Sources. (Both are .modal at
-                        // z-index 1000, so we lift this one rather than the base modal.)
-                        addEditSourceModal.style.zIndex = '1015';
+                        bringModalToFront(addEditSourceModal); // stack above Manage Sources
                     }
 
                     function closeAddEditSourceModal() {
-                        if (addEditSourceModal) { addEditSourceModal.style.display = 'none'; addEditSourceModal.style.zIndex = ''; } // Reset to base z-index
+                        if (addEditSourceModal) { addEditSourceModal.style.display = 'none'; releaseModalFront(addEditSourceModal); }
                         currentSyrinscapeSearchContext = null;
                         if (activePreviewContext?.container === sourceFilePreviewContainer || activePreviewContext?.container === sourceYouTubePreviewContainer) {
                             stopModalPreview();
