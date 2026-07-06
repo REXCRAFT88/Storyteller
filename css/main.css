@@ -1893,6 +1893,29 @@
             transform: translateY(-1px);
         }
 
+        /* --- Hotkey badge on page items --- */
+        .hotkey-badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 6px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            line-height: 1.4;
+            color: var(--accent-gold-light, #D6C06D);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--accent-gold-dark, #B8860B);
+            border-radius: 4px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        /* --- Duck button active state --- */
+        #duckButton.is-ducked {
+            background: linear-gradient(to bottom, var(--accent-gold-dark, #B8860B), #8a6508);
+            color: #1c1917;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+        }
+
         /* --- Undo snackbar --- */
         #undoToast {
             position: fixed;

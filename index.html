@@ -60,6 +60,9 @@
                         <button id="stopAllSoundsButton" class="btn-rpg btn-rpg-icon" title="Stop All Sounds (Ctrl+Q)">
                             <i class="fas fa-volume-mute fa-fw"></i>
                         </button>
+                        <button id="duckButton" class="btn-rpg btn-rpg-icon" title="Duck volume for table talk (Ctrl+D)">
+                            <i class="fas fa-volume-low fa-fw"></i>
+                        </button>
                         <div class="dropdown"> <button class="btn-rpg btn-rpg-icon" title="Manage Book and Chapters">
                                 <i class="fas fa-book-atlas fa-fw"></i>
                             </button>
@@ -709,6 +712,17 @@
                             <div class="modal-full-width"> <label for="editPageTitle"
                                     class="block text-sm font-medium mb-1">Title:</label> <input type="text"
                                     id="editPageTitle" placeholder="e.g., Arrow Woosh"> </div>
+                            <div class="modal-full-width">
+                                <label class="block text-sm font-medium mb-1">Hotkey (Optional):</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="editPageHotkey" readonly
+                                        placeholder="Click, then press a key…"
+                                        class="flex-grow cursor-pointer !bg-stone-900" title="Click and press a key to bind">
+                                    <button type="button" id="clearPageHotkeyButton" class="btn-rpg-sm flex-shrink-0">Clear</button>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">Press this key anywhere (outside text fields) to
+                                    play/stop this page — a manual fallback when speech mishears.</p>
+                            </div>
                             <div class="modal-full-width">
                                 <label class="block text-sm font-medium mb-1">Time of Day Restriction:</label>
                                 <div class="flex items-center space-x-4 time-of-day-options">

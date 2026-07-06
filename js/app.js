@@ -882,6 +882,13 @@
                     // retriggered based on their time-of-day restrictions and variation definitions.  The flag is
                     // toggled within toggleTimeOfDay() and reset immediately after autoplay is processed.
                     let currentMasterVolume = 100;
+                    // Duck-all (Phase 1.5): a temporary global multiplier on the master volume
+                    // for "table talk" — drops everything to duckFactor without moving the slider.
+                    let duckFactor = 1.0;
+                    let isDucked = false;
+                    const DUCK_LEVEL = 0.2;
+                    // Effective master-volume fraction (0–1) folding in the duck. All gain math uses this.
+                    function masterFrac() { return masterFrac() * duckFactor; }
 
                     // Flag to indicate that autoplay is being triggered due to a time-of-day change.  When set, the
                     // playAutoplayPages function will perform special logic to determine which pages should be
@@ -2988,6 +2995,60 @@
                         stopAllSounds();
                         showTemporaryMessage('All sounds stopped.', 'info');
                     });
+
+                    // --- Duck-all (Phase 1.5) ---
+                    function toggleDuck() {
+                        isDucked = !isDucked;
+                        duckFactor = isDucked ? DUCK_LEVEL : 1.0;
+                        // Recompute every sound's gain. The master-slider input handler recomputes
+                        // file/YouTube/Syrinscape gains and the soundtrack, all via masterFrac().
+                        if (typeof masterVolumeSlider !== 'undefined') masterVolumeSlider.dispatchEvent(new Event('input'));
+                        else adjustCurrentlyPlayingVolumes();
+                        const duckBtn = document.getElementById('duckButton');
+                        if (duckBtn) {
+                            duckBtn.classList.toggle('is-ducked', isDucked);
+                            const icon = duckBtn.querySelector('i');
+                            if (icon) icon.className = `fas ${isDucked ? 'fa-volume-off' : 'fa-volume-low'} fa-fw`;
+                            duckBtn.title = isDucked ? 'Restore volume (Ctrl+D)' : 'Duck volume for table talk (Ctrl+D)';
+                        }
+                        showTemporaryMessage(isDucked ? `Ducked to ${Math.round(DUCK_LEVEL * 100)}% for table talk.` : 'Volume restored.', 'info', 1500);
+                    }
+                    const duckButton = document.getElementById('duckButton');
+                    if (duckButton) duckButton.addEventListener('click', toggleDuck);
+
+                    // --- Page hotkeys (Phase 1.4) ---
+                    // Build a stable combo string from a keyboard event, used both when capturing
+                    // a binding and when matching one at play time.
+                    function hotkeyComboFromEvent(e) {
+                        const parts = [];
+                        if (e.ctrlKey || e.metaKey) parts.push('ctrl');
+                        if (e.altKey) parts.push('alt');
+                        let key = e.key;
+                        if (key === ' ') key = 'Space';
+                        if (key.length > 1 && e.shiftKey) parts.push('shift'); // shift matters only for named keys
+                        parts.push(key.length === 1 ? key.toUpperCase() : key);
+                        return parts.join('+');
+                    }
+                    const editPageHotkeyInput = document.getElementById('editPageHotkey');
+                    if (editPageHotkeyInput) {
+                        editPageHotkeyInput.addEventListener('keydown', (e) => {
+                            e.preventDefault(); e.stopPropagation();
+                            if (e.key === 'Escape') { editPageHotkeyInput.blur(); return; }
+                            if (['Backspace', 'Delete'].includes(e.key)) { editPageHotkeyInput.value = ''; editPageHotkeyInput.dataset.hotkey = ''; return; }
+                            if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return; // wait for a real key
+                            const combo = hotkeyComboFromEvent(e);
+                            editPageHotkeyInput.dataset.hotkey = combo;
+                            editPageHotkeyInput.value = combo;
+                            editPageHotkeyInput.blur();
+                        });
+                        editPageHotkeyInput.addEventListener('focus', () => { editPageHotkeyInput.value = 'Press a key…'; });
+                        editPageHotkeyInput.addEventListener('blur', () => { editPageHotkeyInput.value = editPageHotkeyInput.dataset.hotkey || ''; });
+                    }
+                    const clearPageHotkeyButton = document.getElementById('clearPageHotkeyButton');
+                    if (clearPageHotkeyButton) clearPageHotkeyButton.addEventListener('click', () => {
+                        if (editPageHotkeyInput) { editPageHotkeyInput.dataset.hotkey = ''; editPageHotkeyInput.value = ''; }
+                    });
+
                     openSaveFileModalButton.addEventListener('click', openSaveFileModal);
                     loadFileInput.addEventListener('change', handleFileLoad);
 
@@ -3072,21 +3133,21 @@
                                 const page = activePage;
                                 if (page) {
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
-                                    const finalGain = (pageOrVariationVolume / 100) * (currentMasterVolume / 100);
+                                    const finalGain = (pageOrVariationVolume / 100) * masterFrac();
                                     soundData.gainNode.gain.setTargetAtTime(finalGain, audioContext.currentTime, 0.01); // Smooth transition
                                 }
                             } else if (soundData.node && soundData.sourceDetail.type === 'youtube') { // YouTube sound
                                 const page = activePage;
                                 if (page) {
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
-                                    const finalYTVolume = Math.round(pageOrVariationVolume * (currentMasterVolume / 100));
+                                    const finalYTVolume = Math.round(pageOrVariationVolume * masterFrac());
                                     soundData.node.setVolume(finalYTVolume);
                                 }
                             } else if (soundData.sourceDetail.type === 'syrinscape' && syrinscapePlayerReady && syrinscape.player && syrinscape.player.audioSystem) { // Syrinscape sound
                                 const page = activePage;
                                 if (page) {
                                     const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
-                                    const scaledVolume = (pageOrVariationVolume / 100) * (currentMasterVolume / 100); // Scale 0-1
+                                    const scaledVolume = (pageOrVariationVolume / 100) * masterFrac(); // Scale 0-1
                                     const syrinscapeLocalVolume = Math.min(1.5, scaledVolume * 1.5); // Syrinscape uses 0-1.5 for local volume
                                     log(`Adjusting Syrinscape local volume to: ${syrinscapeLocalVolume} (Master: ${currentMasterVolume}%, Page/Var: ${pageOrVariationVolume}%)`);
                                     syrinscape.player.audioSystem.setLocalVolume(syrinscapeLocalVolume.toString());
@@ -4706,7 +4767,7 @@
                                 const pageOrVariationVolume = (typeof currentSourceDetail.volumeOverride === 'number') ? currentSourceDetail.volumeOverride : page.volume;
                                 const modifier = volumeModifiers[page.id] || 0;
                                 const finalVolume = Math.max(0, Math.min(100, pageOrVariationVolume + modifier));
-                                const finalGainValue = (finalVolume / 100) * (currentMasterVolume / 100);
+                                const finalGainValue = (finalVolume / 100) * masterFrac();
                                 const targetGain = Math.max(MIN_GAIN, Math.min(1, finalGainValue));
 
                                 log(`LOG (playSound): Setting FILE volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final Gain: ${targetGain.toFixed(4)}`);
@@ -4774,7 +4835,7 @@
                                     const pageOrVariationVolume = (typeof currentSourceDetail.volumeOverride === 'number') ? currentSourceDetail.volumeOverride : page.volume;
                                     const modifier = volumeModifiers[page.id] || 0;
                                     const finalVolume = Math.max(0, Math.min(100, pageOrVariationVolume + modifier));
-                                    const scaledVolume = (finalVolume / 100) * (currentMasterVolume / 100);
+                                    const scaledVolume = (finalVolume / 100) * masterFrac();
                                     const syrinscapeLocalVolume = Math.min(1.5, scaledVolume * 1.5);
                                     log(`LOG (playSound): Setting SYRINSCAPE volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final Local Vol: ${syrinscapeLocalVolume.toFixed(4)}`);
                                     syrinscape.player.audioSystem.setLocalVolume(syrinscapeLocalVolume.toString());
@@ -4951,7 +5012,7 @@
                         }
                         const pageOrVariationVolume = (typeof sourceDetail.volumeOverride === 'number') ? sourceDetail.volumeOverride : page.volume;
                         const modifier = volumeModifiers[page.id] || 0;
-                        const baseVolume = (pageOrVariationVolume / 100) * (currentMasterVolume / 100) * 100; // Volume 0-100
+                        const baseVolume = (pageOrVariationVolume / 100) * masterFrac() * 100; // Volume 0-100
                         const finalYTVolume = Math.round(Math.max(0, Math.min(100, baseVolume + modifier)));
                         log(`LOG (playYouTubeVideo): Setting YT volume for "${page.title}". Page/Var Vol: ${pageOrVariationVolume}, Modifier: ${modifier}, Master: ${currentMasterVolume}%, Final YT Vol: ${finalYTVolume}`);
 
@@ -5589,6 +5650,7 @@
                                     <div class="page-item-title-container">
                                         ${starCheckboxHtml}
                                         <span class="page-item-title">${escapeHtml(page.title)}</span>
+                                        ${page.hotkey ? `<span class="hotkey-badge" title="Hotkey: ${escapeHtml(page.hotkey)}">${escapeHtml(page.hotkey)}</span>` : ''}
                                         ${timeOfDayIconHtml}
                                         ${sourceCountText}${fadeInfo}
                                     </div>
@@ -5987,7 +6049,7 @@
 
                                 const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
                                 const modifier = volumeModifiers[pageId] || 0;
-                                const baseGain = (pageOrVariationVolume / 100) * (currentMasterVolume / 100);
+                                const baseGain = (pageOrVariationVolume / 100) * masterFrac();
                                 const finalGain = Math.max(0, Math.min(1.5, baseGain + (modifier / 100))); // Apply modifier after multiplication, cap at 150%
                                 soundData.gainNode.gain.setTargetAtTime(finalGain, audioContext.currentTime, 0.02);
                             } else if (soundData.node && soundData.sourceDetail?.type === 'youtube') {
@@ -5995,7 +6057,7 @@
                                 if (!page) return;
                                 const pageOrVariationVolume = (typeof soundData.sourceDetail.volumeOverride === 'number') ? soundData.sourceDetail.volumeOverride : page.volume;
                                 const modifier = volumeModifiers[pageId] || 0;
-                                const baseVolume = (pageOrVariationVolume / 100) * (currentMasterVolume / 100) * 100; // Volume 0-100
+                                const baseVolume = (pageOrVariationVolume / 100) * masterFrac() * 100; // Volume 0-100
                                 const finalYTVolume = Math.round(Math.max(0, Math.min(100, baseVolume + modifier))); // Apply modifier, cap at 100
                                 if (soundData.node.setVolume) {
                                     soundData.node.setVolume(finalYTVolume);
@@ -6623,6 +6685,7 @@
                                         endPlayKeywords: Array.isArray(item.endPlayKeywords) ? item.endPlayKeywords : [],
                                         nextPageId: item.nextPageId ?? null,
                                         timeOfDaySetting: ['day', 'night', 'always'].includes(item.timeOfDaySetting) ? item.timeOfDaySetting : 'always',
+                                        hotkey: item.hotkey || null,
                                         currentLoop: 0, sources: sourcesData
                                     };
                                     loadedPages.push(newPage);
@@ -7830,6 +7893,8 @@
 
                         editPageIdInput.value = page.id;
                         editPageTitleInput.value = page.title;
+                        const hotkeyInput = document.getElementById('editPageHotkey');
+                        if (hotkeyInput) { hotkeyInput.value = page.hotkey || ''; hotkeyInput.dataset.hotkey = page.hotkey || ''; }
                         editPrimaryKeyInput.value = page.primaryKey || "";
                         editIsStarredCheckbox.checked = page.isStarred || false;
                         editKeywordsInput.value = (page.keywords || []).join(', ');
@@ -7989,6 +8054,13 @@
                         if (duplicateTitle) { showTemporaryMessage(`Another page named "${newTitle}" exists.`, 'error', 5000); return; }
 
                         page.title = newTitle;
+                        const hotkeyInput = document.getElementById('editPageHotkey');
+                        const newHotkey = hotkeyInput ? (hotkeyInput.dataset.hotkey || null) : (page.hotkey || null);
+                        if (newHotkey) {
+                            // A hotkey is unique across pages; clear it from any other page (last wins).
+                            book.pages.forEach(p => { if (p.id !== pageId && p.hotkey === newHotkey) p.hotkey = null; });
+                        }
+                        page.hotkey = newHotkey;
                         page.primaryKey = newPrimaryKey;
                         page.phrases = newPhrasesRaw === '' ? [] : newPhrasesRaw.split('\n').map(p => p.trim().toLowerCase()).filter(Boolean);
                         page.isStarred = newIsStarred;
@@ -8864,7 +8936,7 @@
                                         keywords: page.keywords || [], phrases: page.phrases || [], isStarred: page.isStarred || false,
                                         volume: page.volume ?? 80, loop: page.loop || false, loopCount: page.loopCount ?? 0,
                                         fadeInOut: page.fadeInOut || false, endPlayKeywords: page.endPlayKeywords || [],
-                                        nextPageId: page.nextPageId ?? null, timeOfDaySetting: page.timeOfDaySetting || 'always',
+                                        nextPageId: page.nextPageId ?? null, timeOfDaySetting: page.timeOfDaySetting || 'always', hotkey: page.hotkey || null,
                                         sources: savableSources
                                     };
                                 });
@@ -9086,7 +9158,7 @@
                                         keywords: page.keywords || [], phrases: page.phrases || [], isStarred: page.isStarred || false,
                                         volume: page.volume ?? 80, loop: page.loop || false, loopCount: page.loopCount ?? 0,
                                         fadeInOut: page.fadeInOut || false, endPlayKeywords: page.endPlayKeywords || [],
-                                        nextPageId: page.nextPageId ?? null, timeOfDaySetting: page.timeOfDaySetting || 'always',
+                                        nextPageId: page.nextPageId ?? null, timeOfDaySetting: page.timeOfDaySetting || 'always', hotkey: page.hotkey || null,
                                         sources: savableSources
                                     };
                                 });
@@ -10328,6 +10400,7 @@
                                     endPlayKeywords: page.endPlayKeywords || [],
                                     nextPageId: page.nextPageId ?? null,
                                     timeOfDaySetting: page.timeOfDaySetting || 'always',
+                                    hotkey: page.hotkey || null,
                                     sources: (page.sources || []).map(variation => ({
                                         // Properties of the variation container
                                         id: variation.id,
@@ -10555,6 +10628,7 @@
                                         endPlayKeywords: Array.isArray(item.endPlayKeywords) ? item.endPlayKeywords : [],
                                         nextPageId: item.nextPageId ?? null,
                                         timeOfDaySetting: ['day', 'night', 'always'].includes(item.timeOfDaySetting) ? item.timeOfDaySetting : 'always',
+                                        hotkey: item.hotkey || null,
                                         currentLoop: 0, sources: sourcesData
                                     };
                                     loadedPages.push(newPage);
@@ -10844,6 +10918,17 @@
                                 event.preventDefault(); stopAllSoundsButton.click(); showTemporaryMessage("All Sounds Stopped (Shortcut)", "info", 1500);
                             } else if ((event.ctrlKey || event.metaKey) && (event.key === 'z' || event.key === 'Z')) {
                                 event.preventDefault(); performUndo();
+                            } else if ((event.ctrlKey || event.metaKey) && (event.key === 'd' || event.key === 'D')) {
+                                event.preventDefault(); toggleDuck();
+                            } else if (!['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
+                                // Page hotkeys: match the pressed combo against page bindings.
+                                const combo = hotkeyComboFromEvent(event);
+                                const boundPage = book.pages.find(p => p.hotkey && p.hotkey === combo);
+                                if (boundPage) {
+                                    event.preventDefault();
+                                    if (activeSounds[boundPage.id]) stopSingleSound(boundPage.id);
+                                    else playPageManually(boundPage.id);
+                                }
                             }
                         }
                     });
@@ -12207,8 +12292,10 @@
                         const songVol = (song.volume !== undefined ? song.volume : 100) / 100;
                         let finalVol = Math.max(baseVol * playlistVol * songVol, 0.001);
                         if (typeof book !== 'undefined' && book.settings && book.settings.masterVolumeAffectsSoundtracks !== false) {
-                            const mv = typeof currentMasterVolume !== 'undefined' ? currentMasterVolume : 100;
-                            finalVol = Math.max(finalVol * (mv / 100), 0.001);
+                            finalVol = Math.max(finalVol * masterFrac(), 0.001);
+                        } else if (duckFactor !== 1.0) {
+                            // Duck-all still lowers soundtracks even when they ignore master volume.
+                            finalVol = Math.max(finalVol * duckFactor, 0.001);
                         }
                         return finalVol;
                     }
