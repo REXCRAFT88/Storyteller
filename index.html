@@ -485,6 +485,14 @@
                                 <button id="downloadDebugLogButton" type="button" class="btn-rpg-sm mt-2"><i
                                         class="fas fa-download mr-1"></i> Download Debug Log</button>
                             </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Automatic
+                                    Backups</span>
+                                <p class="text-xs text-gray-400 mt-1">Storyteller snapshots your book every few minutes
+                                    (kept locally, last 20). Restore an earlier version if something goes wrong.</p>
+                                <button id="openBackupsButton" type="button" class="btn-rpg-sm mt-2"><i
+                                        class="fas fa-clock-rotate-left mr-1"></i> Manage Backups…</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1171,6 +1179,24 @@
                 <div class="modal-actions"><button id="cancelCollectionEditButton" type="button"
                         class="btn-rpg-sm">Cancel</button><button id="saveCollectionEditButton" type="button"
                         class="btn-rpg" title="Save Collection (Ctrl+Enter)">Save Collection</button></div>
+            </div>
+
+            <div id="backupsModal" class="modal">
+                <div class="modal-body">
+                    <h3 class="modal-title"><i class="fas fa-clock-rotate-left mr-2"></i>Book Backups</h3>
+                    <div class="modal-content">
+                        <div class="flex items-center justify-between mb-3 gap-2">
+                            <p class="text-sm text-gray-400">Restore a saved snapshot. Your current book is backed up
+                                first, so a restore is itself undoable.</p>
+                            <button id="backupNowButton" type="button" class="btn-rpg-sm flex-shrink-0"><i
+                                    class="fas fa-camera mr-1"></i>Back Up Now</button>
+                        </div>
+                        <ul id="backupsList" class="chapter-checkbox-list !max-h-80"></ul>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="closeBackupsButton" type="button" class="btn-rpg-sm">Close</button>
+                </div>
             </div>
 
             <div id="bulkImportModal" class="modal" style="max-width: 820px;">

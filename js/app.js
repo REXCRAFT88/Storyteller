@@ -217,6 +217,63 @@
                         };
                     })();
 
+                    // Rolling book backups in IndexedDB (Phase 4.3): periodic metadata snapshots,
+                    // restorable from Settings. Audio bytes live in audioStore, so these stay small.
+                    const backupStore = (() => {
+                        const DB_NAME = 'storytellerBackups';
+                        const STORE = 'backups';
+                        let dbPromise = null;
+                        function open() {
+                            if (dbPromise) return dbPromise;
+                            dbPromise = new Promise((resolve, reject) => {
+                                if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+                                const req = indexedDB.open(DB_NAME, 1);
+                                req.onupgradeneeded = () => {
+                                    const db = req.result;
+                                    if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'ts' });
+                                };
+                                req.onsuccess = () => resolve(req.result);
+                                req.onerror = () => reject(req.error);
+                            });
+                            return dbPromise;
+                        }
+                        function tx(mode, fn) {
+                            return open().then(db => new Promise((resolve, reject) => {
+                                const t = db.transaction(STORE, mode);
+                                const req = fn(t.objectStore(STORE));
+                                t.oncomplete = () => resolve(req ? req.result : undefined);
+                                t.onerror = () => reject(t.error);
+                                t.onabort = () => reject(t.error);
+                            }));
+                        }
+                        return {
+                            available: () => !!window.indexedDB,
+                            put(record) { return tx('readwrite', s => s.put(record)); },
+                            getAll() { return tx('readonly', s => s.getAll()).then(r => r || []); },
+                            get(ts) { return tx('readonly', s => s.get(ts)).then(r => r || null); },
+                            delete(ts) { return tx('readwrite', s => s.delete(ts)); },
+                        };
+                    })();
+
+                    const MAX_BACKUPS = 20;
+                    let bookDirtyForBackup = false; // set on save; a periodic timer snapshots when dirty
+                    async function createBackup(reason) {
+                        if (!backupStore.available()) return;
+                        try {
+                            const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+                            if (!data) return;
+                            const ts = Date.now();
+                            await backupStore.put({ ts, reason: reason || 'auto', size: data.length, data });
+                            bookDirtyForBackup = false;
+                            // Prune to the most recent MAX_BACKUPS.
+                            const all = await backupStore.getAll();
+                            all.sort((a, b) => b.ts - a.ts);
+                            for (const old of all.slice(MAX_BACKUPS)) await backupStore.delete(old.ts);
+                        } catch (e) {
+                            console.warn('Backup failed:', e);
+                        }
+                    }
+
                     // SHA-256 hex when crypto.subtle is available (secure contexts); otherwise a
                     // cheap deterministic fallback from size + name + a byte sample, so file://
                     // (where subtle may be missing) still gets stable keys.
@@ -3717,6 +3774,64 @@
                     }
                     const commandPaletteOverlay = document.getElementById('commandPalette');
                     if (commandPaletteOverlay) commandPaletteOverlay.addEventListener('mousedown', (e) => { if (e.target === commandPaletteOverlay) closeCommandPalette(); });
+
+                    // --- Backups UI + restore (Phase 4.3) ---
+                    async function restoreBackup(ts) {
+                        const record = await backupStore.get(ts);
+                        if (!record || !record.data) { showTemporaryMessage('Backup not found.', 'error'); return; }
+                        // Snapshot the current book first so the restore is reversible.
+                        await createBackup('pre-restore');
+                        try {
+                            localStorage.setItem(LOCAL_STORAGE_KEY, record.data);
+                            stopAllSounds();
+                            loadFromLocalStorage();
+                            if (typeof rehydrateAudioFromStore === 'function') rehydrateAudioFromStore();
+                            updateFuseIndex();
+                            updateChapterKeywordList();
+                            renderChapterTabs();
+                            renderPageList();
+                            if (typeof updateUIState === 'function') updateUIState();
+                            document.getElementById('backupsModal').style.display = 'none';
+                            showTemporaryMessage(`Restored backup from ${new Date(ts).toLocaleString()}.`, 'success', 4000);
+                        } catch (e) {
+                            console.error('Restore failed:', e);
+                            showTemporaryMessage('Restore failed — see console.', 'error');
+                        }
+                    }
+                    async function renderBackupsList() {
+                        const listEl = document.getElementById('backupsList');
+                        if (!listEl) return;
+                        listEl.innerHTML = '<li class="text-center py-4 italic text-gray-400 text-sm">Loading…</li>';
+                        let backups = [];
+                        try { backups = await backupStore.getAll(); } catch (e) { /* ignore */ }
+                        backups.sort((a, b) => b.ts - a.ts);
+                        if (backups.length === 0) {
+                            listEl.innerHTML = '<li class="text-center py-4 italic text-gray-400 text-sm">No backups yet.</li>';
+                            return;
+                        }
+                        listEl.innerHTML = '';
+                        backups.forEach(bk => {
+                            const li = document.createElement('li');
+                            li.className = 'flex items-center justify-between gap-2 py-1.5 px-2 border-b border-stone-700/50';
+                            const kb = Math.max(1, Math.round((bk.size || 0) / 1024));
+                            li.innerHTML = `
+                                <div class="min-w-0">
+                                    <div class="text-sm text-stone-200">${new Date(bk.ts).toLocaleString()}</div>
+                                    <div class="text-xs text-stone-500">${kb} KB · ${escapeHtml(bk.reason || 'auto')}</div>
+                                </div>
+                                <button class="btn-rpg-sm restore-backup-btn flex-shrink-0"><i class="fas fa-rotate-left mr-1"></i>Restore</button>`;
+                            li.querySelector('.restore-backup-btn').addEventListener('click', () => restoreBackup(bk.ts));
+                            listEl.appendChild(li);
+                        });
+                    }
+                    const openBackupsButton = document.getElementById('openBackupsButton');
+                    if (openBackupsButton) openBackupsButton.addEventListener('click', () => { document.getElementById('backupsModal').style.display = 'flex'; renderBackupsList(); });
+                    const closeBackupsButton = document.getElementById('closeBackupsButton');
+                    if (closeBackupsButton) closeBackupsButton.addEventListener('click', () => { document.getElementById('backupsModal').style.display = 'none'; });
+                    const backupNowButton = document.getElementById('backupNowButton');
+                    if (backupNowButton) backupNowButton.addEventListener('click', async () => { await createBackup('manual'); renderBackupsList(); showTemporaryMessage('Backup saved.', 'success'); });
+                    // Periodic auto-backup: every 5 minutes if the book changed since the last snapshot.
+                    setInterval(() => { if (bookDirtyForBackup) createBackup('auto'); }, 5 * 60 * 1000);
 
                     const openScenesModalButton = document.getElementById('openScenesModalButton');
                     if (openScenesModalButton) openScenesModalButton.addEventListener('click', openScenesModal);
@@ -10959,6 +11074,7 @@
                             const jsonString = JSON.stringify(savableBook);
                             // (Removed keep-alive checkbox read: no such control exists in the UI, B4)
                             localStorage.setItem(LOCAL_STORAGE_KEY, jsonString);
+                            bookDirtyForBackup = true; // let the periodic backup timer snapshot this
                         } catch (error) {
                             console.error("Error autosaving to local storage:", error);
                             showTemporaryMessage("Autosave failed. Check console.", "error");
