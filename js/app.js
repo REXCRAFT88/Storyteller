@@ -12743,7 +12743,10 @@
                         (book.soundtracks || []).forEach(st => {
                             const iconDiv = document.createElement('div');
                             iconDiv.className = 'soundtrack-icon' + (activeSoundtrackId === st.id ? ' active' : '');
-                            iconDiv.innerHTML = '<i class="' + escapeHtml(st.icon || 'fas fa-music') + '"></i><span class="st-name-label hidden min-[1100px]:block ml-2 text-sm font-semibold truncate">' + escapeHtml(st.name) + '</span><div class="tooltip min-[1100px]:hidden">' + escapeHtml(st.name) + '</div>';
+                            // Label visibility + ellipsis are handled in main.css (.st-name-label),
+                            // tied to the 1400px breakpoint where the pill actually widens. The
+                            // tooltip is the fallback for the icon-only (narrow) state.
+                            iconDiv.innerHTML = '<i class="' + escapeHtml(st.icon || 'fas fa-music') + '"></i><span class="st-name-label">' + escapeHtml(st.name) + '</span><div class="tooltip">' + escapeHtml(st.name) + '</div>';
                             iconDiv.onclick = () => { toggleSoundtrack(st.id); };
                             container.appendChild(iconDiv);
                         });

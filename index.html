@@ -62,7 +62,7 @@
 
                 <!-- Right-Side Controls -->
                 <div class="flex-shrink-0 space-y-2 w-96">
-                    <div class="flex flex-wrap justify-end gap-4">
+                    <div class="flex flex-wrap justify-end gap-2">
                         <button id="toggleListenButton" class="btn-rpg btn-rpg-icon" title="Start Listening (Spacebar)">
                             <i class="fas fa-microphone fa-fw"></i>
                         </button>
@@ -213,6 +213,8 @@
                         <div class="settings-tabs" role="tablist">
                             <button type="button" class="settings-tab-btn active" data-settings-tab="speech"><i
                                     class="fas fa-microphone mr-1"></i> Speech</button>
+                            <button type="button" class="settings-tab-btn" data-settings-tab="phrases"><i
+                                    class="fas fa-comment-dots mr-1"></i> Phrases</button>
                             <button type="button" class="settings-tab-btn" data-settings-tab="audio"><i
                                     class="fas fa-volume-high mr-1"></i> Audio</button>
                             <button type="button" class="settings-tab-btn" data-settings-tab="integrations"><i
@@ -234,17 +236,6 @@
                                             value="push"> <span class="ml-2 text-sm">Push-to-Talk</span> </label>
                                 </div>
                             </div>
-                            <div class="border-t border-stone-700 pt-4">
-                                <label class="flex items-center justify-between cursor-pointer">
-                                    <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Enable Look-Behind
-                                        with Conjunction</span>
-                                    <div class="rpg-toggle-switch"><input type="checkbox"
-                                            id="settingsCompoundPhrasingCheckbox"><span class="slider"></span></div>
-                                </label>
-                                <p class="text-xs text-gray-400 mt-1">Allows chaining triggers. If a phrase ends with "and",
-                                    "but", etc., the next phrase can use the first phrase's Primary Key(s) to trigger
-                                    another sound.</p>
-                            </div>
                             <div id="accuracyThresholdContainer" class="border-t border-stone-700 pt-4">
                                 <label for="settingsAccuracyThreshold" class="block text-sm font-medium mb-1">Minimum
                                     Confidence (Keywords & Primary Keys):</label>
@@ -254,58 +245,6 @@
                                         class="w-full"> <span class="text-xs text-gray-400 w-12 text-right">Strict
                                         (1.0)</span> <span id="settingsAccuracyValue"
                                         class="text-sm w-10 text-right">0.80</span> </div>
-                            </div>
-                            <div class="border-t border-stone-700 pt-4">
-                                <label for="settingsStopPhrases" class="block text-sm font-medium mb-1">Stop Phrases
-                                    (comma-separated):</label>
-                                <input type="text" id="settingsStopPhrases" placeholder="e.g., stop everything, silence all"
-                                    title="Phrases that will stop all currently playing sounds (like Ctrl+Q)">
-                            </div>
-                            <div class="border-t border-stone-700 pt-4">
-                                <label for="settingsCustomEnterPhrases" class="block text-sm font-medium mb-1">Custom
-                                    Chapter Enter Phrases (comma-separated):</label>
-                                <input type="text" id="settingsCustomEnterPhrases" placeholder="e.g., next scene, moving on"
-                                    title="User-defined phrases that trigger chapter transitions (followed by chapter keyword)">
-                            </div>
-                            <div class="border-t border-stone-700 pt-4">
-                                <label for="settingsCustomExitPhrases" class="block text-sm font-medium mb-1">Custom Chapter
-                                    Exit Phrases (comma-separated):</label>
-                                <input type="text" id="settingsCustomExitPhrases" placeholder="e.g., run from, escape"
-                                    title="User-defined phrases that stop sounds in the active chapter and move to another (e.g., 'run from the cave')">
-                            </div>
-                            <div class="border-t border-stone-700 pt-4">
-                                <label for="settingsDaytimePhrases" class="block text-sm font-medium mb-1">Daytime
-                                    Transition Phrases (comma-separated):</label>
-                                <input type="text" id="settingsDaytimePhrases"
-                                    placeholder="e.g., the sun rises, morning comes"
-                                    title="Phrases that will switch the time of day to 'Day'">
-                            </div>
-                            <div class="border-t border-stone-700 pt-4">
-                                <label for="settingsNighttimePhrases" class="block text-sm font-medium mb-1">Nighttime
-                                    Transition Phrases (comma-separated):</label>
-                                <input type="text" id="settingsNighttimePhrases"
-                                    placeholder="e.g., the sun sets, night falls"
-                                    title="Phrases that will switch the time of day to 'Night'">
-                            </div>
-                            <div class="border-t border-stone-700 pt-4">
-                                <span class="block text-sm font-semibold text-[var(--accent-gold-light)] mb-2">Autoplay on
-                                    Chapter Tab Click:</span>
-                                <div class="space-y-2">
-                                    <label class="flex items-center space-x-2 cursor-pointer">
-                                        <input type="radio" name="settingsAutoplayOnClick" value="on" checked>
-                                        <span class="text-sm">On (Always trigger autoplay)</span>
-                                    </label>
-                                    <label class="flex items-center space-x-2 cursor-pointer">
-                                        <input type="radio" name="settingsAutoplayOnClick" value="listening">
-                                        <span class="text-sm">Only While Listening</span>
-                                    </label>
-                                    <label class="flex items-center space-x-2 cursor-pointer">
-                                        <input type="radio" name="settingsAutoplayOnClick" value="off">
-                                        <span class="text-sm">Off (Never trigger autoplay)</span>
-                                    </label>
-                                </div>
-                                <p class="text-xs text-gray-400 mt-1">Controls if clicking a chapter tab triggers that
-                                    chapter's 'Autoplay Pages on Enter'. Voice transitions always trigger autoplay.</p>
                             </div>
                             <div class="border-t border-stone-700 pt-4">
                                 <h4 class="text-base font-semibold mb-2 text-[var(--accent-gold-light)]">Offline Speech
@@ -350,6 +289,42 @@
                                         class="syrinscape-auth-token-link">Vosk models page</a> (e.g.
                                     <code>vosk-model-small-en-us-0.15</code>, ~40&nbsp;MB). See the README for hosting tips.
                                 </p>
+                            </div>
+                        </div>
+
+                        <!-- ===================== PHRASES TAB ===================== -->
+                        <div class="settings-tab-panel space-y-4" data-settings-panel="phrases">
+                            <div>
+                                <label for="settingsStopPhrases" class="block text-sm font-medium mb-1">Stop Phrases
+                                    (comma-separated):</label>
+                                <input type="text" id="settingsStopPhrases" placeholder="e.g., stop everything, silence all"
+                                    title="Phrases that will stop all currently playing sounds (like Ctrl+Q)">
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label for="settingsCustomEnterPhrases" class="block text-sm font-medium mb-1">Custom
+                                    Chapter Enter Phrases (comma-separated):</label>
+                                <input type="text" id="settingsCustomEnterPhrases" placeholder="e.g., next scene, moving on"
+                                    title="User-defined phrases that trigger chapter transitions (followed by chapter keyword)">
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label for="settingsCustomExitPhrases" class="block text-sm font-medium mb-1">Custom Chapter
+                                    Exit Phrases (comma-separated):</label>
+                                <input type="text" id="settingsCustomExitPhrases" placeholder="e.g., run from, escape"
+                                    title="User-defined phrases that stop sounds in the active chapter and move to another (e.g., 'run from the cave')">
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label for="settingsDaytimePhrases" class="block text-sm font-medium mb-1">Daytime
+                                    Transition Phrases (comma-separated):</label>
+                                <input type="text" id="settingsDaytimePhrases"
+                                    placeholder="e.g., the sun rises, morning comes"
+                                    title="Phrases that will switch the time of day to 'Day'">
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <label for="settingsNighttimePhrases" class="block text-sm font-medium mb-1">Nighttime
+                                    Transition Phrases (comma-separated):</label>
+                                <input type="text" id="settingsNighttimePhrases"
+                                    placeholder="e.g., the sun sets, night falls"
+                                    title="Phrases that will switch the time of day to 'Night'">
                             </div>
                         </div>
 
@@ -473,6 +448,37 @@
                         <!-- ===================== ADVANCED TAB ===================== -->
                         <div class="settings-tab-panel space-y-4" data-settings-panel="advanced">
                             <div>
+                                <label class="flex items-center justify-between cursor-pointer">
+                                    <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Enable Look-Behind
+                                        with Conjunction</span>
+                                    <div class="rpg-toggle-switch"><input type="checkbox"
+                                            id="settingsCompoundPhrasingCheckbox"><span class="slider"></span></div>
+                                </label>
+                                <p class="text-xs text-gray-400 mt-1">Allows chaining triggers. If a phrase ends with "and",
+                                    "but", etc., the next phrase can use the first phrase's Primary Key(s) to trigger
+                                    another sound.</p>
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
+                                <span class="block text-sm font-semibold text-[var(--accent-gold-light)] mb-2">Autoplay on
+                                    Chapter Tab Click:</span>
+                                <div class="space-y-2">
+                                    <label class="flex items-center space-x-2 cursor-pointer">
+                                        <input type="radio" name="settingsAutoplayOnClick" value="on" checked>
+                                        <span class="text-sm">On (Always trigger autoplay)</span>
+                                    </label>
+                                    <label class="flex items-center space-x-2 cursor-pointer">
+                                        <input type="radio" name="settingsAutoplayOnClick" value="listening">
+                                        <span class="text-sm">Only While Listening</span>
+                                    </label>
+                                    <label class="flex items-center space-x-2 cursor-pointer">
+                                        <input type="radio" name="settingsAutoplayOnClick" value="off">
+                                        <span class="text-sm">Off (Never trigger autoplay)</span>
+                                    </label>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">Controls if clicking a chapter tab triggers that
+                                    chapter's 'Autoplay Pages on Enter'. Voice transitions always trigger autoplay.</p>
+                            </div>
+                            <div class="border-t border-stone-700 pt-4">
                                 <label class="flex items-center justify-between cursor-pointer">
                                     <span class="text-sm font-semibold text-[var(--accent-gold-light)]">Debug Logging</span>
                                     <div class="rpg-toggle-switch"><input type="checkbox" id="settingsDebugLogging"><span
