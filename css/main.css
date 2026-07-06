@@ -847,6 +847,20 @@
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
         }
 
+        /* Firefox draws the fill via native pseudo-elements rather than the input's
+           own background, so give it a matching golden progress + dark track. */
+        input[type=range]::-moz-range-track {
+            height: 10px;
+            border-radius: 5px;
+            background: #1c1917;
+        }
+
+        input[type=range]::-moz-range-progress {
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(to right, var(--accent-gold-dark), var(--accent-gold-light));
+        }
+
         #volumeValue,
         #editVolumeValue,
         #addVolumeValue,
