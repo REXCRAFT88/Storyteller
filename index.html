@@ -91,6 +91,8 @@
                                         Soundtracks</span> </button>
                                 <button id="openAppendixModalButton" title="Open Appendix"> <i
                                         class="fas fa-scroll fa-fw"></i> <span>Appendix</span> </button>
+                                <button id="openScenesModalButton" title="Save & recall sound mixes"> <i
+                                        class="fas fa-layer-group fa-fw"></i> <span>Scenes</span> </button>
                                 <button id="openMatcherPlaygroundButton" title="Test what a phrase would trigger"> <i
                                         class="fas fa-flask fa-fw"></i> <span>Test a Phrase</span> </button>
                                 <button id="togglePipButton" title="Toggle Picture-in-Picture Status"> <i
@@ -1145,6 +1147,26 @@
                 <div class="modal-actions"><button id="cancelCollectionEditButton" type="button"
                         class="btn-rpg-sm">Cancel</button><button id="saveCollectionEditButton" type="button"
                         class="btn-rpg" title="Save Collection (Ctrl+Enter)">Save Collection</button></div>
+            </div>
+
+            <div id="scenesModal" class="modal">
+                <div class="modal-body">
+                    <h3 class="modal-title"><i class="fas fa-layer-group mr-2"></i>Scenes</h3>
+                    <div class="modal-content">
+                        <p class="text-sm text-gray-400 mb-3">A scene is a saved snapshot of the currently playing mix.
+                            Recall one to crossfade the whole soundscape to that moment.</p>
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="newSceneNameInput" placeholder="Scene name (e.g., Boss Battle)"
+                                class="flex-grow">
+                            <button id="saveSceneButton" type="button" class="btn-rpg-sm flex-shrink-0"><i
+                                    class="fas fa-camera mr-1"></i> Save Current Mix</button>
+                        </div>
+                        <ul id="scenesList" class="chapter-checkbox-list !max-h-72"></ul>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="closeScenesModalButton" type="button" class="btn-rpg-sm">Close</button>
+                </div>
             </div>
 
             <div id="matcherPlaygroundModal" class="modal">

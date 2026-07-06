@@ -468,6 +468,7 @@
                             currentTimeOfDay: 'day',
                             collections: [],
                             soundtracks: [],
+                            scenes: [], // Phase 2.3: saved mixes { id, name, hotkey?, voicePhrases?, entries:[{pageId, variationId?, volume}] }
                             nextCollectionId: 0,
                             nextPageId: 0,
                             nextTagId: 0,
@@ -3362,6 +3363,122 @@
                         const outcomes = await runMatcherPlayground(input.value);
                         renderPlaygroundResults(outcomes);
                     }
+                    // --- Scenes (Phase 2.3): save & recall sound mixes ---
+                    function captureCurrentMix() {
+                        const entries = [];
+                        Object.keys(activeSounds).forEach(pid => {
+                            const id = parseInt(pid, 10);
+                            const sd = activeSounds[id];
+                            const page = book.pages.find(p => p.id === id);
+                            if (!page || !sd) return;
+                            let variationId = null;
+                            const detail = sd.sourceDetail;
+                            if (detail && Array.isArray(page.sources)) {
+                                const v = page.sources.find(v => v.sources && (v.sources.includes(detail) || (detail.id && v.sources.some(s => s.id === detail.id))));
+                                if (v) variationId = v.id;
+                            }
+                            const vol = Math.max(0, Math.min(100, (page.volume || 0) + (volumeModifiers[id] || 0)));
+                            entries.push({ pageId: id, variationId, volume: vol });
+                        });
+                        return entries;
+                    }
+                    function saveCurrentScene() {
+                        const nameInput = document.getElementById('newSceneNameInput');
+                        const entries = captureCurrentMix();
+                        if (entries.length === 0) { showTemporaryMessage('Nothing is playing to capture.', 'info'); return; }
+                        if (!Array.isArray(book.scenes)) book.scenes = [];
+                        const name = (nameInput && nameInput.value.trim()) || `Scene ${book.scenes.length + 1}`;
+                        book.scenes.push({ id: `scene_${generateUUID()}`, name, entries });
+                        if (nameInput) nameInput.value = '';
+                        saveToLocalStorage();
+                        renderScenesList();
+                        showTemporaryMessage(`Scene "${name}" saved (${entries.length} sound${entries.length !== 1 ? 's' : ''}).`, 'success');
+                    }
+                    function recallScene(sceneId) {
+                        const scene = (book.scenes || []).find(s => s.id === sceneId);
+                        if (!scene) return;
+                        const targetIds = new Set(scene.entries.map(e => e.pageId));
+                        // Crossfade out anything not in the scene.
+                        Object.keys(activeSounds).forEach(pid => {
+                            const id = parseInt(pid, 10);
+                            if (!targetIds.has(id)) stopSingleSound(id, 'scene_recall');
+                        });
+                        // Start or re-level the scene's members at their saved volumes.
+                        scene.entries.forEach(e => {
+                            const page = book.pages.find(p => p.id === e.pageId);
+                            if (!page) return;
+                            // Set effective volume to the saved value via the modifier layer (no permanent page.volume change).
+                            volumeModifiers[e.pageId] = e.volume - (page.volume || 0);
+                            if (activeSounds[e.pageId]) {
+                                adjustCurrentlyPlayingVolumes([e.pageId]);
+                            } else {
+                                let source = null;
+                                if (e.variationId) {
+                                    const v = page.sources.find(s => s.id === e.variationId);
+                                    if (v && Array.isArray(v.sources)) {
+                                        const playable = v.sources.filter(sub => (sub.type === 'file' && !sub.needsFile) || sub.type === 'youtube' || (sub.type === 'syrinscape' && sub.syrinscapeElementId));
+                                        if (playable.length) source = playable[Math.floor(Math.random() * playable.length)];
+                                    }
+                                }
+                                if (!source) source = findPlayableSourceVariation(page, false, null);
+                                if (source) playSound(page, source, true, null, false, false);
+                            }
+                        });
+                        saveToLocalStorage();
+                        renderPageList();
+                        showTemporaryMessage(`Recalled scene "${scene.name}".`, 'success');
+                    }
+                    function deleteScene(sceneId) {
+                        const idx = (book.scenes || []).findIndex(s => s.id === sceneId);
+                        if (idx === -1) return;
+                        const removed = book.scenes[idx];
+                        book.scenes.splice(idx, 1);
+                        saveToLocalStorage();
+                        renderScenesList();
+                        registerUndo(`Deleted scene "${removed.name || 'scene'}"`, () => {
+                            book.scenes.splice(Math.min(idx, book.scenes.length), 0, removed);
+                            saveToLocalStorage();
+                            renderScenesList();
+                        });
+                    }
+                    function renderScenesList() {
+                        const listEl = document.getElementById('scenesList');
+                        if (!listEl) return;
+                        const scenes = book.scenes || [];
+                        if (scenes.length === 0) {
+                            listEl.innerHTML = '<li class="text-center py-4 italic text-gray-400 text-sm">No scenes yet. Play some sounds, then Save Current Mix.</li>';
+                            return;
+                        }
+                        listEl.innerHTML = '';
+                        scenes.forEach(scene => {
+                            const li = document.createElement('li');
+                            li.className = 'flex items-center justify-between gap-2 py-1.5 px-2 border-b border-stone-700/50';
+                            li.innerHTML = `
+                                <div class="min-w-0">
+                                    <div class="text-sm text-stone-200 truncate">${escapeHtml(scene.name)}</div>
+                                    <div class="text-xs text-stone-500">${(scene.entries || []).length} sound${(scene.entries || []).length !== 1 ? 's' : ''}</div>
+                                </div>
+                                <div class="flex-shrink-0 flex gap-2">
+                                    <button class="btn-rpg-sm recall-scene-btn"><i class="fas fa-play mr-1"></i>Recall</button>
+                                    <button class="btn-rpg-sm btn-danger-sm delete-scene-btn" title="Delete scene"><i class="fas fa-trash-alt"></i></button>
+                                </div>`;
+                            li.querySelector('.recall-scene-btn').addEventListener('click', () => recallScene(scene.id));
+                            li.querySelector('.delete-scene-btn').addEventListener('click', () => deleteScene(scene.id));
+                            listEl.appendChild(li);
+                        });
+                    }
+                    function openScenesModal() {
+                        renderScenesList();
+                        const modal = document.getElementById('scenesModal');
+                        if (modal) modal.style.display = 'flex';
+                    }
+                    const openScenesModalButton = document.getElementById('openScenesModalButton');
+                    if (openScenesModalButton) openScenesModalButton.addEventListener('click', openScenesModal);
+                    const closeScenesModalButton = document.getElementById('closeScenesModalButton');
+                    if (closeScenesModalButton) closeScenesModalButton.addEventListener('click', () => { document.getElementById('scenesModal').style.display = 'none'; });
+                    const saveSceneButton = document.getElementById('saveSceneButton');
+                    if (saveSceneButton) saveSceneButton.addEventListener('click', saveCurrentScene);
+
                     const openMatcherPlaygroundButton = document.getElementById('openMatcherPlaygroundButton');
                     if (openMatcherPlaygroundButton) openMatcherPlaygroundButton.addEventListener('click', openMatcherPlayground);
                     const closeMatcherPlaygroundButton = document.getElementById('closeMatcherPlaygroundButton');
@@ -6478,6 +6595,9 @@
                             if (includeSoundtracks) {
                                 partialBook.soundtracks = fullBook.soundtracks;
                             }
+                            // Scenes reference pages; include them and their pages.
+                            partialBook.scenes = fullBook.scenes || [];
+                            (fullBook.scenes || []).forEach(s => (s.entries || []).forEach(e => pagesToInclude.add(e.pageId)));
                             if (includeSettings) {
                                 partialBook.settings = fullBook.settings;
                             }
@@ -6896,6 +7016,13 @@
                                         appendixAdded++;
                                     }
                                 });
+                            }
+
+                            // Scenes (Phase 2.3) travel with the book's pages.
+                            if (Array.isArray(loadedData.scenes) && importChoices.pages && importChoices.pages !== 'skip') {
+                                if (!Array.isArray(book.scenes)) book.scenes = [];
+                                if (importChoices.pages === 'overwrite') book.scenes = loadedData.scenes.map(s => ({ ...s }));
+                                else loadedData.scenes.forEach(s => book.scenes.push({ ...s, id: `scene_${generateUUID()}` }));
                             }
 
                             // Process Settings
@@ -10557,6 +10684,7 @@
                                         needsFile: song.type === 'file'
                                     }))
                                 })) : [],
+                                scenes: Array.isArray(book.scenes) ? book.scenes.map(s => ({ ...s })) : [],
                                 // Ensure name is saved for appendix entries
                                 appendix: Array.isArray(book.appendix) ? book.appendix.map(entry => ({ ...entry, name: entry.name || null })) : []
                             };
@@ -10816,6 +10944,8 @@
                             } else {
                                 book.soundtracks = [];
                             }
+
+                            book.scenes = Array.isArray(loadedData.scenes) ? loadedData.scenes : [];
 
                             log("Book data successfully parsed and applied from local storage.");
                             return true;
