@@ -9,7 +9,8 @@
     "check:ids": "node scripts/check-dom-ids.mjs",
     "lint": "eslint js/**/*.js",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\"",
-    "test:smoke": "node scripts/smoke-test.mjs"
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "build:vendor": "node scripts/build-vendor.mjs"
   },
   "devDependencies": {
     "eslint": "^9.13.0",
