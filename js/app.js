@@ -117,6 +117,58 @@
                     // reproduce the issue, then download the captured log.
                     try { if (localStorage.getItem('storyteller_debug_logging') === '1') DEBUG_LOGGING = true; } catch (e) {}
 
+                    // --- Trigger history (Phase 1.1) -----------------------------------------
+                    // Records what each spoken phrase actually caused (matched pages + keyword +
+                    // confidence, chapter/time transitions, appendix firings, stop phrases) so the
+                    // GM can see *why* something played. Outcomes accumulate across a utterance's
+                    // interim+final recognition calls, then finalize into one history entry.
+                    const triggerHistory = [];
+                    const TRIGGER_HISTORY_MAX = 60;
+                    let currentUtteranceOutcomes = [];
+                    let matchDryRun = false; // set true by the matcher playground to collect outcomes without side effects
+                    function recordMatchOutcome(outcome) {
+                        if (outcome) currentUtteranceOutcomes.push(outcome);
+                    }
+                    function finalizeTriggerHistory(text) {
+                        const outcomes = currentUtteranceOutcomes.slice();
+                        currentUtteranceOutcomes = [];
+                        if (!text) return;
+                        triggerHistory.unshift({ ts: Date.now(), text, outcomes });
+                        if (triggerHistory.length > TRIGGER_HISTORY_MAX) triggerHistory.pop();
+                        renderTriggerHistory();
+                    }
+                    function renderTriggerHistory() {
+                        const listEl = document.getElementById('triggerHistoryList');
+                        if (!listEl) return;
+                        if (triggerHistory.length === 0) {
+                            listEl.innerHTML = '<li class="text-xs text-stone-500 italic text-center py-2">No phrases heard yet.</li>';
+                            return;
+                        }
+                        const iconFor = (type) => ({
+                            page: 'fa-play text-green-400',
+                            stop: 'fa-hand text-red-400',
+                            time: 'fa-clock text-blue-300',
+                            chapter: 'fa-book-open text-amber-300',
+                            appendix: 'fa-wand-magic-sparkles text-purple-300',
+                            no_match: 'fa-ban text-stone-500'
+                        }[type] || 'fa-circle text-stone-500');
+                        listEl.innerHTML = triggerHistory.map(entry => {
+                            const time = new Date(entry.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                            const outcomes = entry.outcomes.length
+                                ? entry.outcomes.map(o => {
+                                    const conf = (typeof o.confidence === 'number') ? ` <span class="text-stone-500">(${Math.round(o.confidence * 100)}%${o.keyword ? ' · "' + escapeHtml(o.keyword) + '"' : ''})</span>` : '';
+                                    const pageAttr = o.pageId != null ? ` data-history-page="${o.pageId}"` : '';
+                                    const clickable = o.pageId != null ? ' cursor-pointer hover:text-[var(--accent-gold-light)]' : '';
+                                    return `<span class="inline-flex items-center mr-2${clickable}"${pageAttr}><i class="fas ${iconFor(o.type)} mr-1 text-[0.6rem]"></i>${escapeHtml(o.label)}${conf}</span>`;
+                                }).join('')
+                                : `<span class="inline-flex items-center text-stone-500"><i class="fas ${iconFor('no_match')} mr-1 text-[0.6rem]"></i>No match</span>`;
+                            return `<li class="text-xs border-b border-stone-800/60 pb-1">
+                                <div class="text-stone-300">"${escapeHtml(entry.text)}" <span class="text-stone-600 text-[0.6rem]">${time}</span></div>
+                                <div class="mt-0.5 flex flex-wrap">${outcomes}</div>
+                            </li>`;
+                        }).join('');
+                    }
+
                     // --- Local audio persistence (IndexedDB) — ANALYSIS.md B3 ---------------
                     // Audio files were previously decoded into memory only; every reload forced
                     // the user to re-pick their audio folder. We now keep the raw file bytes in
@@ -1217,6 +1269,8 @@
                             } else {
                                 log('All words in final transcript were already consumed by interim results.');
                             }
+                            // Record what this whole utterance caused for the history panel.
+                            finalizeTriggerHistory(lowerFinal);
                             consumedWordsForUtterance.clear();
                             lastInterimWordCount = 0;
                             return;
@@ -3061,6 +3115,100 @@
                         btn.addEventListener('click', () => activateSettingsTab(btn.dataset.settingsTab));
                     });
 
+                    // --- Trigger history panel (Phase 1.1) ---
+                    const toggleHistoryButton = document.getElementById('toggleHistoryButton');
+                    const triggerHistoryPanel = document.getElementById('triggerHistoryPanel');
+                    if (toggleHistoryButton && triggerHistoryPanel) {
+                        toggleHistoryButton.addEventListener('click', () => {
+                            const nowHidden = triggerHistoryPanel.classList.toggle('hidden');
+                            const label = document.getElementById('toggleHistoryLabel');
+                            if (label) label.textContent = nowHidden ? 'Show History' : 'Hide History';
+                            if (!nowHidden) renderTriggerHistory();
+                        });
+                    }
+                    // Clicking a matched page in the history plays/stops it.
+                    const triggerHistoryList = document.getElementById('triggerHistoryList');
+                    if (triggerHistoryList) {
+                        triggerHistoryList.addEventListener('click', (e) => {
+                            const el = e.target.closest('[data-history-page]');
+                            if (!el) return;
+                            const pageId = parseInt(el.dataset.historyPage, 10);
+                            if (isNaN(pageId)) return;
+                            if (activeSounds[pageId]) stopSingleSound(pageId);
+                            else playPageManually(pageId);
+                        });
+                    }
+
+                    // --- Matcher playground (Phase 1.2) ---
+                    // Runs the real matching pipeline in dry-run mode: same code path as live
+                    // speech, but every side effect is suppressed and outcomes are collected.
+                    async function runMatcherPlayground(text) {
+                        const clean = (text || '').trim().toLowerCase();
+                        currentUtteranceOutcomes = [];
+                        if (!clean) return [];
+                        matchDryRun = true;
+                        try {
+                            await checkForKeywords(clean, book, false, new Set());
+                        } catch (e) {
+                            console.error('Matcher playground error:', e);
+                        } finally {
+                            matchDryRun = false;
+                        }
+                        const outcomes = currentUtteranceOutcomes.slice();
+                        currentUtteranceOutcomes = [];
+                        return outcomes;
+                    }
+                    function renderPlaygroundResults(outcomes) {
+                        const resultsEl = document.getElementById('matcherPlaygroundResults');
+                        if (!resultsEl) return;
+                        if (!outcomes || outcomes.length === 0) {
+                            resultsEl.innerHTML = '<p class="text-sm text-stone-500 italic"><i class="fas fa-ban mr-1"></i>No match — this phrase would not trigger anything in the current chapter.</p>';
+                            return;
+                        }
+                        const iconFor = (type) => ({
+                            page: 'fa-play text-green-400', stop: 'fa-hand text-red-400',
+                            time: 'fa-clock text-blue-300', chapter: 'fa-book-open text-amber-300',
+                            appendix: 'fa-wand-magic-sparkles text-purple-300'
+                        }[type] || 'fa-circle text-stone-500');
+                        resultsEl.innerHTML = '<ul class="space-y-2">' + outcomes.map(o => {
+                            const conf = (typeof o.confidence === 'number')
+                                ? `<span class="text-xs text-stone-400 ml-2">${Math.round(o.confidence * 100)}% confidence${o.keyword ? ' · matched "' + escapeHtml(o.keyword) + '"' : ''}</span>`
+                                : (o.keyword ? `<span class="text-xs text-stone-400 ml-2">matched "${escapeHtml(o.keyword)}"</span>` : '');
+                            return `<li class="flex items-baseline text-sm text-stone-200"><i class="fas ${iconFor(o.type)} mr-2"></i><span>${escapeHtml(o.label)}${conf}</span></li>`;
+                        }).join('') + '</ul>';
+                    }
+                    function openMatcherPlayground() {
+                        const modal = document.getElementById('matcherPlaygroundModal');
+                        if (!modal) return;
+                        const activeCh = book.chapters.find(c => c.id == book.activeChapterId);
+                        const chSpan = document.getElementById('matcherPlaygroundChapter');
+                        const timeSpan = document.getElementById('matcherPlaygroundTime');
+                        if (chSpan) chSpan.textContent = activeCh ? activeCh.name : '—';
+                        if (timeSpan) timeSpan.textContent = currentTimeOfDay;
+                        document.getElementById('matcherPlaygroundResults').innerHTML = '<p class="text-sm text-stone-500 italic">Type a phrase and press Test.</p>';
+                        modal.style.display = 'flex';
+                        const input = document.getElementById('matcherPlaygroundInput');
+                        if (input) { input.value = ''; setTimeout(() => input.focus(), 50); }
+                    }
+                    async function doPlaygroundRun() {
+                        const input = document.getElementById('matcherPlaygroundInput');
+                        if (!input) return;
+                        const outcomes = await runMatcherPlayground(input.value);
+                        renderPlaygroundResults(outcomes);
+                    }
+                    const openMatcherPlaygroundButton = document.getElementById('openMatcherPlaygroundButton');
+                    if (openMatcherPlaygroundButton) openMatcherPlaygroundButton.addEventListener('click', openMatcherPlayground);
+                    const closeMatcherPlaygroundButton = document.getElementById('closeMatcherPlaygroundButton');
+                    if (closeMatcherPlaygroundButton) closeMatcherPlaygroundButton.addEventListener('click', () => {
+                        document.getElementById('matcherPlaygroundModal').style.display = 'none';
+                    });
+                    const matcherPlaygroundRunButton = document.getElementById('matcherPlaygroundRunButton');
+                    if (matcherPlaygroundRunButton) matcherPlaygroundRunButton.addEventListener('click', doPlaygroundRun);
+                    const matcherPlaygroundInput = document.getElementById('matcherPlaygroundInput');
+                    if (matcherPlaygroundInput) matcherPlaygroundInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); doPlaygroundRun(); }
+                    });
+
 
                     // --- Add Page Modal Listeners ---
                     openAddPageModalButton.addEventListener('click', openAddPageModal);
@@ -3876,7 +4024,7 @@
                     // --- Keyword Checking Logic ---
                     // --- Keyword Checking Logic ---
                     async function checkForKeywords(text, currentBook, isInterim = false, wordsToExclude = new Set()) {
-                        if (!text || !isListening) return;
+                        if (!text || (!isListening && !matchDryRun)) return;
 
                         // 1. Stop Phrases Check (Highest Priority)
                         // Clean up old page events before checking anything else
@@ -3901,8 +4049,9 @@
                         if (stopPhrases && stopPhrases.length > 0) {
                             const foundStopPhrase = stopPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                             if (foundStopPhrase) {
+                                recordMatchOutcome({ type: 'stop', label: 'Stop all sounds', keyword: foundStopPhrase });
                                 log(`Stop Phrase "${foundStopPhrase}" detected! Stopping all sounds.`);
-                                stopAllSounds();
+                                if (!matchDryRun) stopAllSounds();
                                 return; // Stop further processing
                             }
                         }
@@ -3912,15 +4061,17 @@
                         if (currentTimeOfDay === 'day' && nighttimeTransitionPhrases && nighttimeTransitionPhrases.length > 0) {
                             const foundNightPhrase = nighttimeTransitionPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                             if (foundNightPhrase) {
+                                recordMatchOutcome({ type: 'time', label: 'Time of day → Night', keyword: foundNightPhrase });
                                 log(`Nighttime transition phrase "${foundNightPhrase}" detected.`);
-                                toggleTimeOfDay('night'); // This will handle autoplay checks
+                                if (!matchDryRun) toggleTimeOfDay('night'); // This will handle autoplay checks
                                 timeTransitionHandled = true;
                             }
                         } else if (currentTimeOfDay === 'night' && daytimeTransitionPhrases && daytimeTransitionPhrases.length > 0) {
                             const foundDayPhrase = daytimeTransitionPhrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                             if (foundDayPhrase) {
+                                recordMatchOutcome({ type: 'time', label: 'Time of day → Day', keyword: foundDayPhrase });
                                 log(`Daytime transition phrase "${foundDayPhrase}" detected.`);
-                                toggleTimeOfDay('day'); // This will handle autoplay checks
+                                if (!matchDryRun) toggleTimeOfDay('day'); // This will handle autoplay checks
                                 timeTransitionHandled = true;
                             }
                         }
@@ -3935,8 +4086,9 @@
                                         if (entry.conditions && entry.conditions.length > 0 && !checkAppendixConditions(entry.conditions)) {
                                             continue; // Skip if activation conditions are not met
                                         }
+                                        recordMatchOutcome({ type: 'appendix', label: `Appendix: ${entry.name || 'Effect'}`, keyword: foundPhrase });
                                         log(`Appendix Phrase Triggered: "${foundPhrase}" for entry ID ${entry.id}`);
-                                        executeAppendixEntry(entry);
+                                        if (!matchDryRun) executeAppendixEntry(entry);
                                         // For now, we assume an appendix phrase is a standalone command and stop further page checks.
                                         return;
                                     }
@@ -3956,9 +4108,10 @@
                                     if (recentMatchingEvent) {
                                         const foundContextualPhrase = entry.trigger.phrases.find(phrase => new RegExp(`\\b${phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text));
                                         if (foundContextualPhrase) {
+                                            recordMatchOutcome({ type: 'appendix', label: `Appendix: ${entry.name || 'Effect'} (contextual)`, keyword: foundContextualPhrase });
                                             log(`Appendix Contextual Phrase Triggered: "${foundContextualPhrase}" for entry ID ${entry.id} after event on page ${recentMatchingEvent.pageId}`);
-                                            executeAppendixEntry(entry);
-                                            if (!entry.trigger.allowMultiple) {
+                                            if (!matchDryRun) executeAppendixEntry(entry);
+                                            if (!matchDryRun && !entry.trigger.allowMultiple) {
                                                 recentMatchingEvent.usedBy.add(entry.id); // Mark this event as used by this entry
                                             }
                                             return; // Contextual phrases take precedence
@@ -4002,6 +4155,9 @@
                                 if (threadTriggered) {
                                     const toPlotNode = getPlotNodeById(thread.toNodeId);
                                     if (toPlotNode && toPlotNode.chapterId) {
+                                        const targetChapter = currentBook.chapters.find(c => c.id == toPlotNode.chapterId);
+                                        recordMatchOutcome({ type: 'chapter', label: `Chapter → ${targetChapter ? targetChapter.name : toPlotNode.chapterId} (plot thread)` });
+                                        if (matchDryRun) return;
                                         log(`Activating Plot Thread: From Chapter ${activeChapterNode.chapterId} to Chapter ${toPlotNode.chapterId}`);
                                         const soundsToPlayFromThread = thread.soundPageIds || [];
                                         if (thread.timeChange && thread.timeChange !== 'none' && thread.timeChange !== currentTimeOfDay) {
@@ -4049,8 +4205,10 @@
                                             const returnRegex = new RegExp(`\\b${exitPhrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s+(?:the\\s+|a\\s+|an\\s+|from\\s+)?${keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
                                             if (returnRegex.test(text)) {
                                                 const triggerAutoplay = !(originThread.disableAutoplay || false);
+                                                const returnCh = currentBook.chapters.find(c => c.id == lookBehindContext.returnChapterContext.fromChapterId);
+                                                recordMatchOutcome({ type: 'chapter', label: `Chapter → ${returnCh ? returnCh.name : 'return'} (exit)` });
                                                 log(`Exit Phrase "${exitPhrase}" + Keyword "${keyword}" (Type: ${returnKeywordType}) detected with active return context. Returning to chapter ${lookBehindContext.returnChapterContext.fromChapterId}. Autoplay: ${triggerAutoplay}`);
-                                                setActiveChapter(lookBehindContext.returnChapterContext.fromChapterId, triggerAutoplay, 'exit_phrase_return');
+                                                if (!matchDryRun) setActiveChapter(lookBehindContext.returnChapterContext.fromChapterId, triggerAutoplay, 'exit_phrase_return');
                                                 exitPhraseHandled = true;
                                                 break; // Keyword found, no need to check others for this exit phrase
                                             }
@@ -4069,12 +4227,16 @@
                                     if (match && chapterKeywordData.chapterId == currentBook.activeChapterId) { // Matched an exit phrase for the *current* chapter
                                         log(`Exit Phrase "${exitPhrase}" + Chapter Keyword "${targetKeyword}" detected for active chapter "${currentActiveChapterData.name}".`);
                                         const leaveTransitionTargetId = currentActiveChapterData.leaveTransitionTargetId || 'index'; // Default to Index
-                                        const afterLeaveSoundsCallback = () => {
-                                            log(`Leave sounds finished. Transitioning to chapter ${leaveTransitionTargetId}.`);
-                                            setActiveChapter(leaveTransitionTargetId, true, 'exit_phrase');
-                                        };
-                                        // Play sounds configured to play on leaving this chapter, then transition
-                                        playLeaveSounds(currentActiveChapterData.leaveSoundPageIds || [], afterLeaveSoundsCallback);
+                                        const leaveTarget = currentBook.chapters.find(c => c.id == leaveTransitionTargetId);
+                                        recordMatchOutcome({ type: 'chapter', label: `Chapter → ${leaveTarget ? leaveTarget.name : leaveTransitionTargetId} (exit)`, keyword: targetKeyword });
+                                        if (!matchDryRun) {
+                                            const afterLeaveSoundsCallback = () => {
+                                                log(`Leave sounds finished. Transitioning to chapter ${leaveTransitionTargetId}.`);
+                                                setActiveChapter(leaveTransitionTargetId, true, 'exit_phrase');
+                                            };
+                                            // Play sounds configured to play on leaving this chapter, then transition
+                                            playLeaveSounds(currentActiveChapterData.leaveSoundPageIds || [], afterLeaveSoundsCallback);
+                                        }
                                         exitPhraseHandled = true;
                                         break; // Exit inner loop (chapter keywords)
                                     }
@@ -4096,8 +4258,10 @@
                                 for (const chapterKeywordData of chapterKeywordList) {
                                     const targetRegex = new RegExp(`\\b${chapterKeywordData.keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
                                     if (targetRegex.test(potentialTargetPhrase) && chapterKeywordData.chapterId != currentBook.activeChapterId) {
+                                        const enterCh = currentBook.chapters.find(c => c.id == chapterKeywordData.chapterId);
+                                        recordMatchOutcome({ type: 'chapter', label: `Chapter → ${enterCh ? enterCh.name : chapterKeywordData.chapterId} (enter)`, keyword: chapterKeywordData.keyword });
                                         log(`Enter Phrase "${cue}" + Chapter Keyword "${chapterKeywordData.keyword}" matched! Switching to chapter ID: ${chapterKeywordData.chapterId}`);
-                                        setActiveChapter(chapterKeywordData.chapterId, true, 'enter_phrase'); // True for triggeredByVoice for autoplay
+                                        if (!matchDryRun) setActiveChapter(chapterKeywordData.chapterId, true, 'enter_phrase'); // True for triggeredByVoice for autoplay
                                         enterPhraseFound = true;
                                         break; // Exit chapterKeywordList loop
                                     }
@@ -4165,9 +4329,12 @@
                                         new RegExp(`\\b${keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(text)
                                     ); // This regex needs to check against the un-consumed part of the text
                                     if (foundEndKeyword) {
+                                        recordMatchOutcome({ type: 'stop', label: `Stop "${activePage.title}" (end keyword)`, keyword: foundEndKeyword });
                                         log(`End keyword "${foundEndKeyword}" for looping sound "${activePage.title}". Stopping.`);
-                                        stopSingleSound(activePageId);
-                                        setSoundCooldown(activePageId, SMART_COOLDOWN_MS); // Cooldown to prevent immediate retrigger
+                                        if (!matchDryRun) {
+                                            stopSingleSound(activePageId);
+                                            setSoundCooldown(activePageId, SMART_COOLDOWN_MS); // Cooldown to prevent immediate retrigger
+                                        }
                                         stoppedSoundThisCheck = true;
                                     }
                                 }
@@ -4207,7 +4374,7 @@
                                     log(`Consumed words from multi-match: ${[...wordsInMatch]}`);
 
                                     // Set the look-behind context if this match has a primary key. // This logic is correct
-                                    if (isCompoundPhrasingEnabled && bestMatch.page.primaryKey) {
+                                    if (!matchDryRun && isCompoundPhrasingEnabled && bestMatch.page.primaryKey) {
                                         const primaryKeys = bestMatch.page.primaryKey.split(',').map(k => k.trim()).filter(Boolean);
                                         lookBehindContext.active = true;
                                         lookBehindContext.primaryKeys = primaryKeys;
@@ -4215,13 +4382,22 @@
                                         log(`Look-behind context activated with PKs: [${primaryKeys.join(', ')}]`);
                                     }
 
+                                    // Record this match for the history / playground. Surface the
+                                    // strongest matched keyword and its confidence.
+                                    const bestDetail = (bestMatch.matchDetails || []).slice().sort((x, y) => (y.confidence || 0) - (x.confidence || 0))[0];
+                                    recordMatchOutcome({
+                                        type: 'page', label: bestMatch.page.title, pageId: bestMatch.page.id,
+                                        keyword: bestDetail ? (bestDetail.keyword || bestDetail.matchedWord) : undefined,
+                                        confidence: bestDetail ? bestDetail.confidence : undefined
+                                    });
+
                                     // Position = earliest trigger-word index, so we can order by
                                     // where the phrase actually mentioned this page.
                                     const indices = bestMatch.matchDetails.map(d => d.index).filter(i => i >= 0);
                                     const position = indices.length ? Math.min(...indices) : Number.MAX_SAFE_INTEGER;
                                     matchesToPlay.push({ page: bestMatch.page, sourceToPlay, position });
 
-                                    setSoundCooldown(bestMatch.page.id, SMART_COOLDOWN_MS);
+                                    if (!matchDryRun) setSoundCooldown(bestMatch.page.id, SMART_COOLDOWN_MS);
                                 } else {
                                     console.warn(`Match found for "${bestMatch.page.title}" but no playable source. Stopping search for this utterance.`);
                                     keepSearching = false;
@@ -4236,6 +4412,10 @@
                         const triggerNextForPage = (page) => {
                             if (page.nextPageId !== null && page.nextPageId !== undefined) triggerNextPage(page.nextPageId);
                         };
+                        if (matchDryRun) {
+                            // Playground: outcomes are recorded; do not play or check soundtracks.
+                            return;
+                        }
                         if (matchesToPlay.length === 1) {
                             const m = matchesToPlay[0];
                             playSound(m.page, m.sourceToPlay, false, () => triggerNextForPage(m.page));
