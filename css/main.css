@@ -3471,6 +3471,26 @@
             pointer-events: auto;
         }
 
+        /* Keep the icon glyph from shrinking so the name gets the leftover space. */
+        .soundtrack-icon>i {
+            flex-shrink: 0;
+        }
+
+        /* Playlist name label: hidden while the pill is icon-only; shown (with an
+           ellipsis) once the pill widens at 1400px. The descendant selector
+           (specificity 0,2,0) reliably beats Tailwind's .hidden (0,1,0). */
+        .soundtrack-icon .st-name-label {
+            display: none;
+            margin-left: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            min-width: 0;
+            flex: 1 1 auto;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
 
         /* Soundtrack Responsive Outside Attach (Tasks 5 & 6) */
         .soundtrack-icons-container {
@@ -3509,5 +3529,14 @@
                 border-radius: 1.5rem !important;
                 justify-content: flex-start !important;
                 padding: 0 1rem !important;
+            }
+
+            /* Pill is now wide enough for text — show the name, drop the tooltip. */
+            .soundtrack-icon .st-name-label {
+                display: block;
+            }
+
+            .soundtrack-icon .tooltip {
+                display: none;
             }
         }

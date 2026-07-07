@@ -16,7 +16,7 @@
 **Phase 2 complete** — audio behaviors verified structurally (helpers + gating extracted/tested; full audio can't run in the `file://` sandbox):
 - ✅ **2.1** Crossfade engine, toggleable in Settings → Audio (crossfadeEnabled/crossfadeDuration). File + YouTube sounds fade in on start / out on stop over the configured time; off = unchanged.
 - ✅ **2.2** Per-page live volume slider (shown while a page is playing); debounced save. **Also fixed a critical recursion bug** a bulk replace introduced into `masterFrac()` in the 1.5 commit (would stack-overflow on first playback).
-- ✅ **2.3** Scenes: save the current mix and recall it with a crossfade (stop non-members, start/re-level members at saved volumes via the modifier layer). Persisted + undoable. Scene hotkey/voice recall deferred.
+- 🗑️ **2.3** Scenes (save/recall mix snapshots): implemented, then **removed** at the user's request as unnecessary. All scene UI, functions, command-palette entries and book-schema fields were stripped out.
 - ✅ **2.4** Soundtrack fades on stop/switch + song-to-song crossfade (file + YouTube).
 
 **Phase 3 complete** — each verified in headless Chromium (bulk import exercised with real WAV decoding):
@@ -31,7 +31,7 @@
 - ✅ **4.3** Automatic book backups (IndexedDB, rolling 20) with a Settings → Advanced restore UI; restore is itself reversible.
 - ✅ **4.4/4.5** Touch targets (coarse-pointer sizing), prefers-reduced-motion, and aria-labels on icon controls via a debounced observer.
 
-**All of the original plan (Phases 1–4 + settings tabs) is done.** Remaining deferrals, if desired later: scene hotkey/voice recall (2.3), the ES-module split (`FIX_PLAN.md` 3.1/3.2, pairs with the now-present build step), and the explicitly-rejected items (cloud sync, analytics, phone layout).
+**All of the original plan (Phases 1–4 + settings tabs) is done** (Scenes 2.3 was later removed as unnecessary). Remaining deferrals, if desired later: the ES-module split (`FIX_PLAN.md` 3.1/3.2, pairs with the now-present build step), and the explicitly-rejected items (cloud sync, analytics, phone layout).
 
 ## Ground rules for the executing agent
 
